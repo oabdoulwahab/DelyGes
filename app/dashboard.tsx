@@ -3,140 +3,178 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
-import { BlurView } from 'expo-blur';
+import { BlurView } from "expo-blur";
+
+// Définition des types
+type User = {
+  name: string;
+  phone?: string;
+  created_at: string;
+};
+
+type Delivery = {
+  id: number;
+  recipient_name: string;
+  phone?: string;
+  address: string;
+  parcel_value?: number;
+  delivery_fee: number;
+  status: string;
+  created_at: string;
+  delivered_at?: string;
+};
 
 export default function Dashboard() {
-  const [toDeliver, setToDeliver] = useState(0);
-  const [deliveredToday, setDeliveredToday] = useState(0);
+  const [available, setAvailable] = useState(true);
   const [todayEarnings, setTodayEarnings] = useState(0);
   const [weekEarnings, setWeekEarnings] = useState(0);
   const [monthEarnings, setMonthEarnings] = useState(0);
-  const [monthGoal, setMonthGoal] = useState(4000);
-  const [todayDeliveries, setTodayDeliveries] = useState(45);
+  const [monthGoal] = useState(400000); // 4000€ en FCFA
+  const [todayDeliveries, setTodayDeliveries] = useState<Delivery[]>([]);
+  const [userName, setUserName] = useState("");
 
-  const today = new Date().toISOString().split("T")[0];
-  const currentDate = new Date();
-  const formattedDate = currentDate.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
+  const formattedDate = new Date().toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
 
+  // Charger le nom de l'utilisateur
+  useEffect(() => {
+    const loadUser = async () => {
+      const user = await db.getFirstAsync<User>("SELECT name FROM user LIMIT 1");
+      if (user) setUserName(user.name || "Livreur");
+    };
+    loadUser();
+  }, []);
+
   const loadStats = async () => {
-    // 📦 À livrer
-    const toDeliverResult = await db.getFirstAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM deliveries WHERE status = ?",
-      ["A_LIVRER"]
-    );
-
-    // ✅ Livrées aujourd'hui
-    const deliveredResult = await db.getFirstAsync<{ count: number }>(
-      `
-      SELECT COUNT(*) as count 
-      FROM deliveries 
-      WHERE status = ? 
-      AND delivered_at LIKE ?
-      `,
-      ["LIVREE", `${today}%`]
-    );
-
-    // 💰 Gains du jour
-    const earningsResult = await db.getFirstAsync<{ total: number }>(
-      `
-      SELECT SUM(delivery_fee) as total 
-      FROM deliveries 
-      WHERE status = ? 
-      AND delivered_at LIKE ?
-      `,
-      ["LIVREE", `${today}%`]
-    );
-
-    setToDeliver(toDeliverResult?.count || 0);
-    setDeliveredToday(deliveredResult?.count || 0);
-    setTodayEarnings(earningsResult?.total || 0);
+    const today = new Date().toISOString().split("T")[0];
     
-    // Pour l'exemple, je mets des valeurs par défaut
-    setWeekEarnings(850);
-    setMonthEarnings(3200);
+    // Revenus du jour
+    const earningsResult = await db.getFirstAsync<{ total: number }>(
+      `SELECT SUM(delivery_fee) as total FROM deliveries 
+       WHERE status = ? AND delivered_at LIKE ?`,
+      ["LIVREE", `${today}%`]
+    );
+    setTodayEarnings(earningsResult?.total || 0);
+
+    // Revenus de la semaine (exemple simplifié)
+    const weekResult = await db.getFirstAsync<{ total: number }>(
+      `SELECT SUM(delivery_fee) as total FROM deliveries 
+       WHERE status = ? AND date(delivered_at) >= date('now', '-7 days')`,
+      ["LIVREE"]
+    );
+    setWeekEarnings(weekResult?.total || 85000);
+
+    // Revenus du mois
+    const monthResult = await db.getFirstAsync<{ total: number }>(
+      `SELECT SUM(delivery_fee) as total FROM deliveries 
+       WHERE status = ? AND strftime('%Y-%m', delivered_at) = strftime('%Y-%m', 'now')`,
+      ["LIVREE"]
+    );
+    setMonthEarnings(monthResult?.total || 320000);
+
+    // Livraisons du jour pour le planning
+    const deliveriesResult = await db.getAllAsync<Delivery>(
+      `SELECT * FROM deliveries 
+       WHERE (status = 'A_LIVRER' OR status = 'LIVREE') 
+       AND date(created_at) = date('now')
+       ORDER BY created_at LIMIT 3`
+    );
+    setTodayDeliveries(deliveriesResult || []);
   };
 
   useEffect(() => {
     loadStats();
   }, []);
 
-  const weekData = [
-    { day: 'L', value: 40 },
-    { day: 'M', value: 65 },
-    { day: 'M', value: 30 },
-    { day: 'J', value: 85 },
-    { day: 'V', value: 50 },
-    { day: 'S', value: 90 },
-    { day: 'D', value: 20 },
-  ];
+  const monthProgress = Math.min((monthEarnings / monthGoal) * 100, 100);
 
-  const todaySchedule = [
-    { time: "10:00 AM", title: "Livraison de fleurs", location: "Centre-ville · Rose & Cie", price: "15,00 €", status: "En attente", statusColor: "#60A5FA" },
-    { time: "11:30 AM", title: "Livraison Traiteur", location: "Parc Tech · Événements Corp", price: "40,00 €", status: "Ramassage", statusColor: "#FB923C" },
-    { time: "01:00 PM", title: "Ramassage de Colis", location: "Banlieue · Résidentiel", price: "12,50 €", status: "Prévu", statusColor: "#94A3B8" },
-  ];
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "LIVREE":
+        return { backgroundColor: "#10b98120", color: "#10b981" };
+      case "A_LIVRER":
+        return { backgroundColor: "#3b82f620", color: "#3b82f6" };
+      default:
+        return { backgroundColor: "#6b728020", color: "#6b7280" };
+    }
+  };
 
-  const monthProgress = (monthEarnings / monthGoal) * 100;
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "LIVREE":
+        return "Livrée";
+      case "A_LIVRER":
+        return "En attente";
+      default:
+        return "Prévu";
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* En-tête avec effet flou */}
       <BlurView intensity={95} tint="dark" style={styles.header}>
-        <View style={styles.profileSection}>
-          <View style={styles.profileImage} />
-          <View>
-            <Text style={styles.greeting}>Bonjour,</Text>
-            <Text style={styles.name}>Alex</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.profileSection}>
+            <View style={styles.profileImage} />
+            <View>
+              <Text style={styles.greeting}>Bonjour,</Text>
+              <Text style={styles.name}>{userName}</Text>
+            </View>
           </View>
-        </View>
-        
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.statusButton}>
-            <MaterialIcons name="toggle-on" size={20} color="#13ec13" />
-            <Text style={styles.statusText}>Disponible</Text>
-          </TouchableOpacity>
           
-          <TouchableOpacity style={styles.iconButton}>
-            <MaterialIcons name="notifications" size={24} color="#94A3B8" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={[styles.availabilityButton, available && styles.available]}
+              onPress={() => setAvailable(!available)}
+            >
+              <MaterialIcons 
+                name={available ? "toggle-on" : "toggle-off"} 
+                size={18} 
+                color={available ? "#13ec13" : "#ccc"} 
+              />
+              <Text style={styles.availabilityText}>
+                {available ? "Disponible" : "Indisponible"}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.notificationButton}>
+              <MaterialIcons name="notifications" size={20} color="#94A3B8" />
+            </TouchableOpacity>
+          </View>
         </View>
       </BlurView>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Aperçu du jour */}
-        <View style={styles.sectionHeader}>
+        {/* En-tête avec date */}
+        <View style={styles.dateHeader}>
           <View>
-            <Text style={styles.sectionSubtitle}>APERÇU DU JOUR</Text>
-            <Text style={styles.sectionTitle}>{formattedDate}</Text>
+            <Text style={styles.sectionTitle}>APERÇU DU JOUR</Text>
+            <Text style={styles.dateText}>{formattedDate}</Text>
           </View>
-          <TouchableOpacity style={styles.historyButton}>
+          <TouchableOpacity 
+            style={styles.historyButton}
+            onPress={() => router.push("/deliveries")}
+          >
             <Text style={styles.historyText}>Voir l'historique</Text>
             <MaterialIcons name="chevron-right" size={16} color="#94A3B8" />
           </TouchableOpacity>
         </View>
 
         {/* Cartes de revenus */}
-        <View style={styles.revenueGrid}>
-          {/* Carte principale des revenus du jour */}
+        <View style={styles.statsGrid}>
           <View style={styles.mainCard}>
-            {/* Effet de glow simplifié sans blurRadius */}
-            <View style={styles.cardGlow} />
             <View style={styles.cardHeader}>
-              <View>
-                <Text style={styles.cardLabel}>Revenus du jour</Text>
-                <Text style={styles.mainAmount}>
-                  {todayEarnings.toLocaleString('fr-FR')}
-                  <Text style={styles.currency}>,00 €</Text>
-                </Text>
-              </View>
+              <Text style={styles.cardLabel}>Revenus du jour</Text>
               <View style={styles.iconContainer}>
-                <MaterialIcons name="euro-symbol" size={24} color="#13ec13" />
+                <MaterialIcons name="euro-symbol" size={20} color="#13ec13" />
               </View>
             </View>
+            <Text style={styles.mainAmount}>
+              {(todayEarnings || 0).toLocaleString("fr-FR")} FCFA
+            </Text>
             <View style={styles.trendContainer}>
               <View style={styles.trendBadge}>
                 <MaterialIcons name="trending-up" size={14} color="#13ec13" />
@@ -146,15 +184,18 @@ export default function Dashboard() {
             </View>
           </View>
 
-          {/* Cartes secondaires */}
           <View style={styles.secondaryCard}>
             <Text style={styles.secondaryLabel}>Semaine</Text>
-            <Text style={styles.secondaryAmount}>{weekEarnings.toLocaleString('fr-FR')},00 €</Text>
+            <Text style={styles.secondaryAmount}>
+              {(weekEarnings || 0).toLocaleString("fr-FR")} FCFA
+            </Text>
           </View>
 
           <View style={styles.secondaryCard}>
             <Text style={styles.secondaryLabel}>Mois</Text>
-            <Text style={styles.secondaryAmount}>{monthEarnings.toLocaleString('fr-FR')} €</Text>
+            <Text style={styles.secondaryAmount}>
+              {(monthEarnings || 0).toLocaleString("fr-FR")} FCFA
+            </Text>
           </View>
         </View>
 
@@ -166,11 +207,12 @@ export default function Dashboard() {
               <Text style={styles.goalSubtitle}>Continuez comme ça ! Vous y êtes presque.</Text>
             </View>
             <View style={styles.goalStats}>
-              <Text style={styles.goalPercent}>{Math.round(monthProgress)}%</Text>
-              <Text style={styles.goalAmount}>{monthEarnings.toLocaleString('fr-FR')} / {monthGoal.toLocaleString('fr-FR')} €</Text>
+              <Text style={styles.goalPercentage}>{Math.round(monthProgress)}%</Text>
+              <Text style={styles.goalNumbers}>
+                {(monthEarnings || 0).toLocaleString("fr-FR")} / {monthGoal.toLocaleString("fr-FR")}
+              </Text>
             </View>
           </View>
-          
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: `${monthProgress}%` }]} />
           </View>
@@ -180,20 +222,14 @@ export default function Dashboard() {
         <View style={styles.statsSection}>
           <View style={styles.statsHeader}>
             <Text style={styles.statsTitle}>Statistiques</Text>
-            <Text style={styles.statsCount}>{todayDeliveries} Livraisons</Text>
+            <Text style={styles.deliveryCount}>
+              {todayDeliveries.length} Livraison{todayDeliveries.length > 1 ? "s" : ""}
+            </Text>
           </View>
           
-          <View style={styles.chartContainer}>
-            <View style={styles.chartBars}>
-              {weekData.map((item, index) => (
-                <View key={index} style={styles.chartColumn}>
-                  <View style={styles.chartBarContainer}>
-                    <View style={[styles.chartBar, { height: `${item.value}%` }]} />
-                  </View>
-                  <Text style={styles.chartDay}>{item.day}</Text>
-                </View>
-              ))}
-            </View>
+          {/* Graphique simplifié - à implémenter */}
+          <View style={styles.graphPlaceholder}>
+            <Text style={styles.graphText}>Graphique hebdomadaire à implémenter</Text>
           </View>
         </View>
 
@@ -206,512 +242,401 @@ export default function Dashboard() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.scheduleList}>
-            {todaySchedule.map((item, index) => (
-              <TouchableOpacity key={index} style={styles.scheduleItem}>
-                <View style={styles.timeContainer}>
-                  <Text style={styles.timeHour}>{item.time.split(' ')[0]}</Text>
-                  <Text style={styles.timePeriod}>{item.time.split(' ')[1]}</Text>
-                </View>
-                
-                <View style={styles.scheduleInfo}>
-                  <Text style={styles.scheduleTitleText}>{item.title}</Text>
-                  <Text style={styles.scheduleLocation}>{item.location}</Text>
-                </View>
-                
-                <View style={styles.schedulePrice}>
-                  <Text style={styles.priceText}>{item.price}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: `${item.statusColor}20` }]}>
-                    <Text style={[styles.statusTextBadge, { color: item.statusColor }]}>
-                      {item.status}
+          {todayDeliveries.length > 0 ? (
+            todayDeliveries.map((delivery) => {
+              const statusColor = getStatusColor(delivery.status);
+              const statusText = getStatusText(delivery.status);
+              
+              return (
+                <TouchableOpacity 
+                  key={delivery.id} 
+                  style={styles.deliveryCard}
+                  onPress={() => router.push(`/delivery/${delivery.id}`)}
+                >
+                  <View style={styles.timeContainer}>
+                    <Text style={styles.timeText}>
+                      {new Date(delivery.created_at).toLocaleTimeString("fr-FR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </Text>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
+                  <View style={styles.deliveryInfo}>
+                    <Text style={styles.deliveryName}>{delivery.recipient_name}</Text>
+                    <Text style={styles.deliveryAddress}>{delivery.address}</Text>
+                  </View>
+                  <View style={styles.deliveryRight}>
+                    <Text style={styles.deliveryFee}>{delivery.delivery_fee} FCFA</Text>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: statusColor.backgroundColor }
+                    ]}>
+                      <Text style={[styles.statusText, { color: statusColor.color }]}>
+                        {statusText}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          ) : (
+            <Text style={styles.noDeliveries}>Aucune livraison planifiée aujourd'hui</Text>
+          )}
         </View>
       </ScrollView>
 
       {/* Bouton flottant */}
-      <View style={styles.floatingButtonContainer}>
-        <TouchableOpacity 
-          style={styles.floatingButton}
-          onPress={() => router.push("/add-delivery")}
-        >
-          <MaterialIcons name="add" size={24} color="#000" />
-          <Text style={styles.floatingButtonText}>Ajouter une livraison</Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.floatingButton}
+        onPress={() => router.push("/add-delivery")}
+      >
+        <MaterialIcons name="add" size={24} color="#000" />
+        <Text style={styles.floatingButtonText}>Ajouter une livraison</Text>
+      </TouchableOpacity>
 
-      {/* Navigation en bas avec effet flou */}
-      <BlurView intensity={95} tint="dark" style={styles.bottomNavContainer}>
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem}>
-            <MaterialIcons name="dashboard" size={24} color="#13ec13" />
-            <Text style={[styles.navLabel, styles.navLabelActive]}>Tableau de bord</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.navItem}>
-            <MaterialIcons name="calendar-month" size={24} color="#94A3B8" />
-            <Text style={styles.navLabel}>Livraisons</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.navItem}>
-            <MaterialIcons name="bar-chart" size={24} color="#94A3B8" />
-            <Text style={styles.navLabel}>Stats</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.navItem}>
-            <MaterialIcons name="settings" size={24} color="#94A3B8" />
-            <Text style={styles.navLabel}>Paramètres</Text>
-          </TouchableOpacity>
-        </View>
-      </BlurView>
+  
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#102210',
-  },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 30,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(19, 236, 19, 0.1)',
-  },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#1a2a1a',
-    borderWidth: 2,
-    borderColor: 'rgba(19, 236, 19, 0.2)',
-  },
-  greeting: {
-    fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '500',
-  },
-  name: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  statusButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  container: { flex: 1, backgroundColor: "#102210" },
+  header: { paddingTop: 48, paddingBottom: 16, paddingHorizontal: 16 },
+  headerContent: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  profileSection: { flexDirection: "row", gap: 12, alignItems: "center" },
+  profileImage: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#1a2a1a" },
+  greeting: { color: "#94A3B8", fontSize: 12 },
+  name: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  headerActions: { flexDirection: "row", gap: 8, alignItems: "center" },
+  availabilityButton: { 
+    flexDirection: "row", 
+    gap: 4, 
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(19, 236, 19, 0.1)',
+    backgroundColor: "#1a2a1a",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: 'rgba(19, 236, 19, 0.2)',
+    borderColor: "#13ec13",
   },
-  statusText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#13ec13',
-    textTransform: 'uppercase',
+  available: { backgroundColor: "rgba(19, 236, 19, 0.1)" },
+  availabilityText: { 
+    color: "#13ec13", 
+    fontSize: 12, 
+    fontWeight: "bold",
+    textTransform: "uppercase",
   },
-  iconButton: {
-    width: 40,
-    height: 40,
+  notificationButton: { 
+    padding: 8, 
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 108, // Pour laisser de l'espace pour l'en-tête fixe
+  content: { padding: 16, marginTop: 20 },
+  dateHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "flex-end",
+    marginBottom: 20,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: 16,
-    marginBottom: 16,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#13ec13',
-    textTransform: 'uppercase',
+  sectionTitle: { 
+    color: "#13ec13", 
+    fontSize: 12, 
+    fontWeight: "600",
+    textTransform: "uppercase",
     letterSpacing: 1,
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+  dateText: { 
+    color: "#fff", 
+    fontSize: 24, 
+    fontWeight: "bold",
     marginTop: 4,
   },
-  historyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  historyButton: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    gap: 2,
   },
-  historyText: {
+  historyText: { 
+    color: "#94A3B8", 
     fontSize: 12,
-    fontWeight: '500',
-    color: '#94A3B8',
   },
-  revenueGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  statsGrid: { 
+    flexDirection: "row", 
+    flexWrap: "wrap", 
     gap: 12,
     marginBottom: 16,
   },
-  mainCard: {
-    width: '100%',
-    backgroundColor: '#1a2a1a',
-    borderRadius: 16,
-    padding: 20,
+  mainCard: { 
+    backgroundColor: "#1a2a1a", 
+    padding: 20, 
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    overflow: 'hidden',
+    borderColor: "#ffffff0d",
+    width: "100%",
   },
-  cardGlow: {
-    position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 128,
-    height: 128,
-    borderRadius: 64,
-    backgroundColor: 'rgba(19, 236, 19, 0.1)',
-    // blurRadius a été supprimé
+  cardHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "flex-start",
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  cardLabel: { 
+    color: "#94A3B8", 
+    fontSize: 14, 
+    fontWeight: "500",
   },
-  cardLabel: {
-    fontSize: 14,
-    color: '#94A3B8',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  mainAmount: {
-    fontSize: 36,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -0.5,
-  },
-  currency: {
-    fontSize: 20,
-    color: '#94A3B8',
-    fontWeight: '600',
-  },
-  iconContainer: {
-    padding: 8,
-    backgroundColor: 'rgba(19, 236, 19, 0.1)',
+  iconContainer: { 
+    padding: 8, 
+    backgroundColor: "rgba(19, 236, 19, 0.1)", 
     borderRadius: 8,
   },
-  trendContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 16,
+  mainAmount: { 
+    color: "#fff", 
+    fontSize: 36, 
+    fontWeight: "800",
+    marginTop: 8,
   },
-  trendBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  trendContainer: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    gap: 8,
+    marginTop: 12,
+  },
+  trendBadge: { 
+    flexDirection: "row", 
+    alignItems: "center", 
     gap: 4,
-    backgroundColor: 'rgba(19, 236, 19, 0.2)',
+    backgroundColor: "rgba(19, 236, 19, 0.2)",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
-  },
-  trendText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#13ec13',
-  },
-  trendLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  secondaryCard: {
-    flex: 1,
-    minWidth: '48%',
-    backgroundColor: '#1a2a1a',
     borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
-  secondaryLabel: {
+  trendText: { 
+    color: "#13ec13", 
+    fontSize: 12, 
+    fontWeight: "bold",
+  },
+  trendLabel: { 
+    color: "#94A3B8", 
     fontSize: 12,
-    color: '#94A3B8',
-    fontWeight: '500',
   },
-  secondaryAmount: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+  secondaryCard: { 
+    backgroundColor: "#1a2a1a", 
+    padding: 16, 
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ffffff0d",
+    flex: 1,
+    minWidth: "45%",
+  },
+  secondaryLabel: { 
+    color: "#94A3B8", 
+    fontSize: 12, 
+    fontWeight: "500",
+  },
+  secondaryAmount: { 
+    color: "#fff", 
+    fontSize: 20, 
+    fontWeight: "bold",
     marginTop: 4,
   },
-  goalCard: {
-    backgroundColor: '#1a2a1a',
-    borderRadius: 12,
-    padding: 20,
+  goalCard: { 
+    backgroundColor: "#1a2a1a", 
+    padding: 20, 
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    borderColor: "#ffffff0d",
+    marginBottom: 20,
+  },
+  goalHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "flex-end",
     marginBottom: 16,
   },
-  goalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 12,
+  goalTitle: { 
+    color: "#fff", 
+    fontSize: 16, 
+    fontWeight: "600",
   },
-  goalTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  goalSubtitle: {
-    fontSize: 12,
-    color: '#94A3B8',
+  goalSubtitle: { 
+    color: "#94A3B8", 
+    fontSize: 12, 
     marginTop: 4,
   },
-  goalStats: {
-    alignItems: 'flex-end',
+  goalStats: { 
+    alignItems: "flex-end",
   },
-  goalPercent: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#13ec13',
+  goalPercentage: { 
+    color: "#13ec13", 
+    fontSize: 14, 
+    fontWeight: "bold",
   },
-  goalAmount: {
+  goalNumbers: { 
+    color: "#94A3B8", 
     fontSize: 12,
-    color: '#6B7280',
-  },
-  progressBar: {
-    height: 10,
-    backgroundColor: '#374151',
-    borderRadius: 5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#13ec13',
-    borderRadius: 5,
-  },
-  statsSection: {
-    marginBottom: 16,
-  },
-  statsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  statsCount: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#13ec13',
-  },
-  chartContainer: {
-    backgroundColor: '#1a2a1a',
-    borderRadius: 12,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  chartBars: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    height: 128,
-    gap: 8,
-  },
-  chartColumn: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-  chartBarContainer: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(19, 236, 19, 0.2)',
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-  },
-  chartBar: {
-    width: '100%',
-    backgroundColor: '#13ec13',
-  },
-  chartDay: {
-    fontSize: 10,
-    color: '#6B7280',
-    fontWeight: '500',
-    marginTop: 4,
-  },
-  scheduleSection: {
-    marginBottom: 100,
-  },
-  scheduleHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  scheduleTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  calendarButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#1a2a1a',
-  },
-  scheduleList: {
-    gap: 12,
-  },
-  scheduleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a2a1a',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    gap: 16,
-  },
-  timeContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: '#374151',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeHour: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#D1D5DB',
-  },
-  timePeriod: {
-    fontSize: 10,
-    color: '#6B7280',
-    textTransform: 'uppercase',
-  },
-  scheduleInfo: {
-    flex: 1,
-  },
-  scheduleTitleText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  scheduleLocation: {
-    fontSize: 12,
-    color: '#94A3B8',
     marginTop: 2,
   },
-  schedulePrice: {
-    alignItems: 'flex-end',
+  progressBar: { 
+    height: 10, 
+    backgroundColor: "#374151", 
+    borderRadius: 5,
+    overflow: "hidden",
   },
-  priceText: {
+  progressFill: { 
+    height: "100%", 
+    backgroundColor: "#13ec13",
+    borderRadius: 5,
+  },
+  statsSection: { 
+    marginBottom: 20,
+  },
+  statsHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  statsTitle: { 
+    color: "#fff", 
+    fontSize: 18, 
+    fontWeight: "bold",
+  },
+  deliveryCount: { 
+    color: "#13ec13", 
+    fontSize: 12, 
+    fontWeight: "500",
+  },
+  graphPlaceholder: { 
+    backgroundColor: "#1a2a1a", 
+    padding: 40,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ffffff0d",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  graphText: { 
+    color: "#94A3B8", 
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#13ec13',
   },
-  statusBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 4,
+  scheduleSection: { 
+    marginBottom: 100,
+  },
+  scheduleHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  scheduleTitle: { 
+    color: "#fff", 
+    fontSize: 18, 
+    fontWeight: "bold",
+  },
+  calendarButton: { 
+    padding: 8, 
+    borderRadius: 8,
+    backgroundColor: "#1a2a1a",
+  },
+  deliveryCard: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    gap: 16,
+    padding: 16,
+    backgroundColor: "#1a2a1a",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#ffffff0d",
+    marginBottom: 12,
+  },
+  timeContainer: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: 12,
+    backgroundColor: "#374151",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timeText: { 
+    color: "#94A3B8", 
+    fontSize: 12, 
+    fontWeight: "bold",
+  },
+  deliveryInfo: { 
+    flex: 1,
+  },
+  deliveryName: { 
+    color: "#fff", 
+    fontSize: 14, 
+    fontWeight: "bold",
+  },
+  deliveryAddress: { 
+    color: "#94A3B8", 
+    fontSize: 12,
+    marginTop: 2,
+  },
+  deliveryRight: { 
+    alignItems: "flex-end",
+  },
+  deliveryFee: { 
+    color: "#13ec13", 
+    fontSize: 14, 
+    fontWeight: "bold",
+  },
+  statusBadge: { 
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
     marginTop: 4,
   },
-  statusTextBadge: {
-    fontSize: 10,
-    fontWeight: '500',
+  statusText: { 
+    fontSize: 10, 
+    fontWeight: "500",
   },
-  floatingButtonContainer: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 16,
-    alignItems: 'flex-end',
+  noDeliveries: { 
+    color: "#94A3B8", 
+    textAlign: "center", 
+    padding: 20,
   },
   floatingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#13ec13',
+    position: "absolute",
+    bottom: 90,
+    right: 16,
+    flexDirection: "row",
+    backgroundColor: "#13ec13",
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 24,
+    alignItems: "center",
     gap: 8,
-    shadowColor: '#13ec13',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 8,
   },
-  floatingButtonText: {
+  floatingButtonText: { 
+    fontWeight: "bold", 
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000000',
   },
-  bottomNavContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  bottomNavContainer: { 
+    position: "absolute", 
+    bottom: 0, 
+    width: "100%",
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
-    paddingBottom: 24,
+    borderTopColor: "#ffffff0d",
   },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  bottomNav: { 
+    flexDirection: "row", 
+    justifyContent: "space-around", 
     paddingVertical: 12,
-    paddingHorizontal: 16,
   },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
+  navItem: { 
+    alignItems: "center", 
     gap: 4,
   },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#94A3B8',
-  },
-  navLabelActive: {
-    color: '#13ec13',
+  navText: { 
+    color: "#94A3B8", 
+    fontSize: 10, 
+    fontWeight: "500",
   },
 });
