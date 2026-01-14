@@ -22,15 +22,32 @@ export default function AddDelivery() {
   const [address, setAddress] = useState("");
   const [parcelValue, setParcelValue] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("");
+  
+  const [errors, setErrors] = useState({
+    recipientName: false,
+    phone: false,
+    address: false,
+    parcelValue: false,
+    deliveryFee: false,
+  });
+
+  const validateForm = () => {
+    const newErrors = {
+      recipientName: !recipientName.trim(),
+      phone: !phone.trim(),
+      address: !address.trim(),
+      parcelValue: !parcelValue.trim() || Number(parcelValue) <= 0,
+      deliveryFee: !deliveryFee.trim() || Number(deliveryFee) <= 0,
+    };
+    
+    setErrors(newErrors);
+    
+    return !Object.values(newErrors).some(error => error);
+  };
 
   const handleSave = async () => {
-    if (!recipientName.trim()) {
-      Alert.alert("Erreur", "Le nom du destinataire est obligatoire");
-      return;
-    }
-
-    if (!address.trim()) {
-      Alert.alert("Erreur", "L'adresse de livraison est obligatoire");
+    if (!validateForm()) {
+      Alert.alert("Erreur", "Veuillez remplir tous les champs obligatoires avec des valeurs valides");
       return;
     }
 
@@ -40,11 +57,11 @@ export default function AddDelivery() {
         (recipient_name, phone, address, parcel_value, delivery_fee, status, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
-          recipientName,
-          phone,
-          address,
-          Number(parcelValue) || 0,
-          Number(deliveryFee) || 0,
+          recipientName.trim(),
+          phone.trim(),
+          address.trim(),
+          Number(parcelValue),
+          Number(deliveryFee),
           "A_LIVRER",
           new Date().toISOString(),
         ]
@@ -62,7 +79,7 @@ export default function AddDelivery() {
   };
 
   const handleCancel = () => {
-    if (recipientName || phone || address || deliveryFee) {
+    if (recipientName || phone || address || parcelValue || deliveryFee) {
       Alert.alert(
         "Annuler",
         "Voulez-vous vraiment annuler ? Les modifications seront perdues.",
@@ -74,6 +91,45 @@ export default function AddDelivery() {
     } else {
       router.back();
     }
+  };
+
+  const formatCurrency = (value: string) => {
+    // Enlever les espaces et virgules
+    const cleaned = value.replace(/[^\d]/g, '');
+    if (!cleaned) return "";
+    
+    // Convertir en nombre avec 2 décimales
+    const number = parseFloat(cleaned) / 100;
+    return number.toFixed(2);
+  };
+
+  const handleCurrencyChange = (text: string, setter: (value: string) => void) => {
+    // N'autoriser que les chiffres et une virgule/décimal
+    const cleaned = text.replace(/[^\d,.]/g, '');
+    
+    // Remplacer le point par une virgule pour le format français
+    const withComma = cleaned.replace('.', ',');
+    
+    // Si c'est vide, réinitialiser
+    if (!withComma) {
+      setter("");
+      return;
+    }
+    
+    // Vérifier s'il y a plus d'une virgule
+    const commaCount = (withComma.match(/,/g) || []).length;
+    if (commaCount > 1) return;
+    
+    // Si on a une virgule, limiter à 2 décimales
+    if (withComma.includes(',')) {
+      const [whole, decimal] = withComma.split(',');
+      if (decimal && decimal.length > 2) {
+        setter(`${whole},${decimal.substring(0, 2)}`);
+        return;
+      }
+    }
+    
+    setter(withComma);
   };
 
   return (
@@ -107,43 +163,76 @@ export default function AddDelivery() {
           
           <View style={styles.card}>
             {/* Nom du destinataire */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Destinataire *</Text>
+            <View style={[styles.inputGroup, errors.recipientName && styles.inputError]}>
+              <Text style={styles.inputLabel}>
+                Destinataire <Text style={styles.required}>*</Text>
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="ex: Jean Dupont"
                 placeholderTextColor="#94A3B8"
                 value={recipientName}
-                onChangeText={setRecipientName}
+                onChangeText={(text) => {
+                  setRecipientName(text);
+                  setErrors(prev => ({ ...prev, recipientName: false }));
+                }}
                 autoCapitalize="words"
               />
+              {errors.recipientName && (
+                <Text style={styles.errorText}>Ce champ est obligatoire</Text>
+              )}
             </View>
 
             {/* Téléphone */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Téléphone</Text>
+            <View style={[styles.inputGroup, errors.phone && styles.inputError]}>
+              <Text style={styles.inputLabel}>
+                Téléphone <Text style={styles.required}>*</Text>
+              </Text>
               <TextInput
                 style={styles.input}
                 placeholder="06 12 34 56 78"
                 placeholderTextColor="#94A3B8"
                 value={phone}
-                onChangeText={setPhone}
+                onChangeText={(text) => {
+                  setPhone(text);
+                  setErrors(prev => ({ ...prev, phone: false }));
+                }}
                 keyboardType="phone-pad"
               />
+              {errors.phone && (
+                <Text style={styles.errorText}>Ce champ est obligatoire</Text>
+              )}
             </View>
 
             {/* Adresse de livraison */}
-            <View style={[styles.inputGroup, styles.inputGroupWithIcon]}>
-              <MaterialIcons name="location-on" size={20} color="#13ec13" style={styles.inputIcon} />
+            <View style={[
+              styles.inputGroup, 
+              styles.inputGroupWithIcon,
+              errors.address && styles.inputError
+            ]}>
+              <MaterialIcons 
+                name="location-on" 
+                size={20} 
+                color={errors.address ? "#ef4444" : "#13ec13"} 
+                style={styles.inputIcon} 
+              />
               <View style={styles.inputContent}>
-                <Text style={styles.inputLabel}>Adresse de livraison *</Text>
+                <Text style={styles.inputLabel}>
+                  Adresse de livraison <Text style={styles.required}>*</Text>
+                </Text>
                 <TextInput
                   style={styles.input}
                   placeholder="123 Avenue des Champs-Élysées, Paris"
                   placeholderTextColor="#94A3B8"
                   value={address}
-                  onChangeText={setAddress}
+                  onChangeText={(text) => {
+                    setAddress(text);
+                    setErrors(prev => ({ ...prev, address: false }));
+                  }}
                 />
+                {errors.address && (
+                  <Text style={styles.errorText}>Ce champ est obligatoire</Text>
+                )}
               </View>
             </View>
           </View>
@@ -155,35 +244,55 @@ export default function AddDelivery() {
           
           <View style={styles.financialGrid}>
             {/* Valeur du colis */}
-            <View style={styles.financialCard}>
-              <Text style={styles.inputLabel}>Valeur du colis</Text>
+            <View style={[styles.financialCard, errors.parcelValue && styles.inputError]}>
+              <Text style={styles.inputLabel}>
+                Valeur du colis <Text style={styles.required}>*</Text>
+              </Text>
               <View style={styles.currencyInput}>
-                <Text style={styles.currencySymbol}>€</Text>
+                <Text style={[styles.currencySymbol, errors.parcelValue && { color: "#ef4444" }]}>
+                  €
+                </Text>
                 <TextInput
-                  style={styles.financialInput}
+                  style={[styles.financialInput, errors.parcelValue && { color: "#ef4444" }]}
                   placeholder="0,00"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={errors.parcelValue ? "#ef4444" : "#94A3B8"}
                   value={parcelValue}
-                  onChangeText={setParcelValue}
+                  onChangeText={(text) => {
+                    handleCurrencyChange(text, setParcelValue);
+                    setErrors(prev => ({ ...prev, parcelValue: false }));
+                  }}
                   keyboardType="decimal-pad"
                 />
               </View>
+              {errors.parcelValue && (
+                <Text style={styles.errorText}>Valeur supérieure à 0 requise</Text>
+              )}
             </View>
 
             {/* Frais de livraison */}
-            <View style={styles.financialCard}>
-              <Text style={styles.inputLabel}>Frais de livraison</Text>
+            <View style={[styles.financialCard, errors.deliveryFee && styles.inputError]}>
+              <Text style={styles.inputLabel}>
+                Frais de livraison <Text style={styles.required}>*</Text>
+              </Text>
               <View style={styles.currencyInput}>
-                <Text style={styles.currencySymbol}>€</Text>
+                <Text style={[styles.currencySymbol, errors.deliveryFee && { color: "#ef4444" }]}>
+                  €
+                </Text>
                 <TextInput
-                  style={styles.financialInput}
+                  style={[styles.financialInput, errors.deliveryFee && { color: "#ef4444" }]}
                   placeholder="0,00"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={errors.deliveryFee ? "#ef4444" : "#94A3B8"}
                   value={deliveryFee}
-                  onChangeText={setDeliveryFee}
+                  onChangeText={(text) => {
+                    handleCurrencyChange(text, setDeliveryFee);
+                    setErrors(prev => ({ ...prev, deliveryFee: false }));
+                  }}
                   keyboardType="decimal-pad"
                 />
               </View>
+              {errors.deliveryFee && (
+                <Text style={styles.errorText}>Valeur supérieure à 0 requise</Text>
+              )}
             </View>
           </View>
 
@@ -194,10 +303,11 @@ export default function AddDelivery() {
               <Text style={styles.netIncomeSubtitle}>Valeur + Frais</Text>
             </View>
             <Text style={styles.netIncomeAmount}>
-              {(Number(parcelValue || 0) + Number(deliveryFee || 0)).toLocaleString("fr-FR", { 
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2 
-              })} FCFA
+              {(Number(parcelValue.replace(',', '.') || 0) + Number(deliveryFee.replace(',', '.') || 0))
+                .toLocaleString("fr-FR", { 
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2 
+                })} FCFA
             </Text>
           </View>
         </View>
@@ -218,7 +328,6 @@ export default function AddDelivery() {
         <TouchableOpacity 
           style={styles.templateButton}
           onPress={() => {
-            // Option pour enregistrer comme template - à implémenter si besoin
             Alert.alert("Info", "Cette fonctionnalité sera disponible prochainement");
           }}
         >
@@ -269,7 +378,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 120,
+    paddingBottom: 140,
   },
   section: {
     paddingHorizontal: 16,
@@ -296,6 +405,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#ffffff05",
   },
+  inputError: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#ef4444",
+    backgroundColor: "#ef444410",
+  },
   inputGroupWithIcon: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -313,11 +427,20 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
     marginBottom: 4,
   },
+  required: {
+    color: "#ef4444",
+  },
   input: {
     fontSize: 16,
     color: "#fff",
     padding: 0,
     margin: 0,
+  },
+  errorText: {
+    fontSize: 12,
+    color: "#ef4444",
+    marginTop: 4,
+    fontStyle: "italic",
   },
   financialGrid: {
     flexDirection: "row",
@@ -397,6 +520,7 @@ const styles = StyleSheet.create({
   saveButton: {
     backgroundColor: "#13ec13",
     borderRadius: 12,
+    color: "#fff",
     paddingVertical: 16,
     alignItems: "center",
     marginBottom: 12,

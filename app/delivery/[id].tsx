@@ -562,8 +562,8 @@ const styles = StyleSheet.create({
   totalValue: {
     fontSize: 28,
     fontWeight: "900",
-    color: "#13ec13",
-    backgroundColor: "#111827",
+    color: "#111827",
+    // backgroundColor: "#111827",
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,

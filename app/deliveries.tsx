@@ -8,12 +8,16 @@ import {
   TextInput,
   ScrollView,
   StatusBar,
+  Modal,
 } from "react-native";
 import { useEffect, useState } from "react";
 import { db } from "../src/database/db";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale';
 
 type Delivery = {
   id: number;
@@ -34,6 +38,10 @@ export default function Deliveries() {
   const [selectedDeliveries, setSelectedDeliveries] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("AUJOURDHUI");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
   
   // Charger les livraisons en fonction de l'onglet actif
   const loadDeliveries = async () => {
@@ -44,27 +52,41 @@ export default function Deliveries() {
     
     switch (activeTab) {
       case "A_LIVRER":
-        query = "SELECT * FROM deliveries WHERE status = ? ORDER BY created_at DESC";
+        query = "SELECT * FROM deliveries WHERE status = ?";
         params = ["A_LIVRER"];
         break;
       case "AUJOURDHUI":
-        query = "SELECT * FROM deliveries WHERE date(created_at) = ? ORDER BY created_at DESC";
+        query = "SELECT * FROM deliveries WHERE date(created_at) = ?";
         params = [today];
         break;
       case "LIVREE":
-        query = "SELECT * FROM deliveries WHERE status = ? ORDER BY delivered_at DESC";
+        query = "SELECT * FROM deliveries WHERE status = ?";
         params = ["LIVREE"];
         break;
       case "ANNULEE":
-        query = "SELECT * FROM deliveries WHERE status = ? ORDER BY created_at DESC";
+        query = "SELECT * FROM deliveries WHERE status = ?";
         params = ["ANNULEE"];
         break;
+    }
+    
+    // Ajouter le filtre par date si activé
+    if (dateFilterEnabled && selectedDate) {
+      const dateStr = selectedDate.toISOString().split("T")[0];
+      query = query.replace("WHERE", `WHERE date(created_at) = ? AND`);
+      params = [dateStr, ...params];
     }
     
     // Ajouter la recherche si nécessaire
     if (searchQuery.trim()) {
       query = query.replace("WHERE", "WHERE (recipient_name LIKE ? OR address LIKE ? OR phone LIKE ?) AND");
       params = [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, ...params];
+    }
+    
+    // Ajouter le tri
+    if (activeTab === "LIVREE") {
+      query += " ORDER BY delivered_at DESC";
+    } else {
+      query += " ORDER BY created_at DESC";
     }
     
     const result = await db.getAllAsync<Delivery>(query, params);
@@ -74,9 +96,17 @@ export default function Deliveries() {
   
   useEffect(() => {
     loadDeliveries();
-  }, [activeTab, searchQuery]);
+  }, [activeTab, searchQuery, dateFilterEnabled, selectedDate]);
   
   const toggleDeliverySelection = (id: number) => {
+    // Trouver la livraison correspondante
+    const delivery = deliveries.find(d => d.id === id);
+    
+    // Ne pas permettre la sélection des livraisons terminées ou annulées
+    if (delivery && (delivery.status === "LIVREE" || delivery.status === "ANNULEE")) {
+      return; // Ne rien faire pour les livraisons terminées/annulées
+    }
+    
     setSelectedDeliveries(prev => 
       prev.includes(id) 
         ? prev.filter(deliveryId => deliveryId !== id)
@@ -85,6 +115,9 @@ export default function Deliveries() {
   };
   
   const markAsDelivered = async (id: number) => {
+    // Désélectionner la livraison avant de la marquer comme terminée
+    setSelectedDeliveries(prev => prev.filter(deliveryId => deliveryId !== id));
+    
     await db.runAsync(
       "UPDATE deliveries SET status = ?, delivered_at = ? WHERE id = ?",
       ["LIVREE", new Date().toISOString(), id]
@@ -97,10 +130,17 @@ export default function Deliveries() {
   const markSelectedAsPaid = async () => {
     if (selectedDeliveries.length === 0) return;
     
-    // Dans une vraie application, vous auriez un champ "paid" dans la table
+    // Filtrer pour ne garder que les livraisons qui peuvent être marquées comme payées
+    const validDeliveries = deliveries.filter(d => 
+      selectedDeliveries.includes(d.id) && 
+      d.status !== "ANNULEE" // Ne pas marquer comme payé les annulées
+    );
+    
+    if (validDeliveries.length === 0) return;
+    
     Alert.alert(
       "Marquer comme payé",
-      `Marquer ${selectedDeliveries.length} livraison(s) comme payée(s) ?`,
+      `Marquer ${validDeliveries.length} livraison(s) comme payée(s) ?`,
       [
         { text: "Annuler", style: "cancel" },
         { 
@@ -115,6 +155,9 @@ export default function Deliveries() {
   };
   
   const markAsCancelled = async (id: number) => {
+    // Désélectionner la livraison avant de l'annuler
+    setSelectedDeliveries(prev => prev.filter(deliveryId => deliveryId !== id));
+    
     Alert.alert(
       "Annuler la livraison",
       "Êtes-vous sûr de vouloir annuler cette livraison ?",
@@ -144,11 +187,11 @@ export default function Deliveries() {
           borderColor: "#10b98130",
           textColor: "#10b981",
           text: "Terminée",
-          icon: "check_circle"
+          icon: "check-circle"
         };
       case "A_LIVRER":
         return {
-          backgroundColor: isSelected ? "#fbbf2410" : "#f6f8f6",
+          backgroundColor: isSelected ? "#fbbf2410" : "#fbbf2400",
           borderColor: isSelected ? "#fbbf2430" : "#e5e7eb",
           textColor: "#f59e0b",
           text: "En attente",
@@ -188,10 +231,42 @@ export default function Deliveries() {
     return { morning, afternoon, evening };
   };
   
+  const onDateChange = (event: any, date?: Date) => {
+    setShowDatePicker(false);
+    if (date) {
+      setSelectedDate(date);
+      setDateFilterEnabled(true);
+    }
+  };
+  
+  const clearDateFilter = () => {
+    setSelectedDate(null);
+    setDateFilterEnabled(false);
+  };
+  
+  const formatDateForDisplay = (date: Date | null) => {
+    if (!date) return "Sélectionner une date";
+    
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return "Aujourd'hui";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Hier";
+    } else {
+      return format(date, "dd MMMM yyyy", { locale: fr });
+    }
+  };
+  
   const renderDeliveryCard = (delivery: Delivery) => {
     const isSelected = selectedDeliveries.includes(delivery.id);
     const statusConfig = getStatusConfig(delivery.status, isSelected);
     const isToday = new Date(delivery.created_at).toDateString() === new Date().toDateString();
+    
+    // Déterminer si la case à cocher doit être désactivée
+    const isCheckboxDisabled = delivery.status === "LIVREE" || delivery.status === "ANNULEE";
     
     return (
       <TouchableOpacity
@@ -204,20 +279,28 @@ export default function Deliveries() {
           }
         ]}
         onPress={() => router.push(`/delivery/${delivery.id}`)}
-        onLongPress={() => toggleDeliverySelection(delivery.id)}
+        onLongPress={() => !isCheckboxDisabled && toggleDeliverySelection(delivery.id)}
         activeOpacity={0.7}
       >
         <TouchableOpacity 
           style={styles.checkboxContainer}
-          onPress={() => toggleDeliverySelection(delivery.id)}
+          onPress={() => !isCheckboxDisabled && toggleDeliverySelection(delivery.id)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          disabled={isCheckboxDisabled}
         >
           <View style={[
             styles.checkbox,
-            isSelected && styles.checkboxSelected
+            isSelected && styles.checkboxSelected,
+            isCheckboxDisabled && styles.checkboxDisabled
           ]}>
-            {isSelected && (
+            {isSelected && !isCheckboxDisabled && (
               <MaterialIcons name="check" size={14} color="#102210" />
+            )}
+            {isCheckboxDisabled && delivery.status === "LIVREE" && (
+              <MaterialIcons name="check" size={14} color="#10b981" />
+            )}
+            {isCheckboxDisabled && delivery.status === "ANNULEE" && (
+              <MaterialIcons name="close" size={14} color="#ef4444" />
             )}
           </View>
         </TouchableOpacity>
@@ -295,8 +378,10 @@ export default function Deliveries() {
   };
   
   const { morning, afternoon, evening } = groupDeliveriesByTime();
+  
+  // Calculer le total uniquement pour les livraisons sélectionnées qui ne sont pas annulées
   const totalSelectedAmount = deliveries
-    .filter(d => selectedDeliveries.includes(d.id))
+    .filter(d => selectedDeliveries.includes(d.id) && d.status !== "ANNULEE")
     .reduce((sum, d) => sum + d.delivery_fee, 0);
   
   return (
@@ -331,10 +416,36 @@ export default function Deliveries() {
             />
           </View>
           
-          <TouchableOpacity style={styles.filterButton}>
-            <MaterialIcons name="filter-list" size={20} color="#94A3B8" />
+          <TouchableOpacity 
+            style={[styles.filterButton, dateFilterEnabled && styles.filterButtonActive]}
+            onPress={() => setShowFilterModal(true)}
+          >
+            <MaterialIcons 
+              name="filter-list" 
+              size={20} 
+              color={dateFilterEnabled ? "#13ec13" : "#94A3B8"} 
+            />
+            {dateFilterEnabled && <View style={styles.filterIndicator} />}
           </TouchableOpacity>
         </View>
+        
+        {/* Filtre par date (visible si activé) */}
+        {dateFilterEnabled && (
+          <View style={styles.dateFilterContainer}>
+            <View style={styles.dateFilterContent}>
+              <MaterialIcons name="calendar-today" size={16} color="#13ec13" />
+              <Text style={styles.dateFilterText}>
+                {formatDateForDisplay(selectedDate)}
+              </Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                <MaterialIcons name="edit" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={clearDateFilter}>
+                <MaterialIcons name="close" size={16} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         
         {/* Onglets */}
         <View style={styles.tabsContainer}>
@@ -363,21 +474,33 @@ export default function Deliveries() {
             {morning.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Tournées du matin</Text>
-                {morning.map(delivery => renderDeliveryCard(delivery))}
+                {morning.map(delivery => (
+                  <View key={delivery.id}>
+                    {renderDeliveryCard(delivery)}
+                  </View>
+                ))}
               </View>
             )}
             
             {afternoon.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Bloc après-midi</Text>
-                {afternoon.map(delivery => renderDeliveryCard(delivery))}
+                {afternoon.map(delivery => (
+                  <View key={delivery.id}>
+                    {renderDeliveryCard(delivery)}
+                  </View>
+                ))}
               </View>
             )}
             
             {evening.length > 0 && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Soirée</Text>
-                {evening.map(delivery => renderDeliveryCard(delivery))}
+                {evening.map(delivery => (
+                  <View key={delivery.id}>
+                    {renderDeliveryCard(delivery)}
+                  </View>
+                ))}
               </View>
             )}
             
@@ -387,6 +510,8 @@ export default function Deliveries() {
                 <Text style={styles.emptyStateText}>
                   {searchQuery 
                     ? "Aucune livraison trouvée" 
+                    : dateFilterEnabled
+                    ? "Aucune livraison pour cette date"
                     : "Aucune livraison pour aujourd'hui"}
                 </Text>
               </View>
@@ -394,7 +519,11 @@ export default function Deliveries() {
           </View>
         ) : (
           <View style={styles.deliveriesList}>
-            {deliveries.map(delivery => renderDeliveryCard(delivery))}
+            {deliveries.map(delivery => (
+              <View key={delivery.id}>
+                {renderDeliveryCard(delivery)}
+              </View>
+            ))}
             
             {deliveries.length === 0 && (
               <View style={styles.emptyState}>
@@ -445,6 +574,71 @@ export default function Deliveries() {
         </View>
       )}
       
+      {/* Date Picker */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={selectedDate || new Date()}
+          mode="date"
+          display="spinner"
+          onChange={onDateChange}
+          maximumDate={new Date()}
+        />
+      )}
+      
+      {/* Modal de filtres */}
+      <Modal
+        visible={showFilterModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <BlurView intensity={95} tint="dark" style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filtres</Text>
+              <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+                <MaterialIcons name="close" size={24} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Filtre par date</Text>
+              <TouchableOpacity 
+                style={styles.dateFilterOption}
+                onPress={() => {
+                  setShowDatePicker(true);
+                  setShowFilterModal(false);
+                }}
+              >
+                <View style={styles.filterOptionLeft}>
+                  <MaterialIcons name="calendar-today" size={20} color="#13ec13" />
+                  <Text style={styles.filterOptionText}>
+                    {selectedDate ? formatDateForDisplay(selectedDate) : "Sélectionner une date"}
+                  </Text>
+                </View>
+                <MaterialIcons name="chevron-right" size={20} color="#94A3B8" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.filterOption}
+                onPress={clearDateFilter}
+              >
+                <MaterialIcons name="clear-all" size={20} color="#ef4444" />
+                <Text style={[styles.filterOptionText, { color: "#ef4444" }]}>
+                  Effacer le filtre
+                </Text>
+              </TouchableOpacity>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.applyButton}
+              onPress={() => setShowFilterModal(false)}
+            >
+              <Text style={styles.applyButtonText}>Appliquer</Text>
+            </TouchableOpacity>
+          </BlurView>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -520,6 +714,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#2d3d2d",
+    position: "relative",
+  },
+  filterButtonActive: {
+    borderColor: "#13ec13",
+  },
+  filterIndicator: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#13ec13",
+  },
+  dateFilterContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  dateFilterContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#1a2a1a",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#13ec1330",
+  },
+  dateFilterText: {
+    flex: 1,
+    color: "#13ec13",
+    fontSize: 14,
+    fontWeight: "500",
   },
   tabsContainer: {
     borderBottomWidth: 1,
@@ -595,6 +822,10 @@ const styles = StyleSheet.create({
   checkboxSelected: {
     backgroundColor: "#13ec13",
     borderColor: "#13ec13",
+  },
+  checkboxDisabled: {
+    borderColor: "#6b728060",
+    backgroundColor: "transparent",
   },
   deliveryContent: {
     flex: 1,
@@ -738,26 +969,76 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#000",
   },
-  bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#1a2a1a",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 8,
-    paddingBottom: 24,
-    borderTopWidth: 1,
-    borderTopColor: "#ffffff10",
+    marginBottom: 24,
   },
-  navItem: {
-    alignItems: "center",
-    gap: 4,
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
   },
-  navText: {
-    fontSize: 10,
-    fontWeight: "500",
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: "600",
     color: "#94A3B8",
+    marginBottom: 12,
+  },
+  filterOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    backgroundColor: "#102210",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  dateFilterOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    backgroundColor: "#102210",
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  filterOptionLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  filterOptionText: {
+    fontSize: 16,
+    color: "#fff",
+    fontWeight: "500",
+  },
+  applyButton: {
+    backgroundColor: "#13ec13",
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#000",
   },
 });
