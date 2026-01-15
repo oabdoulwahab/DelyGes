@@ -4,76 +4,95 @@ import { router, usePathname } from "expo-router";
 
 export default function NavigationTabs() {
   const pathname = usePathname();
-  
+
   // Masquer les tabs sur certains écrans
-  const hideTabsOnScreens = [
-    "/delivery/",
-    "/add-delivery",
-    "/register",
-  ];
-  
-  const shouldHideTabs = hideTabsOnScreens.some(path => pathname.includes(path));
-  
+  const hideTabsOnScreens = ["/delivery/", "/add-delivery", "/register"];
+
+  const shouldHideTabs = hideTabsOnScreens.some((path) =>
+    pathname.includes(path)
+  );
+
   if (shouldHideTabs) {
     return null; // Ne pas afficher les tabs
   }
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.tabItem}
         onPress={() => router.push("/dashboard")}
       >
-        <MaterialIcons 
-          name="dashboard" 
-          size={24} 
-          color={pathname === "/dashboard" ? "#13ec13" : "#94A3B8"} 
+        <MaterialIcons
+          name="dashboard"
+          size={24}
+          color={pathname === "/dashboard" ? "#13ec13" : "#94A3B8"}
         />
-        <Text style={[
-          styles.tabText, 
-          { color: pathname === "/dashboard" ? "#13ec13" : "#94A3B8" }
-        ]}>
+        <Text
+          style={[
+            styles.tabText,
+            { color: pathname === "/dashboard" ? "#13ec13" : "#94A3B8" },
+          ]}
+        >
           Tableau de bord
         </Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity 
+
+      <TouchableOpacity
         style={styles.tabItem}
         onPress={() => router.push("/deliveries")}
       >
-        <MaterialIcons 
-          name="local-shipping" 
-          size={24} 
-          color={pathname === "/deliveries" ? "#13ec13" : "#94A3B8"} 
+        <MaterialIcons
+          name="local-shipping"
+          size={24}
+          color={pathname === "/deliveries" ? "#13ec13" : "#94A3B8"}
         />
-        <Text style={[
-          styles.tabText,
-          { color: pathname === "/deliveries" ? "#13ec13" : "#94A3B8" }
-        ]}>
+        <Text
+          style={[
+            styles.tabText,
+            { color: pathname === "/deliveries" ? "#13ec13" : "#94A3B8" },
+          ]}
+        >
           Livraisons
         </Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity 
+
+      <TouchableOpacity
         style={styles.tabItem}
         onPress={() => router.push("/add-delivery")}
       >
         <MaterialIcons name="add-circle" size={28} color="#94A3B8" />
         <Text style={styles.tabText}>Ajouter</Text>
       </TouchableOpacity>
-      
+
       <TouchableOpacity style={styles.tabItem}>
-        <MaterialIcons name="bar-chart" size={24} color="#94A3B8" onPress={() => {
-                    Alert.alert("Info", "Stats - fonctionnalité à venir");
-                  }}/>
+        <MaterialIcons
+          name="bar-chart"
+          size={24}
+          color="#94A3B8"
+          onPress={() => {
+            Alert.alert("Info", "Stats - fonctionnalité à venir");
+          }}
+        />
         <Text style={styles.tabText}>Stats</Text>
       </TouchableOpacity>
-      
-      <TouchableOpacity style={styles.tabItem}>
-        <MaterialIcons name="settings" size={24} color="#94A3B8" onPress={() => {
-                    Alert.alert("Info", "Paramètres - fonctionnalité à venir");
-                  }}/>
-        <Text style={styles.tabText}>Paramètres</Text>
+
+      <TouchableOpacity
+        style={styles.tabItem}
+        onPress={() => router.push("/settings")}
+      >
+        <MaterialIcons
+          name="settings"
+          size={24}
+          color={pathname === "/settings" ? "#13ec13" : "#94A3B8"}
+        />
+        <Text
+          style={[
+            styles.tabText,
+            { color: pathname === "/settings" ? "#13ec13" : "#94A3B8" },
+          ]}
+        >
+          Paramètres
+        </Text>
       </TouchableOpacity>
     </View>
   );
