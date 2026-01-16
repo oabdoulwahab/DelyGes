@@ -1,69 +1,78 @@
 // app/login.tsx
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, SafeAreaView } from "react-native";
-import { useState } from "react";
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  SafeAreaView,
+  ActivityIndicator,
+} from "react-native";
 import { router } from "expo-router";
-import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
 import Checkbox from 'expo-checkbox';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+
+// Nouveaux imports
+import { useAuth } from '../src/hooks/useAuth';
+import { loginSchema } from '../src/utils/validators';
+import { Validators } from '../src/utils/validators';
+import { FormInput } from '../src/components/forms/FormInput';
+// import { FormCheckbox } from '../src/components/forms/FormCheckbox';
+
+type LoginFormData = {
+  emailOrPhone: string;
+  password: string;
+  rememberMe: boolean;
+};
 
 export default function Login() {
-  const [emailOrPhone, setEmailOrPhone] = useState("");
-  const [password, setPassword] = useState("");
+  const { login, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!emailOrPhone.trim() || !password.trim()) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs");
-      return;
-    }
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid },
+  } = useForm<LoginFormData>({
+    resolver: yupResolver(loginSchema),
+    defaultValues: {
+      emailOrPhone: '',
+      password: '',
+      rememberMe: false,
+    },
+    mode: 'onChange',
+  });
 
-    setIsLoading(true);
-
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      // Recherche de l'utilisateur par email ou téléphone
-      const result = await db.getFirstAsync<{ id: number; name: string; password: string }>(
-        "SELECT id, name, password FROM user WHERE email = ? OR phone = ?",
-        [emailOrPhone, emailOrPhone]
-      );
-
-      if (!result) {
-        Alert.alert("Erreur", "Identifiants incorrects");
-        setIsLoading(false);
-        return;
-      }
-
-      // Vérification du mot de passe (dans une vraie app, utiliser bcrypt.compare)
-      if (password !== result.password) {
-        Alert.alert("Erreur", "Mot de passe incorrect");
-        setIsLoading(false);
-        return;
-      }
-
-      // Succès de la connexion
-      Alert.alert("Succès", `Bienvenue ${result.name} !`, [
-        { 
-          text: "OK", 
-          onPress: () => router.replace("/dashboard") 
-        }
-      ]);
-
+      clearError();
+      await login(data.emailOrPhone, data.password, data.rememberMe);
+      router.replace('/dashboard');
     } catch (error) {
-      Alert.alert("Erreur", "Une erreur est survenue lors de la connexion");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+      // L'erreur est déjà gérée dans le store
+      console.error('Login error:', error);
     }
   };
 
   const handleForgotPassword = () => {
     Alert.alert(
       "Mot de passe oublié",
-      "Une fonctionnalité de réinitialisation de mot de passe sera bientôt disponible.",
+      "Veuillez contacter l'administrateur pour réinitialiser votre mot de passe.",
       [{ text: "OK" }]
     );
+  };
+
+  // Effacer l'erreur quand l'utilisateur commence à taper
+  const handleInputChange = () => {
+    if (error) {
+      clearError();
+    }
   };
 
   return (
@@ -71,6 +80,7 @@ export default function Login() {
       <ScrollView 
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Logo et titre */}
         <View style={styles.header}>
@@ -86,77 +96,145 @@ export default function Login() {
           </Text>
         </View>
 
-        {/* Formulaire */}
+        {/* Message d'erreur global */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <MaterialIcons name="error-outline" size={20} color="#ef4444" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {/* Formulaire avec react-hook-form */}
         <View style={styles.form}>
           {/* Email/Téléphone */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>E-mail ou Téléphone</Text>
-            <View style={styles.inputContainer}>
-              <View style={styles.inputIcon}>
-                <MaterialIcons name="mail" size={20} color="#92c992" />
+          <Controller
+            control={control}
+            name="emailOrPhone"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>E-mail ou Téléphone</Text>
+                <View style={[
+                  styles.inputContainer,
+                  errors.emailOrPhone && styles.inputError
+                ]}>
+                  <View style={styles.inputIcon}>
+                    <MaterialIcons 
+                      name="mail" 
+                      size={20} 
+                      color={errors.emailOrPhone ? "#ef4444" : "#92c992"} 
+                    />
+                  </View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="chauffeur@exemple.com ou 06 12 34 56 78"
+                    placeholderTextColor={errors.emailOrPhone ? "#ef4444" : "#92c992"}
+                    value={value}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      handleInputChange();
+                    }}
+                    onBlur={onBlur}
+                    keyboardType="default"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                  />
+                </View>
+                {errors.emailOrPhone && (
+                  <Text style={styles.fieldErrorText}>{errors.emailOrPhone.message}</Text>
+                )}
               </View>
-              <TextInput
-                style={styles.input}
-                placeholder="chauffeur@exemple.com"
-                placeholderTextColor="#92c992"
-                value={emailOrPhone}
-                onChangeText={setEmailOrPhone}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          </View>
+            )}
+          />
 
           {/* Mot de passe */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Mot de passe</Text>
-            <View style={styles.passwordContainer}>
-              <View style={styles.inputIcon}>
-                <MaterialIcons name="lock" size={20} color="#92c992" />
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Mot de passe</Text>
+                <View style={[
+                  styles.passwordContainer,
+                  errors.password && styles.inputError
+                ]}>
+                  <View style={styles.inputIcon}>
+                    <MaterialIcons 
+                      name="lock" 
+                      size={20} 
+                      color={errors.password ? "#ef4444" : "#92c992"} 
+                    />
+                  </View>
+                  <TextInput
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder="••••••••"
+                    placeholderTextColor={errors.password ? "#ef4444" : "#92c992"}
+                    value={value}
+                    onChangeText={(text) => {
+                      onChange(text);
+                      handleInputChange();
+                    }}
+                    onBlur={onBlur}
+                    secureTextEntry={!showPassword}
+                    editable={!isLoading}
+                  />
+                  <TouchableOpacity 
+                    style={styles.visibilityButton}
+                    onPress={() => setShowPassword(!showPassword)}
+                    disabled={isLoading}
+                  >
+                    <MaterialIcons 
+                      name={showPassword ? "visibility-off" : "visibility"} 
+                      size={20} 
+                      color={errors.password ? "#ef4444" : "#92c992"} 
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && (
+                  <Text style={styles.fieldErrorText}>{errors.password.message}</Text>
+                )}
               </View>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder="••••••••"
-                placeholderTextColor="#92c992"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity 
-                style={styles.visibilityButton}
-                onPress={() => setShowPassword(!showPassword)}
-              >
-                <MaterialIcons 
-                  name={showPassword ? "visibility-off" : "visibility"} 
-                  size={20} 
-                  color="#92c992" 
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
+            )}
+          />
 
           {/* Options */}
-          <View style={styles.optionsContainer}>
-            <View style={styles.rememberMeContainer}>
-              <Checkbox
-                style={styles.checkbox}
-                value={rememberMe}
-                onValueChange={setRememberMe}
-                color={rememberMe ? "#13ec13" : undefined}
-              />
-              <Text style={styles.rememberMeText}>Rester connecté</Text>
-            </View>
-            
-            <TouchableOpacity onPress={handleForgotPassword}>
-              <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
-            </TouchableOpacity>
-          </View>
+          <Controller
+            control={control}
+            name="rememberMe"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.optionsContainer}>
+                <View style={styles.rememberMeContainer}>
+                  <Checkbox
+                    style={[
+                      styles.checkbox,
+                      errors.rememberMe && styles.checkboxError
+                    ]}
+                    value={value}
+                    onValueChange={onChange}
+                    color={value ? "#13ec13" : undefined}
+                    disabled={isLoading}
+                  />
+                  <Text style={styles.rememberMeText}>Rester connecté</Text>
+                </View>
+                
+                <TouchableOpacity 
+                  onPress={handleForgotPassword}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.forgotPasswordText}>Mot de passe oublié ?</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          />
 
           {/* Bouton de connexion */}
           <TouchableOpacity 
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-            onPress={handleLogin}
-            disabled={isLoading}
+            style={[
+              styles.loginButton, 
+              (!isValid || isLoading) && styles.loginButtonDisabled
+            ]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={!isValid || isLoading}
           >
             <LinearGradient
               colors={['#13ec13', '#11d111']}
@@ -164,10 +242,14 @@ export default function Login() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Text style={styles.loginButtonText}>
-                {isLoading ? "Connexion..." : "Se connecter"}
-              </Text>
-              <MaterialIcons name="arrow-forward" size={20} color="#102210" />
+              {isLoading ? (
+                <ActivityIndicator color="#102210" />
+              ) : (
+                <>
+                  <Text style={styles.loginButtonText}>Se connecter</Text>
+                  <MaterialIcons name="arrow-forward" size={20} color="#102210" />
+                </>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -175,29 +257,23 @@ export default function Login() {
         {/* Séparateur */}
         <View style={styles.separatorContainer}>
           <View style={styles.separatorLine} />
+          <Text style={styles.separatorText}>ou</Text>
+          <View style={styles.separatorLine} />
         </View>
 
         {/* Lien d'inscription */}
         <View style={styles.signupContainer}>
           <Text style={styles.signupText}>
             Vous n'avez pas de compte ?{' '}
-            <Text 
-              style={styles.signupLink}
-              onPress={() => router.push("/register")}
-            >
-              Créer un compte
-            </Text>
           </Text>
+          <TouchableOpacity 
+            onPress={() => router.push("/register")}
+            disabled={isLoading}
+          >
+            <Text style={styles.signupLink}>Créer un compte</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Ligne décorative en bas */}
-      <LinearGradient
-        colors={['transparent', 'rgba(19, 236, 19, 0.5)', 'transparent']}
-        style={styles.bottomLine}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-      />
     </SafeAreaView>
   );
 }
@@ -248,6 +324,23 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     textAlign: 'center',
     lineHeight: 22,
+    maxWidth: 300,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#ef4444',
   },
   form: {
     width: '100%',
@@ -263,6 +356,11 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     position: 'relative',
+  },
+  inputError: {
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    borderRadius: 12,
   },
   inputIcon: {
     position: 'absolute',
@@ -300,6 +398,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 12,
     borderBottomRightRadius: 12,
   },
+  fieldErrorText: {
+    fontSize: 12,
+    color: '#ef4444',
+    marginTop: 4,
+    marginLeft: 4,
+  },
   optionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -318,6 +422,9 @@ const styles = StyleSheet.create({
     borderColor: '#326732',
     backgroundColor: '#193319',
     borderRadius: 4,
+  },
+  checkboxError: {
+    borderColor: '#ef4444',
   },
   rememberMeText: {
     fontSize: 14,
@@ -349,15 +456,25 @@ const styles = StyleSheet.create({
     color: '#102210',
   },
   separatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 32,
   },
   separatorLine: {
+    flex: 1,
     height: 1,
     backgroundColor: '#193319',
-    width: '100%',
+  },
+  separatorText: {
+    paddingHorizontal: 16,
+    color: '#94A3B8',
+    fontSize: 14,
   },
   signupContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
   },
   signupText: {
     fontSize: 14,
@@ -367,13 +484,6 @@ const styles = StyleSheet.create({
   signupLink: {
     color: '#13ec13',
     fontWeight: 'bold',
-  },
-  bottomLine: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    opacity: 0.2,
+    fontSize: 14,
   },
 });
