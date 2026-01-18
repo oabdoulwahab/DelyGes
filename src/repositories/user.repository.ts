@@ -2,7 +2,7 @@
 import { DatabaseService } from '../database/db';
 import { User, UserCreateDTO, UserUpdateDTO } from '../types';
 import { Security } from '../utils/security';
-import { DatabaseError, NotFoundError } from '../utils/errors';
+import { DatabaseError, NotFoundError, ValidationError } from '../utils/errors';
 
 export class UserRepository {
   // Trouver un utilisateur par ID
@@ -130,7 +130,7 @@ export class UserRepository {
       return updatedUser;
     } catch (error) {
       console.error('Erreur update:', error);
-      if (error instanceof AppError) throw error;
+      if (error instanceof DatabaseError || error instanceof NotFoundError || error instanceof ValidationError) throw error;
       throw new DatabaseError('Impossible de mettre à jour l\'utilisateur');
     }
   }
@@ -146,7 +146,7 @@ export class UserRepository {
       await DatabaseService.execute('DELETE FROM user WHERE id = ?', [id]);
     } catch (error) {
       console.error('Erreur delete:', error);
-      if (error instanceof AppError) throw error;
+      if (error instanceof DatabaseError || error instanceof NotFoundError || error instanceof ValidationError) throw error;
       throw new DatabaseError('Impossible de supprimer l\'utilisateur');
     }
   }

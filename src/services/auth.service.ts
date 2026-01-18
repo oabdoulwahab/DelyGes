@@ -6,6 +6,8 @@ import { AuthError, ValidationError, NotFoundError } from '../utils/errors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoginCredentials, RegisterData } from '../types';
 
+type AppError = AuthError | ValidationError | NotFoundError;
+
 const STORAGE_KEYS = {
   TOKEN: '@delivery_app_token',
   USER: '@delivery_app_user',
@@ -43,7 +45,7 @@ export class AuthService {
       const { password, ...userWithoutPassword } = user;
       return { user: userWithoutPassword, token };
     } catch (error) {
-      if (error instanceof AppError) throw error;
+      if (error instanceof AuthError || error instanceof ValidationError || error instanceof NotFoundError) throw error;
       throw new AuthError('Erreur lors de la connexion');
     }
   }
@@ -90,7 +92,7 @@ export class AuthService {
       const { password, ...userWithoutPassword } = user;
       return { user: userWithoutPassword, token };
     } catch (error) {
-      if (error instanceof AppError) throw error;
+      if (error instanceof AuthError || error instanceof ValidationError || error instanceof NotFoundError) throw error;
       throw new Error('Erreur lors de l\'inscription');
     }
   }
@@ -170,7 +172,7 @@ export class AuthService {
       // Mettre à jour le mot de passe
       await UserRepository.update(userId, { password: newPassword });
     } catch (error) {
-      if (error instanceof AppError) throw error;
+      if (error instanceof AuthError || error instanceof ValidationError || error instanceof NotFoundError) throw error;
       throw new Error('Erreur lors du changement de mot de passe');
     }
   }

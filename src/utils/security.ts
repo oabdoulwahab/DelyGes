@@ -8,19 +8,13 @@ export class Security {
   static async hashPassword(password: string): Promise<string> {
     try {
       return await new Promise((resolve, reject) => {
-        bcrypt.genSalt(this.SALT_ROUNDS, (err, salt) => {
+        // Ajout des types (err: Error | null, hash: string)
+        bcrypt.hash(password, this.SALT_ROUNDS, (err: Error | null, hash: string) => {
           if (err) {
             reject(err);
             return;
           }
-          
-          bcrypt.hash(password, salt, (err, hash) => {
-            if (err) {
-              reject(err);
-              return;
-            }
-            resolve(hash);
-          });
+          resolve(hash);
         });
       });
     } catch (error) {
@@ -33,7 +27,8 @@ export class Security {
   static async comparePassword(password: string, hash: string): Promise<boolean> {
     try {
       return await new Promise((resolve, reject) => {
-        bcrypt.compare(password, hash, (err, result) => {
+        // Ajout des types (err: Error | null, result: boolean)
+        bcrypt.compare(password, hash, (err: Error | null, result: boolean) => {
           if (err) {
             reject(err);
             return;
@@ -47,25 +42,19 @@ export class Security {
     }
   }
 
-  // Génère un token simple (à remplacer par JWT si backend)
   static generateToken(userId: number): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2);
     return `${userId}_${timestamp}_${random}`;
   }
 
-  // Vérifie si un token est valide
   static validateToken(token: string): { userId: number; valid: boolean } {
     try {
       const parts = token.split('_');
-      if (parts.length !== 3) {
-        return { userId: 0, valid: false };
-      }
+      if (parts.length !== 3) return { userId: 0, valid: false };
       
       const userId = parseInt(parts[0]);
       const timestamp = parseInt(parts[1]);
-      
-      // Vérifie que le token n'est pas expiré (7 jours)
       const isExpired = Date.now() - timestamp > 7 * 24 * 60 * 60 * 1000;
       
       return {

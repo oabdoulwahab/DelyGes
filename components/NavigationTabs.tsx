@@ -6,7 +6,7 @@ export default function NavigationTabs() {
   const pathname = usePathname();
 
   // Masquer les tabs sur certains écrans
-  const hideTabsOnScreens = ["/delivery/", "/add-delivery", "/register"];
+  const hideTabsOnScreens = ["/delivery/", "/login", "/add-delivery", "/register"];
 
   const shouldHideTabs = hideTabsOnScreens.some((path) =>
     pathname.includes(path)
