@@ -2,15 +2,16 @@
 import { Stack } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
+import NavigationTabs from "../components/NavigationTabs";
 import { initializeDatabase } from "../src/database/db";
 
 export default function Layout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const initApp = async () => {
+    const init = async () => {
       try {
-        await initializeDatabase(); // ✅ CRÉE TABLES + MIGRATIONS + INDEX
+        await initializeDatabase();
       } catch (e) {
         console.error("DB init error:", e);
       } finally {
@@ -18,13 +19,14 @@ export default function Layout() {
       }
     };
 
-    initApp();
+    init();
   }, []);
 
+  // ⛔ Bloquer TOUT tant que la DB n'est pas prête
   if (!ready) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#13ec13" />
       </View>
     );
   }
@@ -32,6 +34,7 @@ export default function Layout() {
   return (
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
+      <NavigationTabs />
     </View>
   );
 }
