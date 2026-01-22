@@ -1,22 +1,53 @@
 // app/index.tsx
 import { Redirect } from "expo-router";
-import { useEffect } from "react";
-import { initDB } from "../src/database/db";
+import { useEffect, useState } from "react";
+import { useAuthStore } from "../src/store/auth.store";
+import { View, ActivityIndicator } from "react-native";
 
 export default function Index() {
+  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const [isChecking, setIsChecking] = useState(true);
+
   useEffect(() => {
-    // Initialiser la base de données au démarrage
-    const initDatabase = async () => {
+    const init = async () => {
       try {
-        await initDB();
-        console.log('✅ Database initialized');
+        console.log('🔄 Initialisation de l\'auth...');
+        await checkAuth();
+        console.log('✅ Auth initialisée. Authentifié:', isAuthenticated);
       } catch (error) {
-        console.error('❌ Failed to initialize database:', error);
+        console.error('❌ Auth check error:', error);
+      } finally {
+        // Attendre un peu pour être sûr que l'état est mis à jour
+        setTimeout(() => {
+          setIsChecking(false);
+        }, 500);
       }
     };
-    
-    initDatabase();
+
+    init();
   }, []);
 
-  return <Redirect href="/login" />;
+  // Afficher un indicateur de chargement
+  if (isChecking || isLoading) {
+    console.log('⏳ Affichage du loading...');
+    return (
+      <View style={{ 
+        flex: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        backgroundColor: '#102210' 
+      }}>
+        <ActivityIndicator size="large" color="#13ec13" />
+      </View>
+    );
+  }
+
+  console.log('🎯 Redirection. Authentifié:', isAuthenticated);
+
+  // Déterminer où rediriger
+  if (isAuthenticated) {
+    return <Redirect href="/dashboard" />;
+  } else {
+    return <Redirect href="/login" />;
+  }
 }

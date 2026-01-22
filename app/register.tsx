@@ -1,5 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, SafeAreaView } from "react-native";
-import { useEffect, useState } from "react";
+import { useState } from "react"; // Supprimer useEffect
 import { router } from "expo-router";
 import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -15,17 +15,9 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptCGU, setAcceptCGU] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Vérifier si un utilisateur existe déjà
-  useEffect(() => {
-    const checkUser = async () => {
-      const result = await db.getAllAsync("SELECT * FROM user LIMIT 1");
-      if (result.length > 0) {
-        router.replace("/dashboard");
-      }
-    };
-    checkUser();
-  }, []);
+  
 
   const handleRegister = async () => {
     // Validation
@@ -54,7 +46,20 @@ export default function Register() {
       return;
     }
 
+    setIsLoading(true);
+
     try {
+      // Vérifier d'abord si un utilisateur existe déjà
+      const existingUsers = await db.getAllAsync("SELECT * FROM user LIMIT 1");
+      if (existingUsers.length > 0) {
+        Alert.alert(
+          "Information", 
+          "Un compte existe déjà. Veuillez vous connecter.",
+          [{ text: "OK", onPress: () => router.push("/login") }]
+        );
+        return;
+      }
+
       // Hash du mot de passe (dans une vraie app, utiliser bcrypt ou équivalent)
       const hashedPassword = password; // À remplacer par un vrai hash
 
@@ -64,11 +69,19 @@ export default function Register() {
       );
 
       Alert.alert("Succès", "Inscription réussie !", [
-        { text: "OK", onPress: () => router.replace("/dashboard") }
+        { 
+          text: "OK", 
+          onPress: () => {
+            // La redirection sera gérée par le système d'authentification
+            router.replace("/dashboard");
+          }
+        }
       ]);
     } catch (error) {
       Alert.alert("Erreur", "Une erreur est survenue lors de l'inscription");
       console.error(error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -107,6 +120,7 @@ export default function Register() {
         <TouchableOpacity 
           style={styles.backButton}
           onPress={() => router.back()}
+          disabled={isLoading}
         >
           <MaterialIcons name="arrow-back-ios" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -141,6 +155,7 @@ export default function Register() {
               placeholderTextColor="#92c992"
               value={fullName}
               onChangeText={setFullName}
+              editable={!isLoading}
             />
           </View>
 
@@ -155,6 +170,7 @@ export default function Register() {
               onChangeText={setEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
 
@@ -168,6 +184,7 @@ export default function Register() {
               value={phone}
               onChangeText={handlePhoneChange}
               keyboardType="phone-pad"
+              editable={!isLoading}
             />
           </View>
 
@@ -182,10 +199,12 @@ export default function Register() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
+                editable={!isLoading}
               />
               <TouchableOpacity 
                 style={styles.visibilityButton}
                 onPress={() => setShowPassword(!showPassword)}
+                disabled={isLoading}
               >
                 <MaterialIcons 
                   name={showPassword ? "visibility-off" : "visibility"} 
@@ -207,10 +226,12 @@ export default function Register() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
+                editable={!isLoading}
               />
               <TouchableOpacity 
                 style={styles.visibilityButton}
                 onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={isLoading}
               >
                 <MaterialIcons 
                   name={showConfirmPassword ? "visibility-off" : "visibility"} 
@@ -228,6 +249,7 @@ export default function Register() {
               value={acceptCGU}
               onValueChange={setAcceptCGU}
               color={acceptCGU ? "#13ec13" : undefined}
+              disabled={isLoading}
             />
             <Text style={styles.checkboxLabel}>
               J'accepte les{' '}
@@ -237,11 +259,16 @@ export default function Register() {
 
           {/* Bouton d'inscription */}
           <TouchableOpacity 
-            style={[styles.registerButton, !acceptCGU && styles.registerButtonDisabled]}
+            style={[
+              styles.registerButton, 
+              (!acceptCGU || isLoading) && styles.registerButtonDisabled
+            ]}
             onPress={handleRegister}
-            disabled={!acceptCGU}
+            disabled={!acceptCGU || isLoading}
           >
-            <Text style={styles.registerButtonText}>S'inscrire</Text>
+            <Text style={styles.registerButtonText}>
+              {isLoading ? "Inscription..." : "S'inscrire"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -251,7 +278,7 @@ export default function Register() {
             Déjà un compte ?{' '}
             <Text 
               style={styles.loginLink}
-              onPress={() => router.push("./login")}
+              onPress={() => !isLoading && router.push("./login")}
             >
               Se connecter
             </Text>
@@ -261,6 +288,7 @@ export default function Register() {
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {

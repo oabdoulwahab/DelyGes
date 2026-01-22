@@ -1,5 +1,5 @@
 // src/hooks/useAuth.ts
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/auth.store';
 import { router } from 'expo-router';
 
@@ -17,17 +17,22 @@ export const useAuth = () => {
     clearError
   } = useAuthStore();
 
-  // Vérifier l'authentification au démarrage
-  useEffect(() => {
-    checkAuth();
-  }, []);
+  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
-  // Rediriger si non authentifié
+  // Vérifier l'authentification une seule fois au démarrage
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isLoading, isAuthenticated]);
+    const verifyAuth = async () => {
+      if (!hasCheckedAuth) {
+        await checkAuth();
+        setHasCheckedAuth(true);
+      }
+    };
+
+    verifyAuth();
+  }, [hasCheckedAuth]);
+
+  // Ne pas rediriger automatiquement ici - laisser le composant Index gérer cela
+  // pour éviter les cycles de redirection
 
   return {
     user,

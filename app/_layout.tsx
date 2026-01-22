@@ -1,31 +1,37 @@
+// app/_layout.tsx
 import { Stack } from "expo-router";
-import { useEffect } from "react";
-import { initDB } from "../src/database/db";
-import NavigationTabs from "../components/NavigationTabs";
-import { View } from "react-native";
-import { useAuthStore } from "../src/store/auth.store";
+import { View, ActivityIndicator } from "react-native";
+import { useEffect, useState } from "react";
+import { initializeDatabase } from "../src/database/db";
 
 export default function Layout() {
-  const { checkAuth } = useAuthStore();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const initializeApp = async () => {
+    const initApp = async () => {
       try {
-        await initDB();
-        await checkAuth();
-      } catch (error) {
-        console.error('Initialization error:', error);
+        await initializeDatabase(); // ✅ CRÉE TABLES + MIGRATIONS + INDEX
+      } catch (e) {
+        console.error("DB init error:", e);
+      } finally {
+        setReady(true);
       }
     };
 
-    initializeApp();
+    initApp();
   }, []);
 
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
-      <NavigationTabs />
     </View>
   );
 }

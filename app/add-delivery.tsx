@@ -54,8 +54,8 @@ export default function AddDelivery() {
     try {
       await db.runAsync(
         `INSERT INTO deliveries 
-        (recipient_name, phone, address, parcel_value, delivery_fee, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (recipient_name, phone, address, parcel_value, delivery_fee, status,user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           recipientName.trim(),
           phone.trim(),
