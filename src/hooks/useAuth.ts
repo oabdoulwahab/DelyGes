@@ -1,49 +1,92 @@
 // src/hooks/useAuth.ts
-import { useEffect, useState } from 'react';
-import { useAuthStore } from '../store/auth.store';
-import { router } from 'expo-router';
+import { useEffect, useState } from "react";
+import * as SecureStore from "expo-secure-store";
+import { db } from "../database/db";
+
+const USER_KEY = "AUTH_USER_ID";
 
 export const useAuth = () => {
-  const {
-    user,
-    token,
-    isLoading,
-    isAuthenticated,
-    error,
-    login,
-    register,
-    logout,
-    checkAuth,
-    clearError
-  } = useAuthStore();
+  const [user, setUser] = useState<any>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  // 🔁 Vérifier la session au démarrage
+  const checkAuth = async () => {
+    try {
+      const userId = await SecureStore.getItemAsync(USER_KEY);
 
-  // Vérifier l'authentification une seule fois au démarrage
-  useEffect(() => {
-    const verifyAuth = async () => {
-      if (!hasCheckedAuth) {
-        await checkAuth();
-        setHasCheckedAuth(true);
+      if (!userId) {
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
       }
-    };
 
-    verifyAuth();
-  }, [hasCheckedAuth]);
+      const dbUser = await db.getFirstAsync(
+        "SELECT * FROM user WHERE id = ?",
+        [Number(userId)]
+      );
 
-  // Ne pas rediriger automatiquement ici - laisser le composant Index gérer cela
-  // pour éviter les cycles de redirection
+      if (dbUser) {
+        setUser(dbUser);
+        setIsAuthenticated(true);
+      } else {
+        await SecureStore.deleteItemAsync(USER_KEY);
+        setIsAuthenticated(false);
+      }
+    } catch (e) {
+      console.error("checkAuth error:", e);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🔐 LOGIN
+  const login = async (emailOrPhone: string, password: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const user = await db.getFirstAsync<{ id: number; password: string }>(
+        "SELECT * FROM user WHERE email = ? OR phone = ?",
+        [emailOrPhone.trim(), emailOrPhone.trim()]
+      );
+
+      if (!user || user.password !== password) {
+        throw new Error("Identifiants incorrects");
+      }
+
+      await SecureStore.setItemAsync(USER_KEY, String(user.id));
+      setUser(user);
+      setIsAuthenticated(true);
+    } catch (e: any) {
+      setError(e.message);
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 🚪 LOGOUT
+  const logout = async () => {
+    await SecureStore.deleteItemAsync(USER_KEY);
+    setUser(null);
+    setIsAuthenticated(false);
+  };
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
   return {
     user,
-    token,
-    isLoading,
     isAuthenticated,
+    isLoading,
     error,
     login,
-    register,
     logout,
     checkAuth,
-    clearError
+    clearError: () => setError(null),
   };
 };

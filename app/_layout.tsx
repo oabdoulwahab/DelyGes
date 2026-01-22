@@ -1,29 +1,34 @@
 // app/_layout.tsx
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { useEffect, useState } from "react";
 import NavigationTabs from "../components/NavigationTabs";
 import { initializeDatabase } from "../src/database/db";
+import { useAuth } from "../src/hooks/useAuth";
 
 export default function Layout() {
-  const [ready, setReady] = useState(false);
+  const [dbReady, setDbReady] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
 
   useEffect(() => {
     const init = async () => {
-      try {
-        await initializeDatabase();
-      } catch (e) {
-        console.error("DB init error:", e);
-      } finally {
-        setReady(true);
-      }
+      await initializeDatabase();
+      setDbReady(true);
     };
-
     init();
   }, []);
 
-  // ⛔ Bloquer TOUT tant que la DB n'est pas prête
-  if (!ready) {
+  useEffect(() => {
+    if (!dbReady || isLoading) return;
+
+    if (isAuthenticated) {
+      router.replace("/dashboard");
+    } else {
+      router.replace("/login");
+    }
+  }, [dbReady, isLoading, isAuthenticated]);
+
+  if (!dbReady || isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#13ec13" />
@@ -34,7 +39,7 @@ export default function Layout() {
   return (
     <View style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
-      <NavigationTabs />
+      {isAuthenticated && <NavigationTabs />}
     </View>
   );
 }
