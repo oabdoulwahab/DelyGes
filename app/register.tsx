@@ -1,4 +1,3 @@
-// app/register.tsx
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import Checkbox from "expo-checkbox";
@@ -17,6 +16,8 @@ import {
 } from "react-native";
 import { db } from "../src/database/db";
 import { User } from "../src/types";
+import { COLORS } from "../styles/colors";
+import { registerStyles as styles } from "../styles/registerStyles";
 
 export default function Register() {
   const [fullName, setFullName] = useState("");
@@ -34,7 +35,7 @@ export default function Register() {
     }
 
     if (!email.trim()) {
-      Alert.alert("Erreur", "L’email est obligatoire");
+      Alert.alert("Erreur", "L'email est obligatoire");
       return;
     }
 
@@ -56,7 +57,7 @@ export default function Register() {
     if (!acceptCGU) {
       Alert.alert(
         "Erreur",
-        "Vous devez accepter les Conditions Générales d’Utilisation",
+        "Vous devez accepter les Conditions Générales d'Utilisation",
       );
       return;
     }
@@ -64,7 +65,7 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      // ✅ Vérifier si l’email existe déjà
+      // ✅ Vérifier si l'email existe déjà
       const existingUser = await db.getFirstAsync(
         "SELECT id FROM user WHERE email = ?",
         [email.trim().toLowerCase()],
@@ -75,7 +76,7 @@ export default function Register() {
         return;
       }
 
-      // ⚠️ Pour l’instant mot de passe en clair (OK pour MVP)
+      // ⚠️ Pour l'instant mot de passe en clair (OK pour MVP)
       await db.runAsync(
         "INSERT INTO user (name, email, phone, password, created_at) VALUES (?, ?, ?, ?, ?)",
         [
@@ -104,7 +105,7 @@ export default function Register() {
       router.replace("/dashboard");
     } catch (error) {
       console.error(error);
-      Alert.alert("Erreur", "Une erreur est survenue lors de l’inscription");
+      Alert.alert("Erreur", "Une erreur est survenue lors de l'inscription");
     } finally {
       setIsLoading(false);
     }
@@ -114,7 +115,7 @@ export default function Register() {
     <SafeAreaView style={styles.container}>
       <BlurView intensity={80} tint="dark" style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back-ios" size={24} color="#FFFFFF" />
+          <MaterialIcons name="arrow-back-ios" size={24} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Inscription</Text>
         <View style={{ width: 24 }} />
@@ -171,10 +172,10 @@ export default function Register() {
           <Checkbox
             value={acceptCGU}
             onValueChange={setAcceptCGU}
-            color={acceptCGU ? "#13ec13" : undefined}
+            color={acceptCGU ? COLORS.primary : undefined}
           />
           <Text style={styles.checkboxText}>
-            J’accepte les Conditions Générales
+            J'accepte les Conditions Générales
           </Text>
         </View>
 
@@ -184,7 +185,7 @@ export default function Register() {
           onPress={handleRegister}
         >
           <Text style={styles.buttonText}>
-            {isLoading ? "Inscription..." : "S’inscrire"}
+            {isLoading ? "Inscription..." : "S'inscrire"}
           </Text>
         </TouchableOpacity>
 
@@ -196,68 +197,68 @@ export default function Register() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#102210",
-  },
-  header: {
-    paddingTop: 60,
-    paddingBottom: 16,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  content: {
-    padding: 20,
-  },
-  title: {
-    fontSize: 28,
-    color: "#fff",
-    fontWeight: "bold",
-    marginBottom: 24,
-  },
-  input: {
-    backgroundColor: "#193319",
-    borderColor: "#326732",
-    borderWidth: 1,
-    borderRadius: 12,
-    height: 56,
-    paddingHorizontal: 16,
-    color: "#fff",
-    marginBottom: 16,
-  },
-  checkboxContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  checkboxText: {
-    color: "#94A3B8",
-    marginLeft: 8,
-  },
-  button: {
-    backgroundColor: "#13ec13",
-    height: 56,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  buttonText: {
-    color: "#000",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  loginLink: {
-    color: "#13ec13",
-    textAlign: "center",
-    fontWeight: "bold",
-  },
-});
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: COLORS.background,
+//   },
+//   header: {
+//     paddingTop: 60,
+//     paddingBottom: 16,
+//     paddingHorizontal: 16,
+//     flexDirection: "row",
+//     justifyContent: "space-between",
+//     alignItems: "center",
+//   },
+//   headerTitle: {
+//     color: COLORS.white,
+//     fontSize: 18,
+//     fontWeight: "bold",
+//   },
+//   content: {
+//     padding: 20,
+//   },
+//   title: {
+//     fontSize: 28,
+//     color: COLORS.white,
+//     fontWeight: "bold",
+//     marginBottom: 24,
+//   },
+//   input: {
+//     backgroundColor: "#193319",
+//     borderColor: "#326732",
+//     borderWidth: 1,
+//     borderRadius: 12,
+//     height: 56,
+//     paddingHorizontal: 16,
+//     color: COLORS.white,
+//     marginBottom: 16,
+//   },
+//   checkboxContainer: {
+//     flexDirection: "row",
+//     alignItems: "center",
+//     marginBottom: 24,
+//   },
+//   checkboxText: {
+//     color: COLORS.muted,
+//     marginLeft: 8,
+//   },
+//   button: {
+//     backgroundColor: COLORS.primary,
+//     height: 56,
+//     borderRadius: 12,
+//     justifyContent: "center",
+//     alignItems: "center",
+//     marginBottom: 24,
+//   },
+//   buttonText: {
+//     color: "#000",
+//     fontSize: 18,
+//     fontWeight: "bold",
+//   },
+//   loginLink: {
+//     color: COLORS.primary,
+//     textAlign: "center",
+//     fontWeight: "bold",
+//   },
+// });

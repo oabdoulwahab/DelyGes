@@ -17,6 +17,8 @@ import { BlurView } from "expo-blur";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay } from 'date-fns'
 import { fr } from 'date-fns/locale';
+import { commonStyles } from "../styles/common";
+import { COLORS } from "../styles/colors";
 
 type Delivery = {
   id: number;
@@ -173,7 +175,6 @@ export default function Deliveries() {
     loadDeliveryDates();
   }, [activeTab, searchQuery, dateFilterEnabled, selectedDate, selectedEndDate, activePeriod]);
   
-  // Fonctions existantes inchangées...
   const toggleDeliverySelection = (id: number) => {
     const delivery = deliveries.find(d => d.id === id);
     
@@ -254,9 +255,9 @@ export default function Deliveries() {
     switch (status) {
       case "LIVREE":
         return {
-          backgroundColor: "#10b98110",
+          backgroundColor: COLORS.successSoft,
           borderColor: "#10b98130",
-          textColor: "#10b981",
+          textColor: COLORS.success,
           text: "Terminée",
           icon: "check-circle"
         };
@@ -264,15 +265,15 @@ export default function Deliveries() {
         return {
           backgroundColor: isSelected ? "#fbbf2410" : "#fbbf2400",
           borderColor: isSelected ? "#fbbf2430" : "#e5e7eb",
-          textColor: "#f59e0b",
+          textColor: COLORS.warning,
           text: "En attente",
           icon: "schedule"
         };
       case "ANNULEE":
         return {
-          backgroundColor: "#ef444410",
+          backgroundColor: COLORS.dangerSoft,
           borderColor: "#ef444430",
-          textColor: "#ef4444",
+          textColor: COLORS.danger,
           text: "Annulée",
           icon: "cancel"
         };
@@ -376,8 +377,6 @@ export default function Deliveries() {
         break;
         
       case "custom":
-        // Pour personnalisé, on ouvre juste le calendrier dans le modal
-        // L'utilisateur sélectionnera la/les dates
         setSelectedDate(today);
         setSelectedEndDate(null);
         setDateFilterEnabled(false);
@@ -392,14 +391,12 @@ export default function Deliveries() {
     setShowFilterModal(false);
   };
   
-  // Vérifier si une date a des livraisons
   const hasDeliveriesOnDate = (date: Date) => {
     return deliveryDates.some(deliveryDate => 
       isSameDay(deliveryDate, date)
     );
   };
   
-  // Générer les jours du calendrier
   const generateCalendarDays = () => {
     const year = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
@@ -409,7 +406,6 @@ export default function Deliveries() {
     
     const days = [];
     
-    // Jours du mois précédent
     for (let i = 0; i < startDay; i++) {
       const date = new Date(year, month, -i);
       days.push(
@@ -421,7 +417,6 @@ export default function Deliveries() {
       );
     }
     
-    // Jours du mois actuel
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const date = new Date(year, month, i);
       const hasDeliveries = hasDeliveriesOnDate(date);
@@ -455,7 +450,6 @@ export default function Deliveries() {
       );
     }
     
-    // Remplir les jours restants
     const totalCells = 42;
     const remainingCells = totalCells - days.length;
     
@@ -553,7 +547,7 @@ export default function Deliveries() {
             </View>
             
             <View style={styles.addressLine}>
-              <View style={[styles.addressDot, { backgroundColor: "#13ec13" }]} />
+              <View style={[styles.addressDot, { backgroundColor: COLORS.primary }]} />
               <Text style={styles.addressText} numberOfLines={1}>
                 {delivery.recipient_name}
                 {delivery.phone ? ` • ${delivery.phone}` : ""}
@@ -564,7 +558,7 @@ export default function Deliveries() {
           {delivery.status === "A_LIVRER" && (
             <View style={styles.actionsContainer}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#13ec13" }]}
+                style={[styles.actionButton, { backgroundColor: COLORS.primary }]}
                 onPress={() => markAsDelivered(delivery.id)}
               >
                 <MaterialIcons name="check" size={16} color="#000" />
@@ -572,11 +566,14 @@ export default function Deliveries() {
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: "#ef444410", borderColor: "#ef444430" }]}
+                style={[styles.actionButton, { 
+                  backgroundColor: COLORS.dangerSoft, 
+                  borderColor: COLORS.danger 
+                }]}
                 onPress={() => markAsCancelled(delivery.id)}
               >
-                <MaterialIcons name="close" size={16} color="#ef4444" />
-                <Text style={[styles.actionButtonText, { color: "#ef4444" }]}>Annuler</Text>
+                <MaterialIcons name="close" size={16} color={COLORS.danger} />
+                <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Annuler</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -592,8 +589,8 @@ export default function Deliveries() {
     .reduce((sum, d) => sum + d.delivery_fee, 0);
   
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#102210" />
+    <View style={commonStyles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       
       <BlurView intensity={95} tint="dark" style={styles.header}>
         <View style={styles.headerContent}>
@@ -611,11 +608,11 @@ export default function Deliveries() {
       >
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
-            <MaterialIcons name="search" size={20} color="#94A3B8" style={styles.searchIcon} />
+            <MaterialIcons name="search" size={20} color={COLORS.muted} style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder="Rechercher un client..."
-              placeholderTextColor="#94A3B8"
+              placeholderTextColor={COLORS.muted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -628,7 +625,7 @@ export default function Deliveries() {
             <MaterialIcons 
               name="filter-list" 
               size={20} 
-              color={dateFilterEnabled ? "#13ec13" : "#94A3B8"} 
+              color={dateFilterEnabled ? COLORS.primary : COLORS.muted} 
             />
             {dateFilterEnabled && <View style={styles.filterIndicator} />}
           </TouchableOpacity>
@@ -637,12 +634,12 @@ export default function Deliveries() {
         {dateFilterEnabled && (
           <View style={styles.dateFilterContainer}>
             <View style={styles.dateFilterContent}>
-              <MaterialIcons name="calendar-today" size={16} color="#13ec13" />
+              <MaterialIcons name="calendar-today" size={16} color={COLORS.primary} />
               <Text style={styles.dateFilterText}>
                 {formatDateForDisplay()}
               </Text>
               <TouchableOpacity onPress={clearDateFilter}>
-                <MaterialIcons name="close" size={16} color="#ef4444" />
+                <MaterialIcons name="close" size={16} color={COLORS.danger} />
               </TouchableOpacity>
             </View>
           </View>
@@ -671,7 +668,7 @@ export default function Deliveries() {
         {activeTab === "AUJOURDHUI" ? (
           <View style={styles.deliveriesList}>
             {morning.length > 0 && (
-              <View style={styles.section}>
+              <View style={commonStyles.section}>
                 <Text style={styles.sectionTitle}>Tournées du matin</Text>
                 {morning.map(delivery => (
                   <View key={delivery.id}>
@@ -682,7 +679,7 @@ export default function Deliveries() {
             )}
             
             {afternoon.length > 0 && (
-              <View style={styles.section}>
+              <View style={commonStyles.section}>
                 <Text style={styles.sectionTitle}>Bloc après-midi</Text>
                 {afternoon.map(delivery => (
                   <View key={delivery.id}>
@@ -693,7 +690,7 @@ export default function Deliveries() {
             )}
             
             {evening.length > 0 && (
-              <View style={styles.section}>
+              <View style={commonStyles.section}>
                 <Text style={styles.sectionTitle}>Soirée</Text>
                 {evening.map(delivery => (
                   <View key={delivery.id}>
@@ -705,7 +702,7 @@ export default function Deliveries() {
             
             {deliveries.length === 0 && (
               <View style={styles.emptyState}>
-                <MaterialIcons name="local-shipping" size={48} color="#94A3B8" />
+                <MaterialIcons name="local-shipping" size={48} color={COLORS.muted} />
                 <Text style={styles.emptyStateText}>
                   {searchQuery 
                     ? "Aucune livraison trouvée" 
@@ -733,7 +730,7 @@ export default function Deliveries() {
                     "cancel"
                   } 
                   size={48} 
-                  color="#94A3B8" 
+                  color={COLORS.muted} 
                 />
                 <Text style={styles.emptyStateText}>
                   {activeTab === "A_LIVRER" && "Aucune livraison à venir"}
@@ -759,7 +756,7 @@ export default function Deliveries() {
           
           <View style={styles.selectionActions}>
             <TouchableOpacity style={styles.pdfButton}>
-              <MaterialIcons name="picture-as-pdf" size={20} color="#fff" />
+              <MaterialIcons name="picture-as-pdf" size={20} color={COLORS.white} />
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -771,8 +768,6 @@ export default function Deliveries() {
           </View>
         </View>
       )}
-      
-      {/* SUPPRIMER le DateTimePicker natif - on utilise notre calendrier custom */}
       
       <Modal
         visible={showFilterModal}
@@ -787,7 +782,7 @@ export default function Deliveries() {
                 onPress={() => setShowFilterModal(false)}
                 style={styles.modalCloseButton}
               >
-                <MaterialIcons name="close" size={24} color="#94A3B8" />
+                <MaterialIcons name="close" size={24} color={COLORS.muted} />
               </TouchableOpacity>
               
               <Text style={styles.modalTitle}>Filtres</Text>
@@ -858,12 +853,11 @@ export default function Deliveries() {
                     ]}
                     onPress={() => selectPeriod("custom")}
                   >
-                    <MaterialIcons name="calendar-today" size={16} color="#13ec13" />
+                    <MaterialIcons name="calendar-today" size={16} color={COLORS.primary} />
                     <Text style={styles.periodButtonCustomText}>Personnalisé</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Calendrier pour sélection personnalisée */}
                 {activePeriod === "custom" && (
                   <View style={styles.calendarContainer}>
                     <View style={styles.calendarHeader}>
@@ -874,7 +868,7 @@ export default function Deliveries() {
                           setCalendarDate(prevMonth);
                         }}
                       >
-                        <MaterialIcons name="chevron-left" size={20} color="#94A3B8" />
+                        <MaterialIcons name="chevron-left" size={20} color={COLORS.muted} />
                       </TouchableOpacity>
                       
                       <Text style={styles.calendarTitle}>
@@ -888,7 +882,7 @@ export default function Deliveries() {
                           setCalendarDate(nextMonth);
                         }}
                       >
-                        <MaterialIcons name="chevron-right" size={20} color="#94A3B8" />
+                        <MaterialIcons name="chevron-right" size={20} color={COLORS.muted} />
                       </TouchableOpacity>
                     </View>
                     
@@ -939,7 +933,7 @@ export default function Deliveries() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#102210",
+    backgroundColor: COLORS.background,
   },
   header: {
     paddingTop: 48,
@@ -954,7 +948,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#fff",
+    color: COLORS.white,
   },
   doneButton: {
     paddingHorizontal: 12,
@@ -962,7 +956,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   doneButtonText: {
-    color: "#13ec13",
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -983,11 +977,11 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a2a1a",
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: "#2d3d2d",
+    borderColor: COLORS.borderLight,
   },
   searchIcon: {
     marginRight: 8,
@@ -995,22 +989,22 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: "#fff",
+    color: COLORS.white,
     fontSize: 16,
   },
   filterButton: {
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: "#1a2a1a",
+    backgroundColor: COLORS.card,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#2d3d2d",
+    borderColor: COLORS.borderLight,
     position: "relative",
   },
   filterButtonActive: {
-    borderColor: "#13ec13",
+    borderColor: COLORS.primary,
   },
   filterIndicator: {
     position: "absolute",
@@ -1019,7 +1013,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#13ec13",
+    backgroundColor: COLORS.primary,
   },
   dateFilterContainer: {
     paddingHorizontal: 16,
@@ -1029,7 +1023,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#1a2a1a",
+    backgroundColor: COLORS.card,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
@@ -1037,13 +1031,13 @@ const styles = StyleSheet.create({
   },
   dateFilterText: {
     flex: 1,
-    color: "#13ec13",
+    color: COLORS.primary,
     fontSize: 14,
     fontWeight: "500",
   },
   tabsContainer: {
     borderBottomWidth: 1,
-    borderBottomColor: "#ffffff10",
+    borderBottomColor: COLORS.borderLight,
     paddingBottom: 8,
   },
   tabsScroll: {
@@ -1059,11 +1053,11 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: COLORS.muted,
     marginBottom: 6,
   },
   activeTabText: {
-    color: "#13ec13",
+    color: COLORS.primary,
     fontWeight: "700",
   },
   tabIndicator: {
@@ -1073,19 +1067,16 @@ const styles = StyleSheet.create({
     borderRadius: 1.5,
   },
   activeTabIndicator: {
-    backgroundColor: "#13ec13",
+    backgroundColor: COLORS.primary,
   },
   deliveriesList: {
     paddingHorizontal: 16,
     paddingTop: 16,
   },
-  section: {
-    marginBottom: 24,
-  },
   sectionTitle: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#94A3B8",
+    color: COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 12,
@@ -1113,8 +1104,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxSelected: {
-    backgroundColor: "#13ec13",
-    borderColor: "#13ec13",
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
   checkboxDisabled: {
     borderColor: "#6b728060",
@@ -1149,12 +1140,12 @@ const styles = StyleSheet.create({
   },
   timeText: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: COLORS.muted,
   },
   feeText: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#13ec13",
+    color: COLORS.primary,
   },
   addressContainer: {
     gap: 8,
@@ -1174,7 +1165,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: "500",
-    color: "#fff",
+    color: COLORS.white,
   },
   actionsContainer: {
     flexDirection: "row",
@@ -1188,7 +1179,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#13ec13",
+    borderColor: COLORS.primary,
   },
   actionButtonText: {
     fontSize: 12,
@@ -1203,7 +1194,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#94A3B8",
+    color: COLORS.muted,
     textAlign: "center",
   },
   selectionBar: {
@@ -1211,14 +1202,14 @@ const styles = StyleSheet.create({
     bottom: 80,
     left: 16,
     right: 16,
-    backgroundColor: "#1a2a1a",
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     borderWidth: 1,
-    borderColor: "#ffffff10",
+    borderColor: COLORS.borderLight,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1231,11 +1222,11 @@ const styles = StyleSheet.create({
   selectionCount: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#fff",
+    color: COLORS.white,
   },
   selectionAmount: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: COLORS.muted,
     marginTop: 2,
   },
   selectionActions: {
@@ -1247,7 +1238,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: "#ffffff10",
+    backgroundColor: COLORS.borderLight,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1255,7 +1246,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: "#13ec13",
+    backgroundColor: COLORS.primary,
   },
   markPaidButtonText: {
     fontSize: 14,
@@ -1268,7 +1259,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "#1a2a1a",
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
@@ -1290,7 +1281,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#fff",
+    color: COLORS.white,
     textAlign: "center",
     flex: 1,
   },
@@ -1299,7 +1290,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
   },
   modalResetText: {
-    color: "#13ec13",
+    color: COLORS.primary,
     fontSize: 14,
     fontWeight: "600",
   },
@@ -1313,7 +1304,7 @@ const styles = StyleSheet.create({
   modalSectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff",
+    color: COLORS.white,
     marginBottom: 16,
   },
   periodButtonsContainer: {
@@ -1331,7 +1322,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   periodButtonActive: {
-    backgroundColor: "#13ec13",
+    backgroundColor: COLORS.primary,
   },
   periodButtonCustom: {
     flexDirection: "row",
@@ -1339,25 +1330,25 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#13ec13",
+    borderColor: COLORS.primary,
   },
   periodButtonCustomActive: {
-    backgroundColor: "#13ec1310",
+    backgroundColor: COLORS.primarySoft,
     borderWidth: 2,
   },
   periodButtonText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#94A3B8",
+    color: COLORS.muted,
   },
   periodButtonTextActive: {
-    color: "#102210",
+    color: COLORS.background,
     fontWeight: "bold",
   },
   periodButtonCustomText: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#13ec13",
+    color: COLORS.primary,
   },
   calendarContainer: {
     backgroundColor: "#2d3d2d",
@@ -1375,7 +1366,7 @@ const styles = StyleSheet.create({
   calendarTitle: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#fff",
+    color: COLORS.white,
   },
   weekDaysContainer: {
     flexDirection: "row",
@@ -1385,7 +1376,7 @@ const styles = StyleSheet.create({
   weekDayText: {
     fontSize: 10,
     fontWeight: "bold",
-    color: "#94A3B8",
+    color: COLORS.muted,
     width: 32,
     textAlign: "center",
   },
@@ -1405,13 +1396,13 @@ const styles = StyleSheet.create({
   },
   calendarDayToday: {
     borderWidth: 1,
-    borderColor: "#13ec13",
+    borderColor: COLORS.primary,
   },
   calendarDaySelected: {
-    backgroundColor: "#13ec13",
+    backgroundColor: COLORS.primary,
   },
   calendarDayHasDeliveries: {
-    backgroundColor: "#13ec1310",
+    backgroundColor: COLORS.primarySoft,
   },
   calendarDayInactive: {
     width: 32,
@@ -1423,19 +1414,19 @@ const styles = StyleSheet.create({
   calendarDayText: {
     fontSize: 12,
     fontWeight: "500",
-    color: "#fff",
+    color: COLORS.white,
   },
   calendarDayTextToday: {
-    color: "#13ec13",
+    color: COLORS.primary,
     fontWeight: "bold",
   },
   calendarDayTextSelected: {
-    color: "#102210",
+    color: COLORS.background,
     fontWeight: "bold",
   },
   calendarDayTextInactive: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: COLORS.muted,
   },
   deliveryIndicator: {
     position: "absolute",
@@ -1443,17 +1434,17 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#13ec13",
+    backgroundColor: COLORS.primary,
   },
   selectedDateInfo: {
     marginTop: 16,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#ffffff10",
+    borderTopColor: COLORS.borderVeryLight,
   },
   selectedDateText: {
     fontSize: 12,
-    color: "#13ec13",
+    color: COLORS.primary,
     textAlign: "center",
     fontWeight: "500",
   },
@@ -1464,7 +1455,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     marginTop: 20,
     borderTopWidth: 1,
-    borderTopColor: "#ffffff10",
+    borderTopColor: COLORS.borderLight,
   },
   resetButton: {
     flex: 1,
@@ -1477,16 +1468,16 @@ const styles = StyleSheet.create({
   resetButtonText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#fff",
+    color: COLORS.white,
   },
   applyButton: {
     flex: 2,
     height: 56,
     borderRadius: 16,
-    backgroundColor: "#13ec13",
+    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#13ec13",
+    shadowColor: COLORS.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
@@ -1495,6 +1486,6 @@ const styles = StyleSheet.create({
   applyButtonText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#102210",
+    color: COLORS.background,
   },
 });

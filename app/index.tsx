@@ -1,35 +1,24 @@
 // app/index.tsx
 import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
-import { useAuthStore } from "../src/store/auth.store";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Text } from "react-native";
+import { useAuth } from "../src/hooks/useAuth";
 
 export default function Index() {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuth();
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        console.log('🔄 Initialisation de l\'auth...');
-        await checkAuth();
-        console.log('✅ Auth initialisée. Authentifié:', isAuthenticated);
-      } catch (error) {
-        console.error('❌ Auth check error:', error);
-      } finally {
-        // Attendre un peu pour être sûr que l'état est mis à jour
-        setTimeout(() => {
-          setIsChecking(false);
-        }, 500);
-      }
-    };
+    // Simuler un temps de chargement minimal
+    const timer = setTimeout(() => {
+      setIsChecking(false);
+    }, 1000);
 
-    init();
+    return () => clearTimeout(timer);
   }, []);
 
   // Afficher un indicateur de chargement
   if (isChecking || isLoading) {
-    console.log('⏳ Affichage du loading...');
     return (
       <View style={{ 
         flex: 1, 
@@ -38,11 +27,15 @@ export default function Index() {
         backgroundColor: '#102210' 
       }}>
         <ActivityIndicator size="large" color="#13ec13" />
+        <Text style={{ color: '#13ec13', marginTop: 16 }}>
+          Chargement...
+        </Text>
       </View>
     );
   }
 
   console.log('🎯 Redirection. Authentifié:', isAuthenticated);
+  console.log('📱 URL cible:', isAuthenticated ? '/dashboard' : '/login');
 
   // Déterminer où rediriger
   if (isAuthenticated) {

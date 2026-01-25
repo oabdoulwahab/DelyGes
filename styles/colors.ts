@@ -2,6 +2,12 @@ export const COLORS = {
   background: "#102210",
   card: "#1a2a1a",
 
+  inputBackground: "#193319",
+  inputBorder: "#326732",
+  placeholder: "#92c992",
+
+  inputPlaceholder: "#92c992",
+
   primary: "#13ec13",
   primarySoft: "rgba(19, 236, 19, 0.1)",
 

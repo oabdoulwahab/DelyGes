@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { db } from "../../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { commonStyles } from "../../styles/common";
+import { deliveryDetailStyles } from "../../styles/deliveryDetailStyles";
+import { COLORS } from "../../styles/colors";
 
 type Delivery = {
   id: number;
@@ -77,23 +80,23 @@ export default function DeliveryDetail() {
       case "LIVREE":
         return {
           text: "Terminée",
-          backgroundColor: "#10b98120",
-          borderColor: "#10b98130",
-          textColor: "#10b981"
+          backgroundColor: COLORS.successSoft,
+          borderColor: COLORS.success,
+          textColor: COLORS.success
         };
       case "A_LIVRER":
         return {
           text: "À livrer",
-          backgroundColor: "#fbbf2420",
-          borderColor: "#fbbf2430",
-          textColor: "#f59e0b"
+          backgroundColor: COLORS.warningSoft,
+          borderColor: COLORS.warning,
+          textColor: COLORS.warning
         };
       case "ANNULEE":
         return {
           text: "Annulée",
-          backgroundColor: "#ef444420",
-          borderColor: "#ef444430",
-          textColor: "#ef4444"
+          backgroundColor: COLORS.dangerSoft,
+          borderColor: COLORS.danger,
+          textColor: COLORS.danger
         };
       default:
         return {
@@ -108,7 +111,7 @@ export default function DeliveryDetail() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#13ec13" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
         <Text style={styles.loadingText}>Chargement...</Text>
       </View>
     );
@@ -117,7 +120,7 @@ export default function DeliveryDetail() {
   if (!delivery) {
     return (
       <View style={styles.errorContainer}>
-        <MaterialIcons name="error-outline" size={48} color="#ef4444" />
+        <MaterialIcons name="error-outline" size={48} color={COLORS.danger} />
         <Text style={styles.errorText}>Livraison introuvable</Text>
         <TouchableOpacity 
           style={styles.backButton}
@@ -136,28 +139,28 @@ export default function DeliveryDetail() {
     : delivery.created_at;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#102210" />
+    <View style={commonStyles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       
       {/* En-tête */}
-      <BlurView intensity={95} tint="dark" style={styles.header}>
-        <View style={styles.headerContent}>
+      <BlurView intensity={95} tint="dark" style={deliveryDetailStyles.header}>
+        <View style={deliveryDetailStyles.headerContent}>
           <TouchableOpacity 
-            style={styles.backButtonHeader}
+            style={deliveryDetailStyles.backButtonHeader}
             onPress={() => router.back()}
           >
-            <MaterialIcons name="arrow-back" size={24} color="#fff" />
+            <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
           </TouchableOpacity>
           
-          <Text style={styles.headerTitle}>
+          <Text style={deliveryDetailStyles.headerTitle}>
             Livraison #{delivery.id.toString().padStart(4, '0')}
           </Text>
           
           <View style={[
-            styles.statusBadgeHeader,
+            deliveryDetailStyles.statusBadgeHeader,
             { backgroundColor: statusConfig.backgroundColor }
           ]}>
-            <Text style={[styles.statusTextHeader, { color: statusConfig.textColor }]}>
+            <Text style={[deliveryDetailStyles.statusTextHeader, { color: statusConfig.textColor }]}>
               {statusConfig.text}
             </Text>
           </View>
@@ -165,48 +168,48 @@ export default function DeliveryDetail() {
       </BlurView>
 
       <ScrollView 
-        style={styles.scrollView}
+        style={deliveryDetailStyles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={deliveryDetailStyles.scrollContent}
       >
         {/* Date */}
-        <View style={styles.dateSection}>
-          <Text style={styles.dateLabel}>Date de réalisation</Text>
-          <Text style={styles.dateValue}>{formatDate(displayDate)}</Text>
+        <View style={deliveryDetailStyles.dateSection}>
+          <Text style={deliveryDetailStyles.dateLabel}>Date de réalisation</Text>
+          <Text style={deliveryDetailStyles.dateValue}>{formatDate(displayDate)}</Text>
           {isDelivered && (
-            <Text style={styles.timeValue}>{formatTime(displayDate)}</Text>
+            <Text style={deliveryDetailStyles.timeValue}>{formatTime(displayDate)}</Text>
           )}
         </View>
 
         {/* Informations Client */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informations Client</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Informations Client</Text>
           
-          <View style={styles.infoCard}>
-            <View style={styles.clientInfo}>
-              <View style={styles.clientAvatar}>
-                <Text style={styles.clientInitial}>
+          <View style={commonStyles.card}>
+            <View style={deliveryDetailStyles.clientInfo}>
+              <View style={deliveryDetailStyles.clientAvatar}>
+                <Text style={deliveryDetailStyles.clientInitial}>
                   {delivery.recipient_name.charAt(0).toUpperCase()}
                 </Text>
               </View>
-              <View style={styles.clientDetails}>
-                <Text style={styles.clientName}>{delivery.recipient_name}</Text>
+              <View style={deliveryDetailStyles.clientDetails}>
+                <Text style={deliveryDetailStyles.clientName}>{delivery.recipient_name}</Text>
                 {delivery.phone && (
-                  <Text style={styles.clientPhone}>
-                    <MaterialIcons name="phone" size={14} color="#13ec13" /> {delivery.phone}
+                  <Text style={deliveryDetailStyles.clientPhone}>
+                    <MaterialIcons name="phone" size={14} color={COLORS.primary} /> {delivery.phone}
                   </Text>
                 )}
               </View>
             </View>
 
-            <View style={styles.addressContainer}>
-              <View style={styles.addressItem}>
-                <View style={styles.addressIconContainer}>
-                  <MaterialIcons name="location-on" size={20} color="#13ec13" />
+            <View style={deliveryDetailStyles.addressContainer}>
+              <View style={deliveryDetailStyles.addressItem}>
+                <View style={deliveryDetailStyles.addressIconContainer}>
+                  <MaterialIcons name="location-on" size={20} color={COLORS.primary} />
                 </View>
-                <View style={styles.addressTextContainer}>
-                  <Text style={styles.addressLabel}>Destination</Text>
-                  <Text style={styles.addressText}>{delivery.address}</Text>
+                <View style={deliveryDetailStyles.addressTextContainer}>
+                  <Text style={deliveryDetailStyles.addressLabel}>Destination</Text>
+                  <Text style={deliveryDetailStyles.addressText}>{delivery.address}</Text>
                 </View>
               </View>
             </View>
@@ -214,33 +217,33 @@ export default function DeliveryDetail() {
         </View>
 
         {/* Détails Financiers */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Détails Financiers</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Détails Financiers</Text>
           
-          <View style={styles.financialCard}>
-            <View style={styles.financialItem}>
-              <Text style={styles.financialLabel}>Valeur du colis</Text>
-              <Text style={styles.financialValue}>
+          <View style={deliveryDetailStyles.financialCard}>
+            <View style={deliveryDetailStyles.financialItem}>
+              <Text style={deliveryDetailStyles.financialLabel}>Valeur du colis</Text>
+              <Text style={deliveryDetailStyles.financialValue}>
                 {delivery.parcel_value > 0 
                   ? `${delivery.parcel_value.toLocaleString("fr-FR")} FCFA`
                   : "-"}
               </Text>
             </View>
             
-            <View style={styles.financialItem}>
-              <Text style={styles.financialLabel}>Frais de livraison</Text>
-              <Text style={styles.financialValue}>
+            <View style={deliveryDetailStyles.financialItem}>
+              <Text style={deliveryDetailStyles.financialLabel}>Frais de livraison</Text>
+              <Text style={deliveryDetailStyles.financialValue}>
                 {delivery.delivery_fee > 0 
                   ? `${delivery.delivery_fee.toLocaleString("fr-FR")} FCFA`
                   : "-"}
               </Text>
             </View>
             
-            <View style={styles.separator} />
+            <View style={deliveryDetailStyles.separator} />
             
-            <View style={styles.totalItem}>
-              <Text style={styles.totalLabel}>TOTAL</Text>
-              <Text style={styles.totalValue}>
+            <View style={deliveryDetailStyles.totalItem}>
+              <Text style={deliveryDetailStyles.totalLabel}>TOTAL</Text>
+              <Text style={deliveryDetailStyles.totalValue}>
                 {(delivery.parcel_value + delivery.delivery_fee).toLocaleString("fr-FR")} FCFA
               </Text>
             </View>
@@ -248,27 +251,27 @@ export default function DeliveryDetail() {
         </View>
 
         {/* Statut et création */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informations de suivi</Text>
+        <View style={commonStyles.section}>
+          <Text style={commonStyles.sectionTitle}>Informations de suivi</Text>
           
-          <View style={styles.trackingCard}>
-            <View style={styles.trackingRow}>
-              <View style={styles.trackingItem}>
-                <MaterialIcons name="event" size={20} color="#94A3B8" />
-                <View style={styles.trackingTextContainer}>
-                  <Text style={styles.trackingLabel}>Créée le</Text>
-                  <Text style={styles.trackingValue}>
+          <View style={commonStyles.card}>
+            <View style={deliveryDetailStyles.trackingRow}>
+              <View style={deliveryDetailStyles.trackingItem}>
+                <MaterialIcons name="event" size={20} color={COLORS.muted} />
+                <View style={deliveryDetailStyles.trackingTextContainer}>
+                  <Text style={deliveryDetailStyles.trackingLabel}>Créée le</Text>
+                  <Text style={deliveryDetailStyles.trackingValue}>
                     {formatDate(delivery.created_at)} à {formatTime(delivery.created_at)}
                   </Text>
                 </View>
               </View>
               
               {isDelivered && delivery.delivered_at && (
-                <View style={styles.trackingItem}>
-                  <MaterialIcons name="check-circle" size={20} color="#10b981" />
-                  <View style={styles.trackingTextContainer}>
-                    <Text style={styles.trackingLabel}>Livrée le</Text>
-                    <Text style={styles.trackingValue}>
+                <View style={deliveryDetailStyles.trackingItem}>
+                  <MaterialIcons name="check-circle" size={20} color={COLORS.success} />
+                  <View style={deliveryDetailStyles.trackingTextContainer}>
+                    <Text style={deliveryDetailStyles.trackingLabel}>Livrée le</Text>
+                    <Text style={deliveryDetailStyles.trackingValue}>
                       {formatDate(delivery.delivered_at)} à {formatTime(delivery.delivered_at)}
                     </Text>
                   </View>
@@ -276,13 +279,13 @@ export default function DeliveryDetail() {
               )}
             </View>
             
-            <View style={styles.statusDisplay}>
+            <View style={deliveryDetailStyles.statusDisplay}>
               <View style={[
-                styles.statusDot,
+                deliveryDetailStyles.statusDot,
                 { backgroundColor: statusConfig.textColor }
               ]} />
               <Text style={[
-                styles.statusDisplayText,
+                deliveryDetailStyles.statusDisplayText,
                 { color: statusConfig.textColor }
               ]}>
                 Statut: {statusConfig.text}
@@ -293,34 +296,34 @@ export default function DeliveryDetail() {
       </ScrollView>
 
       {/* Actions */}
-      <BlurView intensity={95} tint="dark" style={styles.actionBar}>
+      <BlurView intensity={95} tint="dark" style={deliveryDetailStyles.actionBar}>
         <TouchableOpacity 
-          style={styles.generateInvoiceButton}
+          style={deliveryDetailStyles.primaryButton}
           onPress={() => {
             Alert.alert("Info", "Génération de facture - fonctionnalité à venir");
           }}
         >
           <MaterialIcons name="description" size={20} color="#000" />
-          <Text style={styles.generateInvoiceButtonText}>Générer une facture</Text>
+          <Text style={deliveryDetailStyles.primaryButtonText}>Générer une facture</Text>
         </TouchableOpacity>
         
-        <View style={styles.actionButtonsRow}>
+        <View style={deliveryDetailStyles.actionButtonsRow}>
           <TouchableOpacity 
-            style={styles.editButton}
+            style={deliveryDetailStyles.editButton}
             onPress={() => {
               Alert.alert("Info", "Modification - fonctionnalité à venir");
             }}
           >
-            <MaterialIcons name="edit" size={20} color="#fff" />
-            <Text style={styles.editButtonText}>Modifier</Text>
+            <MaterialIcons name="edit" size={20} color={COLORS.white} />
+            <Text style={deliveryDetailStyles.editButtonText}>Modifier</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={styles.deleteButton}
+            style={deliveryDetailStyles.dangerButton}
             onPress={handleDelete}
           >
-            <MaterialIcons name="delete" size={20} color="#ef4444" />
-            <Text style={styles.deleteButtonText}>Supprimer</Text>
+            <MaterialIcons name="delete" size={20} color={COLORS.danger} />
+            <Text style={deliveryDetailStyles.dangerButtonText}>Supprimer</Text>
           </TouchableOpacity>
         </View>
       </BlurView>
@@ -329,31 +332,27 @@ export default function DeliveryDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#102210",
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#102210",
+    backgroundColor: COLORS.background,
   },
   loadingText: {
     marginTop: 16,
-    color: "#94A3B8",
+    color: COLORS.muted,
     fontSize: 16,
   },
   errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#102210",
+    backgroundColor: COLORS.background,
     padding: 20,
   },
   errorText: {
     marginTop: 16,
-    color: "#ef4444",
+    color: COLORS.danger,
     fontSize: 18,
     fontWeight: "600",
   },
@@ -361,328 +360,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: "#1a2a1a",
+    backgroundColor: COLORS.card,
     borderRadius: 8,
   },
   backButtonText: {
-    color: "#13ec13",
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: "500",
-  },
-  header: {
-    paddingTop: 48,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-  },
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  backButtonHeader: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  statusBadgeHeader: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  statusTextHeader: {
-    fontSize: 12,
-    fontWeight: "bold",
-    textTransform: "uppercase",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 160,
-  },
-  dateSection: {
-    paddingHorizontal: 16,
-    paddingTop: 24,
-    paddingBottom: 16,
-  },
-  dateLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#94A3B8",
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  dateValue: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  timeValue: {
-    fontSize: 16,
-    color: "#94A3B8",
-    marginTop: 4,
-  },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 16,
-  },
-  infoCard: {
-    backgroundColor: "#1a2a1a",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ffffff10",
-    overflow: "hidden",
-  },
-  clientInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ffffff05",
-  },
-  clientAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#13ec13",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-    borderWidth: 2,
-    borderColor: "#13ec1330",
-  },
-  clientInitial: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  clientDetails: {
-    flex: 1,
-  },
-  clientName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  clientPhone: {
-    fontSize: 14,
-    color: "#13ec13",
-    marginTop: 4,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  addressContainer: {
-    padding: 16,
-  },
-  addressItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  addressIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: "#13ec1310",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  addressTextContainer: {
-    flex: 1,
-  },
-  addressLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#94A3B8",
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  addressText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#fff",
-  },
-  financialCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  financialItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  financialLabel: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#6b7280",
-  },
-  financialValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  separator: {
-    height: 1,
-    backgroundColor: "#e5e7eb",
-    marginVertical: 16,
-  },
-  totalItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  totalLabel: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#111827",
-    textTransform: "uppercase",
-  },
-  totalValue: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#111827",
-    // backgroundColor: "#111827",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  trackingCard: {
-    backgroundColor: "#1a2a1a",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ffffff10",
-    padding: 16,
-  },
-  trackingRow: {
-    gap: 16,
-  },
-  trackingItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  trackingTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  trackingLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#94A3B8",
-    textTransform: "uppercase",
-    marginBottom: 2,
-  },
-  trackingValue: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#fff",
-  },
-  statusDisplay: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#ffffff05",
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  statusDisplayText: {
-    fontSize: 14,
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  actionBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: "#102210",
-    borderTopWidth: 1,
-    borderTopColor: "#ffffff10",
-  },
-  generateInvoiceButton: {
-    backgroundColor: "#13ec13",
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  generateInvoiceButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  actionButtonsRow: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  editButton: {
-    flex: 1,
-    backgroundColor: "#ffffff10",
-    borderWidth: 1,
-    borderColor: "#ffffff20",
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  editButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  deleteButton: {
-    flex: 1,
-    backgroundColor: "#ef444410",
-    borderWidth: 1,
-    borderColor: "#ef444420",
-    borderRadius: 12,
-    paddingVertical: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#ef4444",
   },
 });

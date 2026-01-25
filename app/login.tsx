@@ -1,4 +1,3 @@
-// app/login.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Alert,
   SafeAreaView,
   ActivityIndicator,
@@ -17,9 +15,12 @@ import Checkbox from "expo-checkbox";
 import { LinearGradient } from "expo-linear-gradient";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
+import { Image } from "react-native";
 
 import { useAuth } from "../src/hooks/useAuth";
 import * as yup from "yup";
+import { COLORS } from "../styles/colors";
+import { loginStyles as styles } from "../styles/loginStyles";
 
 /* ---------------- VALIDATION ---------------- */
 
@@ -66,10 +67,7 @@ export default function Login() {
   };
 
   const handleForgotPassword = () => {
-    Alert.alert(
-      "Mot de passe oublié",
-      "Veuillez contacter l’administrateur."
-    );
+    Alert.alert("Mot de passe oublié", "Veuillez contacter l'administrateur.");
   };
 
   return (
@@ -81,7 +79,11 @@ export default function Login() {
         {/* HEADER */}
         <View style={styles.header}>
           <View style={styles.logoBackground}>
-            <MaterialIcons name="local-shipping" size={32} color="#13ec13" />
+            <Image
+              source={require("../assets/images/splash-icon.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
           </View>
           <Text style={styles.title}>Connexion</Text>
           <Text style={styles.subtitle}>
@@ -92,7 +94,11 @@ export default function Login() {
         {/* ERREUR GLOBALE */}
         {error && (
           <View style={styles.errorContainer}>
-            <MaterialIcons name="error-outline" size={20} color="#ef4444" />
+            <MaterialIcons
+              name="error-outline"
+              size={20}
+              color={COLORS.danger}
+            />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -187,18 +193,18 @@ export default function Login() {
             onPress={handleSubmit(onSubmit)}
           >
             <LinearGradient
-              colors={["#13ec13", "#11d111"]}
+              colors={[COLORS.primary, "#11d111"]}
               style={styles.gradient}
             >
               {isLoading ? (
-                <ActivityIndicator color="#102210" />
+                <ActivityIndicator color={COLORS.background} />
               ) : (
                 <>
                   <Text style={styles.loginText}>Se connecter</Text>
                   <MaterialIcons
                     name="arrow-forward"
                     size={20}
-                    color="#102210"
+                    color={COLORS.background}
                   />
                 </>
               )}
@@ -217,132 +223,3 @@ export default function Login() {
     </SafeAreaView>
   );
 }
-
-/* ---------------- STYLES ---------------- */
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#102210",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
-  logoBackground: {
-    width: 64,
-    height: 64,
-    backgroundColor: "rgba(19,236,19,0.1)",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  subtitle: {
-    color: "#94A3B8",
-    textAlign: "center",
-    marginTop: 6,
-  },
-  errorContainer: {
-    flexDirection: "row",
-    backgroundColor: "rgba(239,68,68,0.15)",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    alignItems: "center",
-    gap: 8,
-  },
-  errorText: {
-    color: "#ef4444",
-    flex: 1,
-  },
-  form: {
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    color: "#fff",
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: "#193319",
-    borderColor: "#326732",
-    borderWidth: 1,
-    borderRadius: 12,
-    height: 56,
-    paddingHorizontal: 16,
-    color: "#fff",
-  },
-  passwordContainer: {
-    position: "relative",
-  },
-  passwordInput: {
-    paddingRight: 48,
-  },
-  eyeButton: {
-    position: "absolute",
-    right: 12,
-    top: 16,
-  },
-  fieldError: {
-    color: "#ef4444",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  options: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 24,
-  },
-  remember: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  rememberText: {
-    color: "#94A3B8",
-  },
-  forgot: {
-    color: "#13ec13",
-  },
-  loginButton: {
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  gradient: {
-    height: 56,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 8,
-  },
-  loginText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#102210",
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 6,
-  },
-  footerText: {
-    color: "#94A3B8",
-  },
-  footerLink: {
-    color: "#13ec13",
-    fontWeight: "bold",
-  },
-});

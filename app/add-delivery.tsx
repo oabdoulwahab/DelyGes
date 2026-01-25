@@ -10,13 +10,18 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { commonStyles } from "../styles/common";
+import { addDeliveryStyles } from "../styles/addDeliveryStyles";
+import { COLORS } from "../styles/colors";
+import { useAuth } from "../src/hooks/useAuth";
 
 export default function AddDelivery() {
+  const { user, isAuthenticated } = useAuth();
   const [recipientName, setRecipientName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -31,13 +36,15 @@ export default function AddDelivery() {
     deliveryFee: false,
   });
 
+  const [isSaving, setIsSaving] = useState(false);
+
   const validateForm = () => {
     const newErrors = {
       recipientName: !recipientName.trim(),
       phone: !phone.trim(),
       address: !address.trim(),
-      parcelValue: !parcelValue.trim() || Number(parcelValue) <= 0,
-      deliveryFee: !deliveryFee.trim() || Number(deliveryFee) <= 0,
+      parcelValue: !parcelValue.trim() || Number(parcelValue.replace(',', '.')) <= 0,
+      deliveryFee: !deliveryFee.trim() || Number(deliveryFee.replace(',', '.')) <= 0,
     };
     
     setErrors(newErrors);
@@ -51,30 +58,56 @@ export default function AddDelivery() {
       return;
     }
 
+    // Vérifier l'authentification
+    if (!isAuthenticated || !user) {
+      Alert.alert("Erreur", "Vous devez être connecté pour créer une livraison");
+      return;
+    }
+
+    setIsSaving(true);
+
     try {
-      await db.runAsync(
+      // Convertir les valeurs monétaires
+      const parcelValueNum = parcelValue ? Number(parcelValue.replace(',', '.')) : 0;
+      const deliveryFeeNum = deliveryFee ? Number(deliveryFee.replace(',', '.')) : 0;
+
+      // Insérer la livraison avec l'user_id
+      const result = await db.runAsync(
         `INSERT INTO deliveries 
-        (recipient_name, phone, address, parcel_value, delivery_fee, status,user_id, created_at)
+        (recipient_name, phone, address, parcel_value, delivery_fee, status, user_id, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           recipientName.trim(),
           phone.trim(),
           address.trim(),
-          Number(parcelValue),
-          Number(deliveryFee),
+          parcelValueNum,
+          deliveryFeeNum,
           "A_LIVRER",
+          user.id, // ← ICI: user.id récupéré du hook useAuth
           new Date().toISOString(),
         ]
       );
+
+      console.log("✅ Livraison créée avec ID:", result.lastInsertRowId, "pour l'utilisateur:", user.id);
 
       Alert.alert(
         "Succès", 
         "Livraison ajoutée avec succès",
         [{ text: "OK", onPress: () => router.back() }]
       );
-    } catch (error) {
-      Alert.alert("Erreur", "Impossible d'ajouter la livraison");
-      console.error(error);
+    } catch (error: any) {
+      console.error("❌ Erreur lors de la création de la livraison:", error);
+      
+      let errorMessage = "Impossible d'ajouter la livraison";
+      if (error.message?.includes("NOT NULL constraint failed")) {
+        errorMessage = "Erreur de base de données : l'ID utilisateur est requis";
+      } else if (error.message?.includes("user_id")) {
+        errorMessage = "Erreur d'authentification. Veuillez vous reconnecter.";
+      }
+      
+      Alert.alert("Erreur", errorMessage);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -91,16 +124,6 @@ export default function AddDelivery() {
     } else {
       router.back();
     }
-  };
-
-  const formatCurrency = (value: string) => {
-    // Enlever les espaces et virgules
-    const cleaned = value.replace(/[^\d]/g, '');
-    if (!cleaned) return "";
-    
-    // Convertir en nombre avec 2 décimales
-    const number = parseFloat(cleaned) / 100;
-    return number.toFixed(2);
   };
 
   const handleCurrencyChange = (text: string, setter: (value: string) => void) => {
@@ -132,45 +155,65 @@ export default function AddDelivery() {
     setter(withComma);
   };
 
+  // Déboguer l'état d'authentification
+  useEffect(() => {
+    console.log("🔐 État d'authentification dans AddDelivery:");
+    console.log("- isAuthenticated:", isAuthenticated);
+    console.log("- User ID:", user?.id);
+    console.log("- User object:", user);
+  }, [isAuthenticated, user]);
+
   return (
     <KeyboardAvoidingView 
-      style={styles.container}
+      style={commonStyles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <StatusBar barStyle="light-content" backgroundColor="#102210" />
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
       
       {/* En-tête */}
-      <BlurView intensity={95} tint="dark" style={styles.header}>
+      <BlurView intensity={95} tint="dark" style={addDeliveryStyles.header}>
         <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
           <Text style={styles.cancelButtonText}>Annuler</Text>
         </TouchableOpacity>
         
-        <Text style={styles.headerTitle}>Ajouter une Livraison</Text>
+        <Text style={addDeliveryStyles.headerTitle}>Ajouter une Livraison</Text>
         
         <TouchableOpacity style={styles.saveButtonPlaceholder}>
-          <Text style={styles.saveButtonText}>Enregistrer</Text>
+          <Text style={addDeliveryStyles.saveButtonText}>Enregistrer</Text>
         </TouchableOpacity>
       </BlurView>
 
       <ScrollView 
-        style={styles.scrollView}
+        style={addDeliveryStyles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={addDeliveryStyles.scrollContent}
       >
+        {/* Afficher l'info utilisateur pour débogage */}
+        {isAuthenticated && user && (
+          <View style={styles.userInfo}>
+            <Text style={styles.userInfoText}>
+              Connecté en tant que: {user.name} (ID: {user.id})
+            </Text>
+          </View>
+        )}
+
         {/* Section Logistique */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Informations de livraison</Text>
+        <View style={commonStyles.section}>
+          <Text style={addDeliveryStyles.sectionTitle}>Informations de livraison</Text>
           
-          <View style={styles.card}>
+          <View style={commonStyles.card}>
             {/* Nom du destinataire */}
-            <View style={[styles.inputGroup, errors.recipientName && styles.inputError]}>
-              <Text style={styles.inputLabel}>
+            <View style={[
+              addDeliveryStyles.inputGroup, 
+              errors.recipientName && styles.inputError
+            ]}>
+              <Text style={addDeliveryStyles.inputLabel}>
                 Destinataire <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                style={styles.input}
+                style={addDeliveryStyles.input}
                 placeholder="ex: Jean Dupont"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={COLORS.muted}
                 value={recipientName}
                 onChangeText={(text) => {
                   setRecipientName(text);
@@ -179,19 +222,22 @@ export default function AddDelivery() {
                 autoCapitalize="words"
               />
               {errors.recipientName && (
-                <Text style={styles.errorText}>Ce champ est obligatoire</Text>
+                <Text style={addDeliveryStyles.errorText}>Ce champ est obligatoire</Text>
               )}
             </View>
 
             {/* Téléphone */}
-            <View style={[styles.inputGroup, errors.phone && styles.inputError]}>
-              <Text style={styles.inputLabel}>
+            <View style={[
+              addDeliveryStyles.inputGroup, 
+              errors.phone && styles.inputError
+            ]}>
+              <Text style={addDeliveryStyles.inputLabel}>
                 Téléphone <Text style={styles.required}>*</Text>
               </Text>
               <TextInput
-                style={styles.input}
+                style={addDeliveryStyles.input}
                 placeholder="06 12 34 56 78"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={COLORS.muted}
                 value={phone}
                 onChangeText={(text) => {
                   setPhone(text);
@@ -200,30 +246,30 @@ export default function AddDelivery() {
                 keyboardType="phone-pad"
               />
               {errors.phone && (
-                <Text style={styles.errorText}>Ce champ est obligatoire</Text>
+                <Text style={addDeliveryStyles.errorText}>Ce champ est obligatoire</Text>
               )}
             </View>
 
             {/* Adresse de livraison */}
             <View style={[
-              styles.inputGroup, 
+              addDeliveryStyles.inputGroup, 
               styles.inputGroupWithIcon,
               errors.address && styles.inputError
             ]}>
               <MaterialIcons 
                 name="location-on" 
                 size={20} 
-                color={errors.address ? "#ef4444" : "#13ec13"} 
+                color={errors.address ? COLORS.danger : COLORS.primary} 
                 style={styles.inputIcon} 
               />
               <View style={styles.inputContent}>
-                <Text style={styles.inputLabel}>
+                <Text style={addDeliveryStyles.inputLabel}>
                   Adresse de livraison <Text style={styles.required}>*</Text>
                 </Text>
                 <TextInput
-                  style={styles.input}
+                  style={addDeliveryStyles.input}
                   placeholder="123 Avenue des Champs-Élysées, Paris"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={COLORS.muted}
                   value={address}
                   onChangeText={(text) => {
                     setAddress(text);
@@ -231,7 +277,7 @@ export default function AddDelivery() {
                   }}
                 />
                 {errors.address && (
-                  <Text style={styles.errorText}>Ce champ est obligatoire</Text>
+                  <Text style={addDeliveryStyles.errorText}>Ce champ est obligatoire</Text>
                 )}
               </View>
             </View>
@@ -239,23 +285,32 @@ export default function AddDelivery() {
         </View>
 
         {/* Section Détails financiers */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Détails financiers</Text>
+        <View style={commonStyles.section}>
+          <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
           
           <View style={styles.financialGrid}>
             {/* Valeur du colis */}
-            <View style={[styles.financialCard, errors.parcelValue && styles.inputError]}>
-              <Text style={styles.inputLabel}>
+            <View style={[
+              styles.financialCard, 
+              errors.parcelValue && styles.inputError
+            ]}>
+              <Text style={addDeliveryStyles.inputLabel}>
                 Valeur du colis <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.currencyInput}>
-                <Text style={[styles.currencySymbol, errors.parcelValue && { color: "#ef4444" }]}>
+                <Text style={[
+                  styles.currencySymbol, 
+                  errors.parcelValue && { color: COLORS.danger }
+                ]}>
                   €
                 </Text>
                 <TextInput
-                  style={[styles.financialInput, errors.parcelValue && { color: "#ef4444" }]}
+                  style={[
+                    styles.financialInput, 
+                    errors.parcelValue && { color: COLORS.danger }
+                  ]}
                   placeholder="0,00"
-                  placeholderTextColor={errors.parcelValue ? "#ef4444" : "#94A3B8"}
+                  placeholderTextColor={errors.parcelValue ? COLORS.danger : COLORS.muted}
                   value={parcelValue}
                   onChangeText={(text) => {
                     handleCurrencyChange(text, setParcelValue);
@@ -265,23 +320,32 @@ export default function AddDelivery() {
                 />
               </View>
               {errors.parcelValue && (
-                <Text style={styles.errorText}>Valeur supérieure à 0 requise</Text>
+                <Text style={addDeliveryStyles.errorText}>Valeur supérieure à 0 requise</Text>
               )}
             </View>
 
             {/* Frais de livraison */}
-            <View style={[styles.financialCard, errors.deliveryFee && styles.inputError]}>
-              <Text style={styles.inputLabel}>
+            <View style={[
+              styles.financialCard, 
+              errors.deliveryFee && styles.inputError
+            ]}>
+              <Text style={addDeliveryStyles.inputLabel}>
                 Frais de livraison <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.currencyInput}>
-                <Text style={[styles.currencySymbol, errors.deliveryFee && { color: "#ef4444" }]}>
+                <Text style={[
+                  styles.currencySymbol, 
+                  errors.deliveryFee && { color: COLORS.danger }
+                ]}>
                   €
                 </Text>
                 <TextInput
-                  style={[styles.financialInput, errors.deliveryFee && { color: "#ef4444" }]}
+                  style={[
+                    styles.financialInput, 
+                    errors.deliveryFee && { color: COLORS.danger }
+                  ]}
                   placeholder="0,00"
-                  placeholderTextColor={errors.deliveryFee ? "#ef4444" : "#94A3B8"}
+                  placeholderTextColor={errors.deliveryFee ? COLORS.danger : COLORS.muted}
                   value={deliveryFee}
                   onChangeText={(text) => {
                     handleCurrencyChange(text, setDeliveryFee);
@@ -291,7 +355,7 @@ export default function AddDelivery() {
                 />
               </View>
               {errors.deliveryFee && (
-                <Text style={styles.errorText}>Valeur supérieure à 0 requise</Text>
+                <Text style={addDeliveryStyles.errorText}>Valeur supérieure à 0 requise</Text>
               )}
             </View>
           </View>
@@ -319,10 +383,16 @@ export default function AddDelivery() {
       {/* Boutons d'action */}
       <BlurView intensity={95} tint="dark" style={styles.actionButtons}>
         <TouchableOpacity 
-          style={styles.saveButton}
+          style={[
+            addDeliveryStyles.saveButton,
+            isSaving && { opacity: 0.7 }
+          ]}
           onPress={handleSave}
+          disabled={isSaving}
         >
-          <Text style={styles.saveButtonText}>Enregistrer la livraison</Text>
+          <Text style={addDeliveryStyles.saveButtonText}>
+            {isSaving ? "Enregistrement..." : "Enregistrer la livraison"}
+          </Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
@@ -339,76 +409,23 @@ export default function AddDelivery() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#102210",
-  },
-  header: {
-    paddingTop: 48,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   cancelButton: {
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
   cancelButtonText: {
-    color: "#13ec13",
+    color: COLORS.primary,
     fontSize: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
   },
   saveButtonPlaceholder: {
     paddingHorizontal: 8,
     paddingVertical: 6,
     opacity: 0,
   },
-  saveButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 140,
-  },
-  section: {
-    paddingHorizontal: 16,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#94A3B8",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  card: {
-    backgroundColor: "#1a2a1a",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ffffff10",
-    overflow: "hidden",
-  },
-  inputGroup: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#ffffff05",
-  },
   inputError: {
     borderLeftWidth: 3,
-    borderLeftColor: "#ef4444",
-    backgroundColor: "#ef444410",
+    borderLeftColor: COLORS.danger,
+    backgroundColor: COLORS.dangerSoft,
   },
   inputGroupWithIcon: {
     flexDirection: "row",
@@ -421,26 +438,8 @@ const styles = StyleSheet.create({
   inputContent: {
     flex: 1,
   },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#94A3B8",
-    marginBottom: 4,
-  },
   required: {
-    color: "#ef4444",
-  },
-  input: {
-    fontSize: 16,
-    color: "#fff",
-    padding: 0,
-    margin: 0,
-  },
-  errorText: {
-    fontSize: 12,
-    color: "#ef4444",
-    marginTop: 4,
-    fontStyle: "italic",
+    color: COLORS.danger,
   },
   financialGrid: {
     flexDirection: "row",
@@ -449,11 +448,11 @@ const styles = StyleSheet.create({
   },
   financialCard: {
     flex: 1,
-    backgroundColor: "#1a2a1a",
+    backgroundColor: COLORS.card,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#ffffff10",
+    borderColor: COLORS.borderLight,
   },
   currencyInput: {
     flexDirection: "row",
@@ -463,19 +462,19 @@ const styles = StyleSheet.create({
   currencySymbol: {
     fontSize: 20,
     fontWeight: "600",
-    color: "#fff",
+    color: COLORS.white,
     marginRight: 8,
   },
   financialInput: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#fff",
+    color: COLORS.white,
     flex: 1,
     padding: 0,
     margin: 0,
   },
   netIncomeCard: {
-    backgroundColor: "rgba(19, 236, 19, 0.1)",
+    backgroundColor: COLORS.primarySoft,
     borderColor: "rgba(19, 236, 19, 0.3)",
     borderWidth: 1,
     borderRadius: 16,
@@ -490,19 +489,19 @@ const styles = StyleSheet.create({
   netIncomeLabel: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#13ec13",
+    color: COLORS.primary,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   netIncomeSubtitle: {
     fontSize: 12,
-    color: "#94A3B8",
+    color: COLORS.muted,
     marginTop: 2,
   },
   netIncomeAmount: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#fff",
+    color: COLORS.white,
   },
   bottomSpacer: {
     height: 20,
@@ -513,26 +512,14 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: "#102210",
+    backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: "#ffffff10",
-  },
-  saveButton: {
-    backgroundColor: "#13ec13",
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    borderTopColor: COLORS.borderLight,
   },
   templateButton: {
     backgroundColor: "transparent",
     borderWidth: 1,
-    borderColor: "#ffffff20",
+    borderColor: COLORS.borderLight,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
@@ -540,6 +527,18 @@ const styles = StyleSheet.create({
   templateButtonText: {
     fontSize: 16,
     fontWeight: "500",
-    color: "#fff",
+    color: COLORS.white,
+  },
+  userInfo: {
+    backgroundColor: COLORS.primarySoft,
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  userInfoText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
