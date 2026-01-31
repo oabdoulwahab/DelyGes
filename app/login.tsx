@@ -21,6 +21,7 @@ import { useAuth } from "../src/hooks/useAuth";
 import * as yup from "yup";
 import { COLORS } from "../styles/colors";
 import { loginStyles as styles } from "../styles/loginStyles";
+import { useModal } from "../providers/ModalProvider";
 
 /* ---------------- VALIDATION ---------------- */
 
@@ -41,6 +42,7 @@ type LoginFormData = {
 export default function Login() {
   const { login, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const { showAlert } = useModal(); 
 
   const {
     control,
@@ -67,7 +69,7 @@ export default function Login() {
   };
 
   const handleForgotPassword = () => {
-    Alert.alert("Mot de passe oublié", "Veuillez contacter l'administrateur.");
+    showAlert("Mot de passe oublié", "Veuillez contacter l'administrateur.");
   };
 
   return (

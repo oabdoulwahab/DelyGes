@@ -13,6 +13,7 @@ import { BlurView } from "expo-blur";
 import { commonStyles } from "../styles/common";
 import { dashboardStyles } from "../styles/dashboardStyles";
 import { COLORS } from "../styles/colors";
+import { useModal } from "../providers/ModalProvider";
 
 // Définition des types
 type User = {
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [monthGoal, setMonthGoal] = useState(0);
   const [todayDeliveries, setTodayDeliveries] = useState<Delivery[]>([]);
   const [userName, setUserName] = useState("");
+  const { showAlert } = useModal(); 
 
   const formattedDate = new Date().toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -202,7 +204,7 @@ export default function Dashboard() {
               <Text style={styles.cardLabel}>Revenus du jour</Text>
               <View style={styles.iconContainer}>
                 <MaterialIcons
-                  name="euro-symbol"
+                  name="account-balance-wallet"
                   size={20}
                   color={COLORS.primary}
                 />
@@ -240,7 +242,7 @@ export default function Dashboard() {
         </View>
 
         {/* Objectif mensuel */}
-        <View style={styles.goalCard}>
+        {/* <View style={styles.goalCard}>
           <View style={styles.goalHeader}>
             <View>
               <Text style={styles.goalTitle}>Objectif mensuel</Text>
@@ -263,25 +265,25 @@ export default function Dashboard() {
               style={[styles.progressFill, { width: `${monthProgress}%` }]}
             />
           </View>
-        </View>
+        </View> */}
 
         {/* Statistiques */}
-        <View style={styles.statsSection}>
+        {/* <View style={styles.statsSection}>
           <View style={styles.statsHeader}>
             <Text style={styles.statsTitle}>Statistiques</Text>
             <Text style={styles.deliveryCount}>
               {todayDeliveries.length} Livraison
               {todayDeliveries.length > 1 ? "s" : ""}
             </Text>
-          </View>
+          </View> */}
 
           {/* Graphique simplifié */}
-          <View style={styles.graphPlaceholder}>
+          {/* <View style={styles.graphPlaceholder}>
             <Text style={styles.graphText}>
               Graphique hebdomadaire à implémenter
             </Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Planning du jour */}
         <View style={styles.scheduleSection}>

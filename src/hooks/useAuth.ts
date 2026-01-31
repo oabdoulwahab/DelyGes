@@ -8,21 +8,27 @@ const USER_KEY = "AUTH_USER_ID";
 export const useAuth = () => {
   const [user, setUser] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // ⏳ Session ready
+  const [authReady, setAuthReady] = useState(false);
+
+  // 🔄 Actions (login / logout)
+  const [actionLoading, setActionLoading] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
-  // 🔁 Vérifier la session au démarrage
+  // 🔁 Vérification session au démarrage
   const checkAuth = async () => {
     try {
       const userId = await SecureStore.getItemAsync(USER_KEY);
 
       if (!userId) {
-        setIsAuthenticated(false);
         setUser(null);
+        setIsAuthenticated(false);
         return;
       }
 
-      const dbUser = await db.getFirstAsync(
+      const dbUser = await db.getFirstAsync<any>(
         "SELECT * FROM user WHERE id = ?",
         [Number(userId)]
       );
@@ -32,47 +38,72 @@ export const useAuth = () => {
         setIsAuthenticated(true);
       } else {
         await SecureStore.deleteItemAsync(USER_KEY);
+        setUser(null);
         setIsAuthenticated(false);
       }
     } catch (e) {
       console.error("checkAuth error:", e);
+      setUser(null);
       setIsAuthenticated(false);
     } finally {
-      setIsLoading(false);
+      // 🔥 TOUJOURS signaler que l’auth est prête
+      setAuthReady(true);
     }
   };
 
   // 🔐 LOGIN
   const login = async (emailOrPhone: string, password: string) => {
-    setIsLoading(true);
+    setActionLoading(true);
     setError(null);
 
     try {
-      const user = await db.getFirstAsync<{ id: number; password: string }>(
+      const dbUser = await db.getFirstAsync<any>(
         "SELECT * FROM user WHERE email = ? OR phone = ?",
         [emailOrPhone.trim(), emailOrPhone.trim()]
       );
 
-      if (!user || user.password !== password) {
+      if (!dbUser || dbUser.password !== password) {
         throw new Error("Identifiants incorrects");
       }
 
-      await SecureStore.setItemAsync(USER_KEY, String(user.id));
-      setUser(user);
+      await SecureStore.setItemAsync(USER_KEY, String(dbUser.id));
+      setUser(dbUser);
       setIsAuthenticated(true);
+
+      // 🔥 IMPORTANT
+      setAuthReady(true);
     } catch (e: any) {
       setError(e.message);
       throw e;
     } finally {
-      setIsLoading(false);
+      setActionLoading(false);
     }
   };
 
   // 🚪 LOGOUT
   const logout = async () => {
-    await SecureStore.deleteItemAsync(USER_KEY);
-    setUser(null);
-    setIsAuthenticated(false);
+    setActionLoading(true);
+    try {
+      await SecureStore.deleteItemAsync(USER_KEY);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+      setAuthReady(true); // 🔥 cohérence globale
+      setActionLoading(false);
+    }
+  };
+
+  // 🔄 Rafraîchir l’utilisateur connecté
+  const refreshUser = async () => {
+    const userId = await SecureStore.getItemAsync(USER_KEY);
+    if (!userId) return;
+
+    const dbUser = await db.getFirstAsync<any>(
+      "SELECT * FROM user WHERE id = ?",
+      [Number(userId)]
+    );
+
+    if (dbUser) setUser(dbUser);
   };
 
   useEffect(() => {
@@ -82,11 +113,12 @@ export const useAuth = () => {
   return {
     user,
     isAuthenticated,
-    isLoading,
+    authReady,
+    actionLoading,
     error,
     login,
     logout,
-    checkAuth,
+    refreshUser,
     clearError: () => setError(null),
   };
 };

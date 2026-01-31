@@ -1,28 +1,25 @@
 export const COLORS = {
-  background: "#102210",
-  card: "#1a2a1a",
+  background: "#0F172A", // Bleu nuit très profond (plus reposant que le vert foncé)
+  card: "#1E293B",       // Gris ardoise pour détacher les éléments
 
-  inputBackground: "#193319",
-  inputBorder: "#326732",
-  placeholder: "#92c992",
+  inputBackground: "#1E293B",
+  inputBorder: "#334155",
+  placeholder: "#64748B",
+  inputPlaceholder: "#64748B",
 
-  inputPlaceholder: "#92c992",
+  primary: "#10B981",    // Un vert émeraude plus pro que le fluo #13ec13
+  primarySoft: "rgba(16, 185, 129, 0.1)",
 
-  primary: "#13ec13",
-  primarySoft: "rgba(19, 236, 19, 0.1)",
-
-  white: "#ffffff",
+  white: "#F8FAFC",      // Blanc cassé pour réduire l'éblouissement
   muted: "#94A3B8",
 
-  danger: "#ef4444",
-  dangerSoft: "#ef444410",
+  danger: "#FF4D4D",
+  success: "#10B981",
+  warning: "#F59E0B",
 
-  success: "#10b981",
-  successSoft: "#10b98120",
-
-  warning: "#f59e0b",
-  warningSoft: "#fbbf2420",
-
-  borderLight: "#ffffff10",
-  borderVeryLight: "#ffffff05",
+  borderLight: "rgba(255, 255, 255, 0.08)",
+  borderVeryLight: "rgba(255, 255, 255, 0.03)",
+    dangerSoft: "rgba(255, 77, 77, 0.1)", // AJOUTER CETTE LIGNE
+    successSoft: "rgba(16, 185, 129, 0.1)", // AJOUTER CETTE LIGNE
+    warningSoft: "rgba(245, 158, 11, 0.1)", // AJOUTER CETTE LIGNE
 };

@@ -1,54 +1,34 @@
-// app/_layout.tsx
-import { Stack, router } from "expo-router";
+import { Slot } from "expo-router";
 import { View, ActivityIndicator, Text } from "react-native";
 import { useEffect, useState } from "react";
 import NavigationTabs from "../components/NavigationTabs";
 import { initializeDatabase } from "../src/database/db";
 import { useAuth } from "../src/hooks/useAuth";
+import { ModalProvider } from "../providers/ModalProvider";
 
 export default function Layout() {
   const [dbReady, setDbReady] = useState(false);
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, authReady } = useAuth();
 
   useEffect(() => {
-    const init = async () => {
-      await initializeDatabase();
-      setDbReady(true);
-    };
-    init();
+    initializeDatabase().then(() => setDbReady(true));
   }, []);
 
-  useEffect(() => {
-    if (!dbReady || isLoading) return;
-
-    console.log('🔐 État auth dans Layout:', {
-      isAuthenticated,
-      dbReady,
-      isLoading
-    });
-
-    if (isAuthenticated) {
-      router.replace("/dashboard");
-    } else {
-      router.replace("/login");
-    }
-  }, [dbReady, isLoading, isAuthenticated]);
-
-  if (!dbReady || isLoading) {
+  if (!dbReady || !authReady) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: '#102210' }}>
-        <ActivityIndicator size="large" color="#13ec13" />
-        <Text style={{ color: '#13ec13', marginTop: 16 }}>
-          {!dbReady ? 'Initialisation DB...' : 'Vérification auth...'}
-        </Text>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+        <Text>Chargement...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }} />
-      {isAuthenticated && <NavigationTabs />}
-    </View>
+    <ModalProvider>
+      <View style={{ flex: 1 }}>
+        <Slot />
+        {isAuthenticated && <NavigationTabs />}
+      </View>
+    </ModalProvider>
   );
 }

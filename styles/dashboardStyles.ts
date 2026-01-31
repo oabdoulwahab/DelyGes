@@ -19,7 +19,7 @@ export const dashboardStyles = StyleSheet.create({
   },
   floatingButton: {
     position: "absolute",
-    bottom: 90,
+    bottom: 10,
     right: 16,
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
@@ -36,6 +36,7 @@ export const dashboardStyles = StyleSheet.create({
   },
   floatingButtonText: {
     fontWeight: "bold",
+
     fontSize: 14,
   },
 });

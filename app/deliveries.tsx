@@ -19,6 +19,7 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay } f
 import { fr } from 'date-fns/locale';
 import { commonStyles } from "../styles/common";
 import { COLORS } from "../styles/colors";
+import { useModal } from "../providers/ModalProvider";
 
 type Delivery = {
   id: number;
@@ -49,6 +50,7 @@ export default function Deliveries() {
   const [activePeriod, setActivePeriod] = useState<PeriodType>("today");
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [deliveryDates, setDeliveryDates] = useState<Date[]>([]);
+  const { showConfirm, showSuccess, showError } = useModal();
   
   // Charger les dates des livraisons pour le calendrier
   const loadDeliveryDates = async () => {
@@ -197,7 +199,7 @@ export default function Deliveries() {
       ["LIVREE", new Date().toISOString(), id]
     );
     
-    Alert.alert("Succès", "Livraison marquée comme livrée");
+    showSuccess("Succès", "Livraison marquée comme livrée");
     loadDeliveries();
   };
   
@@ -211,43 +213,32 @@ export default function Deliveries() {
     
     if (validDeliveries.length === 0) return;
     
-    Alert.alert(
+    showConfirm(
       "Marquer comme payé",
       `Marquer ${validDeliveries.length} livraison(s) comme payée(s) ?`,
-      [
-        { text: "Annuler", style: "cancel" },
-        { 
-          text: "Confirmer", 
-          onPress: () => {
-            Alert.alert("Succès", "Livraisons marquées comme payées");
-            setSelectedDeliveries([]);
-          }
-        }
-      ]
+      () => {
+        showSuccess("Succès", "Livraisons marquées comme payées"); 
+        setSelectedDeliveries([]);
+      }
     );
   };
   
   const markAsCancelled = async (id: number) => {
     setSelectedDeliveries(prev => prev.filter(deliveryId => deliveryId !== id));
     
-    Alert.alert(
+    showConfirm(
       "Annuler la livraison",
       "Êtes-vous sûr de vouloir annuler cette livraison ?",
-      [
-        { text: "Non", style: "cancel" },
-        { 
-          text: "Oui, annuler", 
-          style: "destructive",
-          onPress: async () => {
-            await db.runAsync(
-              "UPDATE deliveries SET status = ? WHERE id = ?",
-              ["ANNULEE", id]
-            );
-            Alert.alert("Succès", "Livraison annulée");
-            loadDeliveries();
-          }
-        }
-      ]
+      async () => {
+        await db.runAsync(
+          "UPDATE deliveries SET status = ? WHERE id = ?",
+          ["ANNULEE", id]
+        );
+        showSuccess("Succès", "Livraison annulée"); // REMPLACER
+        loadDeliveries();
+      },
+      "Oui, annuler",
+      "Non"
     );
   };
   
@@ -654,7 +645,7 @@ export default function Deliveries() {
                 onPress={() => setActiveTab(tab)}
               >
                 <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                  {tab === "A_LIVRER" && "À venir"}
+                  {tab === "A_LIVRER" && "En cours"}
                   {tab === "AUJOURDHUI" && "Aujourd'hui"}
                   {tab === "LIVREE" && "Terminées"}
                   {tab === "ANNULEE" && "Annulées"}

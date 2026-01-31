@@ -19,15 +19,17 @@ import { commonStyles } from "../styles/common";
 import { addDeliveryStyles } from "../styles/addDeliveryStyles";
 import { COLORS } from "../styles/colors";
 import { useAuth } from "../src/hooks/useAuth";
+import { useModal } from "../providers/ModalProvider";
 
 export default function AddDelivery() {
   const { user, isAuthenticated } = useAuth();
+  const { showConfirm, showSuccess, showError, showAlert } = useModal();
   const [recipientName, setRecipientName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [parcelValue, setParcelValue] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("");
-  
+
   const [errors, setErrors] = useState({
     recipientName: false,
     phone: false,
@@ -43,24 +45,28 @@ export default function AddDelivery() {
       recipientName: !recipientName.trim(),
       phone: !phone.trim(),
       address: !address.trim(),
-      parcelValue: !parcelValue.trim() || Number(parcelValue.replace(',', '.')) <= 0,
-      deliveryFee: !deliveryFee.trim() || Number(deliveryFee.replace(',', '.')) <= 0,
+      parcelValue:
+        !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
+      deliveryFee:
+        !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
     };
-    
+
     setErrors(newErrors);
-    
-    return !Object.values(newErrors).some(error => error);
+
+    return !Object.values(newErrors).some((error) => error);
   };
 
   const handleSave = async () => {
     if (!validateForm()) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs obligatoires avec des valeurs valides");
+      showError(
+        "Erreur",
+        "Veuillez remplir tous les champs obligatoires avec des valeurs valides",
+      ); // REMPLACER
       return;
     }
 
-    // Vérifier l'authentification
     if (!isAuthenticated || !user) {
-      Alert.alert("Erreur", "Vous devez être connecté pour créer une livraison");
+      showError("Erreur", "Vous devez être connecté pour créer une livraison"); // REMPLACER
       return;
     }
 
@@ -68,8 +74,12 @@ export default function AddDelivery() {
 
     try {
       // Convertir les valeurs monétaires
-      const parcelValueNum = parcelValue ? Number(parcelValue.replace(',', '.')) : 0;
-      const deliveryFeeNum = deliveryFee ? Number(deliveryFee.replace(',', '.')) : 0;
+      const parcelValueNum = parcelValue
+        ? Number(parcelValue.replace(",", "."))
+        : 0;
+      const deliveryFeeNum = deliveryFee
+        ? Number(deliveryFee.replace(",", "."))
+        : 0;
 
       // Insérer la livraison avec l'user_id
       const result = await db.runAsync(
@@ -85,27 +95,30 @@ export default function AddDelivery() {
           "A_LIVRER",
           user.id, // ← ICI: user.id récupéré du hook useAuth
           new Date().toISOString(),
-        ]
+        ],
       );
 
-      console.log("✅ Livraison créée avec ID:", result.lastInsertRowId, "pour l'utilisateur:", user.id);
-
-      Alert.alert(
-        "Succès", 
-        "Livraison ajoutée avec succès",
-        [{ text: "OK", onPress: () => router.back() }]
+      console.log(
+        "✅ Livraison créée avec ID:",
+        result.lastInsertRowId,
+        "pour l'utilisateur:",
+        user.id,
       );
+
+      showSuccess("Succès", "Livraison ajoutée avec succès");
+      setTimeout(() => router.back(), 1000);
     } catch (error: any) {
       console.error("❌ Erreur lors de la création de la livraison:", error);
-      
+
       let errorMessage = "Impossible d'ajouter la livraison";
       if (error.message?.includes("NOT NULL constraint failed")) {
-        errorMessage = "Erreur de base de données : l'ID utilisateur est requis";
+        errorMessage =
+          "Erreur de base de données : l'ID utilisateur est requis";
       } else if (error.message?.includes("user_id")) {
         errorMessage = "Erreur d'authentification. Veuillez vous reconnecter.";
       }
-      
-      Alert.alert("Erreur", errorMessage);
+
+      showError("Erreur", errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -113,45 +126,47 @@ export default function AddDelivery() {
 
   const handleCancel = () => {
     if (recipientName || phone || address || parcelValue || deliveryFee) {
-      Alert.alert(
+      showConfirm(
         "Annuler",
         "Voulez-vous vraiment annuler ? Les modifications seront perdues.",
-        [
-          { text: "Continuer", style: "cancel" },
-          { text: "Annuler", onPress: () => router.back() }
-        ]
+        () => router.back(),
+        "Annuler",
+        "Continuer",
       );
     } else {
       router.back();
     }
   };
 
-  const handleCurrencyChange = (text: string, setter: (value: string) => void) => {
+  const handleCurrencyChange = (
+    text: string,
+    setter: (value: string) => void,
+  ) => {
     // N'autoriser que les chiffres et une virgule/décimal
-    const cleaned = text.replace(/[^\d,.]/g, '');
-    
+    const cleaned = text.replace(/[^\d,.]/g, "");
+
     // Remplacer le point par une virgule pour le format français
-    const withComma = cleaned.replace('.', ',');
-    
+    const withComma = cleaned.replace(".", ",");
+
     // Si c'est vide, réinitialiser
     if (!withComma) {
       setter("");
       return;
     }
-    
+
     // Vérifier s'il y a plus d'une virgule
     const commaCount = (withComma.match(/,/g) || []).length;
     if (commaCount > 1) return;
-    
+
     // Si on a une virgule, limiter à 2 décimales
-    if (withComma.includes(',')) {
-      const [whole, decimal] = withComma.split(',');
+    if (withComma.includes(",")) {
+      const [whole, decimal] = withComma.split(",");
       if (decimal && decimal.length > 2) {
         setter(`${whole},${decimal.substring(0, 2)}`);
         return;
       }
     }
-    
+
     setter(withComma);
   };
 
@@ -164,26 +179,26 @@ export default function AddDelivery() {
   }, [isAuthenticated, user]);
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={commonStyles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      
+
       {/* En-tête */}
       <BlurView intensity={95} tint="dark" style={addDeliveryStyles.header}>
         <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
           <Text style={styles.cancelButtonText}>Annuler</Text>
         </TouchableOpacity>
-        
+
         <Text style={addDeliveryStyles.headerTitle}>Ajouter une Livraison</Text>
-        
+
         <TouchableOpacity style={styles.saveButtonPlaceholder}>
           <Text style={addDeliveryStyles.saveButtonText}>Enregistrer</Text>
         </TouchableOpacity>
       </BlurView>
 
-      <ScrollView 
+      <ScrollView
         style={addDeliveryStyles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={addDeliveryStyles.scrollContent}
@@ -199,14 +214,18 @@ export default function AddDelivery() {
 
         {/* Section Logistique */}
         <View style={commonStyles.section}>
-          <Text style={addDeliveryStyles.sectionTitle}>Informations de livraison</Text>
-          
+          <Text style={addDeliveryStyles.sectionTitle}>
+            Informations de livraison
+          </Text>
+
           <View style={commonStyles.card}>
             {/* Nom du destinataire */}
-            <View style={[
-              addDeliveryStyles.inputGroup, 
-              errors.recipientName && styles.inputError
-            ]}>
+            <View
+              style={[
+                addDeliveryStyles.inputGroup,
+                errors.recipientName && styles.inputError,
+              ]}
+            >
               <Text style={addDeliveryStyles.inputLabel}>
                 Destinataire <Text style={styles.required}>*</Text>
               </Text>
@@ -217,20 +236,24 @@ export default function AddDelivery() {
                 value={recipientName}
                 onChangeText={(text) => {
                   setRecipientName(text);
-                  setErrors(prev => ({ ...prev, recipientName: false }));
+                  setErrors((prev) => ({ ...prev, recipientName: false }));
                 }}
                 autoCapitalize="words"
               />
               {errors.recipientName && (
-                <Text style={addDeliveryStyles.errorText}>Ce champ est obligatoire</Text>
+                <Text style={addDeliveryStyles.errorText}>
+                  Ce champ est obligatoire
+                </Text>
               )}
             </View>
 
             {/* Téléphone */}
-            <View style={[
-              addDeliveryStyles.inputGroup, 
-              errors.phone && styles.inputError
-            ]}>
+            <View
+              style={[
+                addDeliveryStyles.inputGroup,
+                errors.phone && styles.inputError,
+              ]}
+            >
               <Text style={addDeliveryStyles.inputLabel}>
                 Téléphone <Text style={styles.required}>*</Text>
               </Text>
@@ -241,26 +264,30 @@ export default function AddDelivery() {
                 value={phone}
                 onChangeText={(text) => {
                   setPhone(text);
-                  setErrors(prev => ({ ...prev, phone: false }));
+                  setErrors((prev) => ({ ...prev, phone: false }));
                 }}
                 keyboardType="phone-pad"
               />
               {errors.phone && (
-                <Text style={addDeliveryStyles.errorText}>Ce champ est obligatoire</Text>
+                <Text style={addDeliveryStyles.errorText}>
+                  Ce champ est obligatoire
+                </Text>
               )}
             </View>
 
             {/* Adresse de livraison */}
-            <View style={[
-              addDeliveryStyles.inputGroup, 
-              styles.inputGroupWithIcon,
-              errors.address && styles.inputError
-            ]}>
-              <MaterialIcons 
-                name="location-on" 
-                size={20} 
-                color={errors.address ? COLORS.danger : COLORS.primary} 
-                style={styles.inputIcon} 
+            <View
+              style={[
+                addDeliveryStyles.inputGroup,
+                styles.inputGroupWithIcon,
+                errors.address && styles.inputError,
+              ]}
+            >
+              <MaterialIcons
+                name="location-on"
+                size={20}
+                color={errors.address ? COLORS.danger : COLORS.primary}
+                style={styles.inputIcon}
               />
               <View style={styles.inputContent}>
                 <Text style={addDeliveryStyles.inputLabel}>
@@ -273,11 +300,13 @@ export default function AddDelivery() {
                   value={address}
                   onChangeText={(text) => {
                     setAddress(text);
-                    setErrors(prev => ({ ...prev, address: false }));
+                    setErrors((prev) => ({ ...prev, address: false }));
                   }}
                 />
                 {errors.address && (
-                  <Text style={addDeliveryStyles.errorText}>Ce champ est obligatoire</Text>
+                  <Text style={addDeliveryStyles.errorText}>
+                    Ce champ est obligatoire
+                  </Text>
                 )}
               </View>
             </View>
@@ -287,75 +316,91 @@ export default function AddDelivery() {
         {/* Section Détails financiers */}
         <View style={commonStyles.section}>
           <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
-          
+
           <View style={styles.financialGrid}>
             {/* Valeur du colis */}
-            <View style={[
-              styles.financialCard, 
-              errors.parcelValue && styles.inputError
-            ]}>
+            <View
+              style={[
+                styles.financialCard,
+                errors.parcelValue && styles.inputError,
+              ]}
+            >
               <Text style={addDeliveryStyles.inputLabel}>
                 Valeur du colis <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.currencyInput}>
-                <Text style={[
-                  styles.currencySymbol, 
-                  errors.parcelValue && { color: COLORS.danger }
-                ]}>
+                <Text
+                  style={[
+                    styles.currencySymbol,
+                    errors.parcelValue && { color: COLORS.danger },
+                  ]}
+                >
                   €
                 </Text>
                 <TextInput
                   style={[
-                    styles.financialInput, 
-                    errors.parcelValue && { color: COLORS.danger }
+                    styles.financialInput,
+                    errors.parcelValue && { color: COLORS.danger },
                   ]}
                   placeholder="0,00"
-                  placeholderTextColor={errors.parcelValue ? COLORS.danger : COLORS.muted}
+                  placeholderTextColor={
+                    errors.parcelValue ? COLORS.danger : COLORS.muted
+                  }
                   value={parcelValue}
                   onChangeText={(text) => {
                     handleCurrencyChange(text, setParcelValue);
-                    setErrors(prev => ({ ...prev, parcelValue: false }));
+                    setErrors((prev) => ({ ...prev, parcelValue: false }));
                   }}
                   keyboardType="decimal-pad"
                 />
               </View>
               {errors.parcelValue && (
-                <Text style={addDeliveryStyles.errorText}>Valeur supérieure à 0 requise</Text>
+                <Text style={addDeliveryStyles.errorText}>
+                  Valeur supérieure à 0 requise
+                </Text>
               )}
             </View>
 
             {/* Frais de livraison */}
-            <View style={[
-              styles.financialCard, 
-              errors.deliveryFee && styles.inputError
-            ]}>
+            <View
+              style={[
+                styles.financialCard,
+                errors.deliveryFee && styles.inputError,
+              ]}
+            >
               <Text style={addDeliveryStyles.inputLabel}>
                 Frais de livraison <Text style={styles.required}>*</Text>
               </Text>
               <View style={styles.currencyInput}>
-                <Text style={[
-                  styles.currencySymbol, 
-                  errors.deliveryFee && { color: COLORS.danger }
-                ]}>
+                <Text
+                  style={[
+                    styles.currencySymbol,
+                    errors.deliveryFee && { color: COLORS.danger },
+                  ]}
+                >
                   €
                 </Text>
                 <TextInput
                   style={[
-                    styles.financialInput, 
-                    errors.deliveryFee && { color: COLORS.danger }
+                    styles.financialInput,
+                    errors.deliveryFee && { color: COLORS.danger },
                   ]}
                   placeholder="0,00"
-                  placeholderTextColor={errors.deliveryFee ? COLORS.danger : COLORS.muted}
+                  placeholderTextColor={
+                    errors.deliveryFee ? COLORS.danger : COLORS.muted
+                  }
                   value={deliveryFee}
                   onChangeText={(text) => {
                     handleCurrencyChange(text, setDeliveryFee);
-                    setErrors(prev => ({ ...prev, deliveryFee: false }));
+                    setErrors((prev) => ({ ...prev, deliveryFee: false }));
                   }}
                   keyboardType="decimal-pad"
                 />
               </View>
               {errors.deliveryFee && (
-                <Text style={addDeliveryStyles.errorText}>Valeur supérieure à 0 requise</Text>
+                <Text style={addDeliveryStyles.errorText}>
+                  Valeur supérieure à 0 requise
+                </Text>
               )}
             </View>
           </View>
@@ -367,11 +412,14 @@ export default function AddDelivery() {
               <Text style={styles.netIncomeSubtitle}>Valeur + Frais</Text>
             </View>
             <Text style={styles.netIncomeAmount}>
-              {(Number(parcelValue.replace(',', '.') || 0) + Number(deliveryFee.replace(',', '.') || 0))
-                .toLocaleString("fr-FR", { 
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2 
-                })} FCFA
+              {(
+                Number(parcelValue.replace(",", ".") || 0) +
+                Number(deliveryFee.replace(",", ".") || 0)
+              ).toLocaleString("fr-FR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}{" "}
+              FCFA
             </Text>
           </View>
         </View>
@@ -382,11 +430,8 @@ export default function AddDelivery() {
 
       {/* Boutons d'action */}
       <BlurView intensity={95} tint="dark" style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={[
-            addDeliveryStyles.saveButton,
-            isSaving && { opacity: 0.7 }
-          ]}
+        <TouchableOpacity
+          style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.7 }]}
           onPress={handleSave}
           disabled={isSaving}
         >
@@ -394,14 +439,19 @@ export default function AddDelivery() {
             {isSaving ? "Enregistrement..." : "Enregistrer la livraison"}
           </Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
+
+        <TouchableOpacity
           style={styles.templateButton}
           onPress={() => {
-            Alert.alert("Info", "Cette fonctionnalité sera disponible prochainement");
+            showAlert(
+              "Info",
+              "Cette fonctionnalité sera disponible prochainement",
+            );
           }}
         >
-          <Text style={styles.templateButtonText}>Enregistrer comme modèle</Text>
+          <Text style={styles.templateButtonText}>
+            Enregistrer comme modèle
+          </Text>
         </TouchableOpacity>
       </BlurView>
     </KeyboardAvoidingView>

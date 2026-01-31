@@ -1,9 +1,11 @@
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { router, usePathname } from "expo-router";
+import { useModal } from "../providers/ModalProvider"; 
 
 export default function NavigationTabs() {
   const pathname = usePathname();
+  const { showAlert } = useModal();
 
   // Masquer les tabs sur certains écrans
   const hideTabsOnScreens = ["/delivery/", "/login", "/add-delivery", "/register"];
@@ -64,17 +66,17 @@ export default function NavigationTabs() {
         <Text style={styles.tabText}>Ajouter</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.tabItem}>
+      {/* <TouchableOpacity style={styles.tabItem}>
         <MaterialIcons
           name="bar-chart"
           size={24}
           color="#94A3B8"
           onPress={() => {
-            Alert.alert("Info", "Stats - fonctionnalité à venir");
+            showAlert("Info", "Stats - fonctionnalité à venir"); 
           }}
         />
         <Text style={styles.tabText}>Stats</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
 
       <TouchableOpacity
         style={styles.tabItem}
@@ -107,11 +109,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    paddingTop: 12,
-    paddingBottom: 24,
-    backgroundColor: "#102210",
+    paddingTop: 0,
+    paddingBottom: 40,
+    backgroundColor: "#1E293B",
     borderTopWidth: 1,
-    borderTopColor: "#ffffff10",
+    borderTopColor: "#334155",
     zIndex: 1000, // Assure que les tabs sont au-dessus
   },
   tabItem: {

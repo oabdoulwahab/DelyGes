@@ -294,4 +294,14 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.danger,
   },
+  clientPhoneContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  
+  // clientPhone: {
+  //   fontSize: 14,
+  //   color: COLORS.primary,
+  // },
 });
