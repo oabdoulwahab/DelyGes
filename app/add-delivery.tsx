@@ -20,6 +20,7 @@ import { addDeliveryStyles } from "../styles/addDeliveryStyles";
 import { COLORS } from "../styles/colors";
 import { useAuth } from "../src/hooks/useAuth";
 import { useModal } from "../providers/ModalProvider";
+import { sendDeliveryCreatedNotification } from "../src/services/notification.service";
 
 export default function AddDelivery() {
   const { user, isAuthenticated } = useAuth();
@@ -104,6 +105,9 @@ export default function AddDelivery() {
         "pour l'utilisateur:",
         user.id,
       );
+
+      // 📨 Envoyer une notification de création
+    await sendDeliveryCreatedNotification(user.id, 1);
 
       showSuccess("Succès", "Livraison ajoutée avec succès");
       setTimeout(() => router.back(), 1000);
@@ -204,13 +208,13 @@ export default function AddDelivery() {
         contentContainerStyle={addDeliveryStyles.scrollContent}
       >
         {/* Afficher l'info utilisateur pour débogage */}
-        {isAuthenticated && user && (
+        {/* {isAuthenticated && user && (
           <View style={styles.userInfo}>
             <Text style={styles.userInfoText}>
               Connecté en tant que: {user.name} (ID: {user.id})
             </Text>
           </View>
-        )}
+        )} */}
 
         {/* Section Logistique */}
         <View style={commonStyles.section}>
@@ -335,7 +339,7 @@ export default function AddDelivery() {
                     errors.parcelValue && { color: COLORS.danger },
                   ]}
                 >
-                  €
+                  FCFA
                 </Text>
                 <TextInput
                   style={[
@@ -378,7 +382,7 @@ export default function AddDelivery() {
                     errors.deliveryFee && { color: COLORS.danger },
                   ]}
                 >
-                  €
+                  FCFA
                 </Text>
                 <TextInput
                   style={[

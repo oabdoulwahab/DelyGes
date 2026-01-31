@@ -1,5 +1,6 @@
 // src/database/db.ts
 import * as SQLite from 'expo-sqlite';
+import { DatabaseMigration } from '../utils/databaseMigration';
 
 // ===============================
 // OUVERTURE DB
@@ -91,6 +92,20 @@ export const migrateFromOldDB = async (): Promise<void> => {
       );
     }
 
+    // Ajouter les colonnes de notifications si elles n'existent pas
+    const columnsToAdd = [
+      { name: 'delivery_created_notifications', type: 'INTEGER DEFAULT 1' },
+      { name: 'daily_summary_notifications', type: 'INTEGER DEFAULT 0' },
+    ];
+
+    for (const column of columnsToAdd) {
+      const exists = userSchema.some(col => col.name === column.name);
+      if (!exists) {
+        console.log(`➕ Ajout colonne user.${column.name}`);
+        await db.execAsync(`ALTER TABLE user ADD COLUMN ${column.name} ${column.type}`);
+      }
+    }
+
     console.log('✅ Migration terminée');
   } catch (error) {
     console.error('❌ Erreur migration:', error);
@@ -124,6 +139,8 @@ export const initializeDatabase = async (): Promise<void> => {
     await initDB();           // créer tables
     await migrateFromOldDB(); // corriger anciennes DB
     await createIndexes();    // index seulement si colonnes OK
+    // ⚡ Vérifier et exécuter les migrations
+    await DatabaseMigration.checkAndMigrate();
 
     console.log('🚀 Base de données prête');
   } catch (error) {

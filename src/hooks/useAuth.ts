@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { db } from "../database/db";
+import { setupBackgroundTask } from "../services/notification.service";
 
 const USER_KEY = "AUTH_USER_ID";
 
@@ -69,6 +70,9 @@ export const useAuth = () => {
       await SecureStore.setItemAsync(USER_KEY, String(dbUser.id));
       setUser(dbUser);
       setIsAuthenticated(true);
+
+      // 🔥 Configurer les notifications en arrière-plan
+      await setupBackgroundTask();
 
       // 🔥 IMPORTANT
       setAuthReady(true);

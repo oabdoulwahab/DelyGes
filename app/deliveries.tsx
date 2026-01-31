@@ -20,6 +20,8 @@ import { fr } from 'date-fns/locale';
 import { commonStyles } from "../styles/common";
 import { COLORS } from "../styles/colors";
 import { useModal } from "../providers/ModalProvider";
+import { sendDeliveryCompletedNotification } from "../src/services/notification.service";
+import { useAuth } from "../src/hooks/useAuth";
 
 type Delivery = {
   id: number;
@@ -51,6 +53,7 @@ export default function Deliveries() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [deliveryDates, setDeliveryDates] = useState<Date[]>([]);
   const { showConfirm, showSuccess, showError } = useModal();
+  const { user } = useAuth(); 
   
   // Charger les dates des livraisons pour le calendrier
   const loadDeliveryDates = async () => {
@@ -193,11 +196,19 @@ export default function Deliveries() {
   
   const markAsDelivered = async (id: number) => {
     setSelectedDeliveries(prev => prev.filter(deliveryId => deliveryId !== id));
+
+    // Récupérer le montant de la livraison
+    const delivery = deliveries.find(d => d.id === id);
+    const amount = delivery?.delivery_fee || 0;
     
     await db.runAsync(
       "UPDATE deliveries SET status = ?, delivered_at = ? WHERE id = ?",
       ["LIVREE", new Date().toISOString(), id]
     );
+     // 📨 Envoyer une notification de livraison terminée
+      if (user?.id) {
+        await sendDeliveryCompletedNotification(user.id, amount);
+      }
     
     showSuccess("Succès", "Livraison marquée comme livrée");
     loadDeliveries();

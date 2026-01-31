@@ -20,6 +20,8 @@ import { settingsStyles as styles } from "../styles/settingsStyles";
 import { useAuth } from "../src/hooks/useAuth";
 import { useAutoSave } from "../src/hooks/useAutoSave";
 import { useModal } from "../providers/ModalProvider";
+import * as Updates from "expo-updates";
+import * as Application from "expo-application";
 
 type UserSettings = {
   name: string;
@@ -35,6 +37,7 @@ type UserSettings = {
 
 export default function Settings() {
   const { user, isAuthenticated, logout, authReady } = useAuth(); // Ajout de authReady
+  const [appVersion, setAppVersion] = useState("");
 
   const { autoSave } = useAutoSave({
     userId: user?.id ?? 0,
@@ -52,7 +55,8 @@ export default function Settings() {
     reminder_notifications: 1,
     payment_notifications: 1,
   });
-  const { showModal, showConfirm, showSuccess, showError, showAlert } = useModal();
+  const { showModal, showConfirm, showSuccess, showError, showAlert } =
+    useModal();
   const [isLoading, setIsLoading] = useState(true);
 
   // Fonction pour mettre à jour un champ avec auto-save
@@ -195,6 +199,13 @@ export default function Settings() {
   };
 
   useEffect(() => {
+    // Version du build
+    const buildVersion = Application.nativeApplicationVersion || "1.0.0";
+
+    // Version du runtime (update)
+    const runtimeVersion = Updates.runtimeVersion || buildVersion;
+
+    setAppVersion(`${buildVersion} (runtime: ${runtimeVersion})`);
     // Attendre que l'auth soit prête avant de charger les settings
     if (authReady && isAuthenticated && user) {
       loadUserSettings();
@@ -525,6 +536,27 @@ export default function Settings() {
           <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
 
           <View style={commonStyles.card}>
+            <TouchableOpacity
+              style={styles.cardItem}
+              onPress={() => router.push("/notification-settings")}
+            >
+              <View style={styles.cardItemLeft}>
+                <MaterialIcons
+                  name="notifications"
+                  size={20}
+                  color={COLORS.muted}
+                />
+                <Text style={styles.cardItemLabel}>
+                  Gérer les notifications
+                </Text>
+              </View>
+              <MaterialIcons
+                name="arrow-forward-ios"
+                size={14}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+
             {/* Rappels de saisie */}
             <View style={styles.cardItem}>
               <View style={styles.cardItemLeft}>
@@ -639,7 +671,10 @@ export default function Settings() {
         </TouchableOpacity>
 
         {/* Version */}
-        <Text style={styles.versionText}>Version 2.4.1 (Build 2024)</Text>
+        <Text style={styles.versionText}>
+          Version {appVersion} • Dernière mise à jour:{" "}
+          {new Date().toLocaleDateString("fr-FR")}
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );

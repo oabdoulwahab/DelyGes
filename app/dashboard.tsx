@@ -152,7 +152,7 @@ export default function Dashboard() {
           </View>
 
           <View style={styles.headerActions}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.availabilityButton, available && styles.available]}
               onPress={() => setAvailable(!available)}
             >
@@ -164,7 +164,7 @@ export default function Dashboard() {
               <Text style={styles.availabilityText}>
                 {available ? "Disponible" : "Indisponible"}
               </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity style={styles.notificationButton}>
               <MaterialIcons

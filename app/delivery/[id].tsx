@@ -86,9 +86,9 @@ const formatPhoneForCall = (phone: string): string => {
   }
   
   // Retirer le 0 initial (pour les numéros français/ivoiriens)
-  if (number.startsWith("0")) {
-    number = number.substring(1);
-  }
+  // if (number.startsWith("0")) {
+  //   number = number.substring(1);//
+  // }
   
   // Pour les appels, on utilise le format local sans indicatif
   // Le système téléphonique ajoutera automatiquement l'indicatif local
