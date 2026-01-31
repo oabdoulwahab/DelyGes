@@ -39,7 +39,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.abdalbensaid.DelyGes",
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "output": "static",
