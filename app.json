@@ -2,14 +2,28 @@
   "expo": {
     "name": "DelyGes",
     "slug": "DelyGes",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/favicon.png",
     "scheme": "delyges",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/f5cb150b-bb4e-42f8-a5ab-6dd8dd4ec3e9"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,16 +32,28 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM"
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.abdalbensaid.DelyGes"
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
+      [
+        "expo-background-fetch",
+        {
+          "minimumInterval": 60
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -40,7 +66,12 @@
           }
         }
       ],
-      "expo-sqlite",
+      [
+        "expo-sqlite",
+        {
+          "iosDatabaseLocation": "Library"
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-secure-store"
     ],
