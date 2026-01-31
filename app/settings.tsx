@@ -393,9 +393,10 @@ export default function Settings() {
             {settings.name || user.name || "Utilisateur"}
           </Text>
           <Text style={styles.profileSubtitle}>
-            {user.phone ? `${user.phone} • ` : ""}En ligne
+            {user.phone ? `${user.phone} ` : ""}
+            {/* En ligne */}
           </Text>
-          <Text style={styles.userIdText}>ID: {user.id}</Text>
+          {/* <Text style={styles.userIdText}>ID: {user.id}</Text> */}
         </View>
 
         {/* Section: Profil Professionnel */}
