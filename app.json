@@ -21,9 +21,12 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "fetch",
+          "remote-notification",
+          "fetch",
           "remote-notification"
         ]
-      }
+      },
+      "bundleIdentifier": "com.abdalbensaid.DelyGes"
     },
     "android": {
       "adaptiveIcon": {
@@ -34,12 +37,14 @@
       },
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.abdalbensaid.DelyGes",
-      "versionCode": 4
+      "versionCode": 6
     },
     "web": {
       "output": "static",
@@ -47,7 +52,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router",
       "expo-notifications",
       [
         "expo-background-fetch",
