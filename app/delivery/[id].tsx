@@ -18,7 +18,7 @@ import { BlurView } from "expo-blur";
 import { commonStyles } from "../../styles/common";
 import { deliveryDetailStyles } from "../../styles/deliveryDetailStyles";
 import { COLORS } from "../../styles/colors";
-import { useNavigation } from '../../hooks/useNavigation';
+import { useNavigation } from "../../hooks/useNavigation";
 import { useModal } from "../../providers/ModalProvider";
 
 type Delivery = {
@@ -68,35 +68,22 @@ export default function DeliveryDetail() {
   };
 
   // Fonction pour formater un numéro de téléphone pour l'appel (sans indicatif)
-const formatPhoneForCall = (phone: string): string => {
-  // Nettoyer le numéro (enlever espaces, tirets, points, parenthèses)
-  const cleaned = phone.replace(/[\s\-\(\)\.]/g, "");
-  
-  // Retirer tous les indicatifs possibles
-  let number = cleaned;
-  
-  // Retirer +225
-  if (number.startsWith("+225")) {
-    number = number.substring(4);
-  }
-  
-  // Retirer 225
-  if (number.startsWith("225")) {
-    number = number.substring(3);
-  }
-  
-  // Retirer le 0 initial (pour les numéros français/ivoiriens)
-  // if (number.startsWith("0")) {
-  //   number = number.substring(1);//
-  // }
-  
-  // Pour les appels, on utilise le format local sans indicatif
-  // Le système téléphonique ajoutera automatiquement l'indicatif local
-  return number;
-};
+  const formatPhoneForCall = (phone: string): string => {
+    let number = phone.replace(/[^\d+]/g, "");
+
+    // Si le numéro commence sans indicatif, on ajoute +225
+    if (!number.startsWith("+")) {
+      if (number.startsWith("0")) {
+        number = number.substring(1);
+      }
+      number = `+225${number}`;
+    }
+
+    return number;
+  };
 
   // Fonction pour lancer l'appel
-  const handleCall = async () => {
+  const handleCall = () => {
     if (!delivery?.phone) {
       showError("Erreur", "Aucun numéro de téléphone disponible");
       return;
@@ -110,16 +97,22 @@ const formatPhoneForCall = (phone: string): string => {
       async () => {
         try {
           const url = `tel:${phoneNumber}`;
-          const canOpen = await Linking.canOpenURL(url);
 
-          if (canOpen) {
+          if (Platform.OS === "android") {
+            // Android : on lance directement
             await Linking.openURL(url);
           } else {
-            showError("Erreur", "Impossible de lancer l'appel téléphonique"); // REMPLACER
+            // iOS : canOpenURL est fiable
+            const supported = await Linking.canOpenURL(url);
+            if (supported) {
+              await Linking.openURL(url);
+            } else {
+              showError("Erreur", "Appel non supporté sur cet appareil");
+            }
           }
         } catch (error) {
-          console.error("Erreur lors de l'appel:", error);
-          showError("Erreur", "Impossible de lancer l'appel"); // REMPLACER
+          console.error("Erreur appel :", error);
+          showError("Erreur", "Impossible de lancer l'appel téléphonique");
         }
       },
     );
@@ -189,10 +182,7 @@ const formatPhoneForCall = (phone: string): string => {
       <View style={styles.errorContainer}>
         <MaterialIcons name="error-outline" size={48} color={COLORS.danger} />
         <Text style={styles.errorText}>Livraison introuvable</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={goBack}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={goBack}>
           <Text style={styles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       </View>

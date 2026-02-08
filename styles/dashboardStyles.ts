@@ -19,7 +19,7 @@ export const dashboardStyles = StyleSheet.create({
   },
   floatingButton: {
     position: "absolute",
-    bottom: 10,
+    bottom: 110,
     right: 16,
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
