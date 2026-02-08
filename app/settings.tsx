@@ -199,21 +199,21 @@ export default function Settings() {
   };
 
   useEffect(() => {
-    // Version du build
-    const buildVersion = Application.nativeApplicationVersion || "1.0.0";
+    const buildVersion = Application.nativeApplicationVersion ?? "unknown";
 
-    // Version du runtime (update)
-    const runtimeVersion = Updates.runtimeVersion || buildVersion;
+    const buildNumber = Application.nativeBuildVersion ?? "0";
 
-    setAppVersion(`${buildVersion} (runtime: ${runtimeVersion})`);
-    // Attendre que l'auth soit prête avant de charger les settings
+    const runtimeVersion = Updates.runtimeVersion ?? buildVersion;
+
+    const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : "build";
+
+    setAppVersion(`${runtimeVersion} (build ${buildNumber}, ${updateId})`);
+
     if (authReady && isAuthenticated && user) {
       loadUserSettings();
     } else if (authReady && !isAuthenticated) {
-      // Auth prête mais utilisateur non connecté
       setIsLoading(false);
     }
-    // Si authReady est false, on reste en chargement
   }, [authReady, isAuthenticated, user]);
 
   // Modifiez la condition de chargement
@@ -673,8 +673,8 @@ export default function Settings() {
 
         {/* Version */}
         <Text style={styles.versionText}>
-          Version {appVersion} • Dernière mise à jour:{" "}
-          {new Date().toLocaleDateString("fr-FR")}
+          {/* Version {appVersion} • Dernière mise à jour:{" "}
+          {new Date().toLocaleDateString("fr-FR")} */}
         </Text>
       </ScrollView>
     </SafeAreaView>
