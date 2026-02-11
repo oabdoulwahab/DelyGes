@@ -28,26 +28,47 @@ type Delivery = {
   address: string;
   parcel_value: number;
   delivery_fee: number;
+  payment_type: string;
+  merchant_id?: number;
   status: string;
   created_at: string;
   delivered_at?: string;
 };
 
+type Merchant = {
+  id: number;
+  name: string;
+  phone?: string;
+  address?: string;
+};
+
 export default function DeliveryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [delivery, setDelivery] = useState<Delivery | null>(null);
+  const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
   const { showConfirm, showSuccess, showError, showAlert } = useModal();
   const { goBack, goToDeliveries } = useNavigation();
 
   useEffect(() => {
     const loadDelivery = async () => {
-      const result = await db.getFirstAsync<Delivery>(
+      // Charger la livraison
+      const deliveryResult = await db.getFirstAsync<Delivery>(
         "SELECT * FROM deliveries WHERE id = ?",
         [Number(id)],
       );
 
-      setDelivery(result ?? null);
+      setDelivery(deliveryResult ?? null);
+
+      // Charger le commerçant si merchant_id existe
+      if (deliveryResult?.merchant_id) {
+        const merchantResult = await db.getFirstAsync<Merchant>(
+          "SELECT * FROM merchants WHERE id = ?",
+          [deliveryResult.merchant_id],
+        );
+        setMerchant(merchantResult ?? null);
+      }
+
       setLoading(false);
     };
 
@@ -103,6 +124,40 @@ export default function DeliveryDetail() {
             await Linking.openURL(url);
           } else {
             // iOS : canOpenURL est fiable
+            const supported = await Linking.canOpenURL(url);
+            if (supported) {
+              await Linking.openURL(url);
+            } else {
+              showError("Erreur", "Appel non supporté sur cet appareil");
+            }
+          }
+        } catch (error) {
+          console.error("Erreur appel :", error);
+          showError("Erreur", "Impossible de lancer l'appel téléphonique");
+        }
+      },
+    );
+  };
+
+  // Fonction pour appeler le commerçant
+  const handleCallMerchant = () => {
+    if (!merchant?.phone) {
+      showError("Erreur", "Aucun numéro de téléphone disponible pour ce commerçant");
+      return;
+    }
+
+    const phoneNumber = formatPhoneForCall(merchant.phone);
+
+    showConfirm(
+      "Appeler le commerçant",
+      `Voulez-vous appeler ${merchant.name} au ${merchant.phone} ?`,
+      async () => {
+        try {
+          const url = `tel:${phoneNumber}`;
+
+          if (Platform.OS === "android") {
+            await Linking.openURL(url);
+          } else {
             const supported = await Linking.canOpenURL(url);
             if (supported) {
               await Linking.openURL(url);
@@ -195,6 +250,17 @@ export default function DeliveryDetail() {
     isDelivered && delivery.delivered_at
       ? delivery.delivered_at
       : delivery.created_at;
+  const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
+  const isClientPaysLivraison =
+    delivery.payment_type === "CLIENT_PAYE_LIVRAISON";
+  const isColisDejaPaye = delivery.payment_type === "COLIS_DEJA_PAYE";
+
+  const montantEncaisse =
+    delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+
+  const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
+
+  const profit = delivery.delivery_fee;
 
   return (
     <View style={commonStyles.container}>
@@ -309,6 +375,58 @@ export default function DeliveryDetail() {
           </View>
         </View>
 
+        {/* Informations Commerçant */}
+        {merchant && (
+          <View style={commonStyles.section}>
+            <Text style={commonStyles.sectionTitle}>Commerçant</Text>
+
+            <View style={commonStyles.card}>
+              <View style={deliveryDetailStyles.clientInfo}>
+                <View style={[deliveryDetailStyles.clientAvatar, { backgroundColor: COLORS.primarySoft }]}>
+                  <Text style={deliveryDetailStyles.clientInitial}>
+                    {merchant.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
+                <View style={deliveryDetailStyles.clientDetails}>
+                  <Text style={deliveryDetailStyles.clientName}>
+                    {merchant.name}
+                  </Text>
+                  {merchant.phone && (
+                    <TouchableOpacity
+                      style={deliveryDetailStyles.clientPhoneContainer}
+                      onPress={handleCallMerchant}
+                      activeOpacity={0.7}
+                    >
+                      <MaterialIcons
+                        name="phone"
+                        size={14}
+                        color={COLORS.primary}
+                      />
+                      <Text style={deliveryDetailStyles.clientPhone}>
+                        {" "}
+                        {merchant.phone}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  {merchant.address && (
+                    <View style={deliveryDetailStyles.clientPhoneContainer}>
+                      <MaterialIcons
+                        name="location-on"
+                        size={14}
+                        color={COLORS.muted}
+                      />
+                      <Text style={[deliveryDetailStyles.clientPhone, { color: COLORS.muted }]}>
+                        {" "}
+                        {merchant.address}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Détails Financiers */}
         <View style={commonStyles.section}>
           <Text style={commonStyles.sectionTitle}>Détails Financiers</Text>
@@ -347,10 +465,56 @@ export default function DeliveryDetail() {
                 FCFA
               </Text>
             </View>
+
+            {/* Type de paiement */}
+            <View style={styles.paymentTypeContainer}>
+              <Text style={styles.paymentTypeLabel}>
+                Type de paiement
+              </Text>
+              <View style={styles.paymentTypeBadge}>
+                <Text style={styles.paymentTypeText}>
+                  {isClientPaysTout && "Client paie colis + livraison"}
+                  {isClientPaysLivraison && "Client paie livraison seulement"}
+                  {isColisDejaPaye && "Colis déjà payé"}
+                </Text>
+              </View>
+            </View>
+
+            {/* Résumé financier */}
+            <View style={styles.financialSummary}>
+              <View style={styles.financialSummaryItem}>
+                <Text style={styles.financialSummaryLabel}>
+                  Montant encaissé
+                </Text>
+                <Text style={[styles.financialSummaryValue, { color: COLORS.primary }]}>
+                  {montantEncaisse.toLocaleString("fr-FR")} FCFA
+                </Text>
+              </View>
+
+              {montantAReverser > 0 && (
+                <View style={styles.financialSummaryItem}>
+                  <Text style={[styles.financialSummaryLabel, { color: COLORS.warning }]}>
+                    À reverser au commerçant
+                  </Text>
+                  <Text style={[styles.financialSummaryValue, { color: COLORS.warning }]}>
+                    {montantAReverser.toLocaleString("fr-FR")} FCFA
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.financialSummaryItem}>
+                <Text style={[styles.financialSummaryLabel, { color: COLORS.success }]}>
+                  Votre profit
+                </Text>
+                <Text style={[styles.financialSummaryValue, { color: COLORS.success }]}>
+                  {profit.toLocaleString("fr-FR")} FCFA
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Statut et création */}
+        {/* Informations de suivi */}
         <View style={commonStyles.section}>
           <Text style={commonStyles.sectionTitle}>Informations de suivi</Text>
 
@@ -485,5 +649,48 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 16,
     fontWeight: "500",
+  },
+  // Styles ajoutés pour les détails financiers
+  paymentTypeContainer: {
+    marginTop: 16,
+  },
+  paymentTypeLabel: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  paymentTypeBadge: {
+    backgroundColor: COLORS.card,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  paymentTypeText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  financialSummary: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  financialSummaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  financialSummaryLabel: {
+    color: COLORS.muted,
+    fontSize: 14,
+  },
+  financialSummaryValue: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

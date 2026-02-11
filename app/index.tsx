@@ -18,21 +18,21 @@ export default function Index() {
   }, []);
 
   // Afficher un indicateur de chargement
-  if (isChecking || isLoading) {
-    return (
-      <View style={{ 
-        flex: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        backgroundColor: '#102210' 
-      }}>
-        <ActivityIndicator size="large" color="#13ec13" />
-        <Text style={{ color: '#13ec13', marginTop: 16 }}>
-          Chargement...
-        </Text>
-      </View>
-    );
-  }
+  // if (isChecking || isLoading) {
+  //   return (
+  //     <View style={{ 
+  //       flex: 1, 
+  //       justifyContent: 'center', 
+  //       alignItems: 'center', 
+  //       backgroundColor: '#102210' 
+  //     }}>
+  //       <ActivityIndicator size="large" color="#13ec13" />
+  //       <Text style={{ color: '#13ec13', marginTop: 16 }}>
+  //         Chargement...
+  //       </Text>
+  //     </View>
+  //   );
+  // }
 
   console.log('🎯 Redirection. Authentifié:', isAuthenticated);
   console.log('📱 URL cible:', isAuthenticated ? '/dashboard' : '/login');

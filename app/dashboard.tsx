@@ -5,8 +5,8 @@ import {
   ScrollView,
   StyleSheet,
 } from "react-native";
-import { useEffect, useState } from "react";
-import { router } from "expo-router";
+import { useEffect, useState, useCallback } from "react";
+import { router, useFocusEffect } from "expo-router";
 import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -42,7 +42,13 @@ export default function Dashboard() {
   const [monthGoal, setMonthGoal] = useState(0);
   const [todayDeliveries, setTodayDeliveries] = useState<Delivery[]>([]);
   const [userName, setUserName] = useState("");
-  const { showAlert } = useModal(); 
+  const { showAlert } = useModal();
+  const [todayEncaisse, setTodayEncaisse] = useState(0);
+  const [todayAReverser, setTodayAReverser] = useState(0);
+  const [todayProfit, setTodayProfit] = useState(0);
+  const [pendingReversal, setPendingReversal] = useState(0);
+  const [todayCount, setTodayCount] = useState(0);
+  const [trendPercent, setTrendPercent] = useState(0);
 
   const formattedDate = new Date().toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -64,29 +70,100 @@ export default function Dashboard() {
   const loadStats = async () => {
     const today = new Date().toISOString().split("T")[0];
 
-    // Revenus du jour
-    const earningsResult = await db.getFirstAsync<{ total: number }>(
-      `SELECT SUM(delivery_fee) as total FROM deliveries 
-       WHERE status = ? AND delivered_at LIKE ?`,
-      ["LIVREE", `${today}%`],
+    const deliveries = await db.getAllAsync<any>(
+      `SELECT * FROM deliveries 
+       WHERE status = 'LIVREE' 
+       AND delivered_at LIKE ?`,
+      [`${today}%`],
     );
-    setTodayEarnings(earningsResult?.total || 0);
 
-    // Revenus de la semaine (exemple simplifié)
-    const weekResult = await db.getFirstAsync<{ total: number }>(
+    let encaisse = 0;
+    let aReverser = 0;
+    let profit = 0;
+
+    deliveries.forEach((delivery) => {
+      const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
+
+      const montantEncaisse =
+        delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+
+      const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
+
+      encaisse += montantEncaisse;
+      aReverser += montantAReverser;
+      profit += delivery.delivery_fee;
+    });
+
+    setTodayEncaisse(encaisse);
+    setTodayAReverser(aReverser);
+    setTodayProfit(profit);
+    setTodayEarnings(profit);
+    setTodayCount(deliveries.length);
+
+    // Solde total non reversé (tous jours confondus)
+    const pending = await db.getAllAsync<any>(
+      `SELECT * FROM deliveries 
+       WHERE status = 'LIVREE' 
+       AND reversed = 0`,
+    );
+
+    let pendingTotal = 0;
+
+    pending.forEach((delivery) => {
+      if (delivery.payment_type === "CLIENT_PAYE_TOUT") {
+        pendingTotal += delivery.parcel_value;
+      }
+    });
+
+    setPendingReversal(pendingTotal);
+
+    // Total hier
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+    const yesterdayResult = await db.getFirstAsync<{ total: number }>(
       `SELECT SUM(delivery_fee) as total FROM deliveries 
-       WHERE status = ? AND date(delivered_at) >= date('now', '-7 days')`,
-      ["LIVREE"],
+      WHERE status = ? AND delivered_at LIKE ?`,
+      ["LIVREE", `${yesterdayStr}%`],
+    );
+
+    const totalYesterday = yesterdayResult?.total || 0;
+    const variation =
+      totalYesterday === 0
+        ? 0
+        : Math.round(((todayEarnings - totalYesterday) / totalYesterday) * 100);
+
+    setTrendPercent(variation);
+
+    // Revenus de la semaine (7 derniers jours)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString();
+
+    const weekResult = await db.getFirstAsync<{ total: number }>(
+      `SELECT SUM(delivery_fee) as total 
+        FROM deliveries 
+        WHERE status = 'LIVREE'
+        AND date(delivered_at) >= date('now', '-7 days')`,
     );
     setWeekEarnings(weekResult?.total || 0);
 
-    // Revenus du mois
+    // Revenus du mois (mois en cours)
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstDayOfMonthStr = firstDayOfMonth.toISOString();
+
     const monthResult = await db.getFirstAsync<{ total: number }>(
-      `SELECT SUM(delivery_fee) as total FROM deliveries 
-       WHERE status = ? AND strftime('%Y-%m', delivered_at) = strftime('%Y-%m', 'now')`,
-      ["LIVREE"],
+      `SELECT SUM(delivery_fee) as total 
+      FROM deliveries 
+      WHERE status = 'LIVREE'
+      AND strftime('%Y-%m', delivered_at) = strftime('%Y-%m', 'now')`,
     );
+
     setMonthEarnings(monthResult?.total || 0);
+    console.log("Week:", weekResult);
+    console.log("Month:", monthResult);
 
     // Livraisons du jour pour le planning
     const deliveriesResult = await db.getAllAsync<Delivery>(
@@ -95,6 +172,7 @@ export default function Dashboard() {
        AND date(created_at) = date('now')
        ORDER BY created_at LIMIT 3`,
     );
+
     // Objectif mensuel de l'utilisateur
     try {
       const userGoalResult = await db.getFirstAsync<{ monthly_goal: number }>(
@@ -111,9 +189,24 @@ export default function Dashboard() {
     setTodayDeliveries(deliveriesResult || []);
   };
 
+  // Charger les stats au montage + intervalle
   useEffect(() => {
     loadStats();
+
+    // Recharger toutes les 30 secondes
+    const interval = setInterval(loadStats, 30000);
+
+    return () => {
+      clearInterval(interval);
+    };
   }, []);
+
+  // Recharger quand l'écran reçoit le focus
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, []),
+  );
 
   const monthProgress = Math.min((monthEarnings / monthGoal) * 100, 100);
 
@@ -210,17 +303,86 @@ export default function Dashboard() {
                 />
               </View>
             </View>
+            <TouchableOpacity
+              style={styles.accountingButton}
+              onPress={() => router.push("/merchant-accounting")}
+            >
+              <MaterialIcons
+                name="account-balance"
+                size={20}
+                color={COLORS.white}
+              />
+              <Text style={styles.accountingText}>
+                Comptabilité des commerçants
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.financeCard}>
+              <Text style={styles.financeTitle}>Résumé Financier</Text>
+
+              <View style={styles.financeRow}>
+                <Text style={styles.financeLabel}>Total encaissé</Text>
+                <Text style={styles.financeValue}>
+                  {todayEncaisse.toLocaleString("fr-FR")} FCFA
+                </Text>
+              </View>
+
+              <View style={styles.financeRow}>
+                <Text style={styles.financeLabel}>À reverser</Text>
+                <Text style={[styles.financeValue, { color: COLORS.warning }]}>
+                  {todayAReverser.toLocaleString("fr-FR")} FCFA
+                </Text>
+              </View>
+
+              <View style={styles.financeRow}>
+                <Text style={styles.financeLabel}>Profit réel</Text>
+                <Text style={[styles.financeValue, { color: COLORS.success }]}>
+                  {todayProfit.toLocaleString("fr-FR")} FCFA
+                </Text>
+              </View>
+
+              <View style={styles.financeRow}>
+                <Text style={styles.financeLabel}>
+                  En attente de reversement
+                </Text>
+                <Text style={[styles.financeValue, { color: COLORS.primary }]}>
+                  {pendingReversal.toLocaleString("fr-FR")} FCFA
+                </Text>
+              </View>
+
+              <View style={styles.financeRow}>
+                <Text style={styles.financeLabel}>Livraisons aujourd’hui</Text>
+                <Text style={styles.financeValue}>{todayCount}</Text>
+              </View>
+            </View>
+
             <Text style={styles.mainAmount}>
               {(todayEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
             <View style={styles.trendContainer}>
-              <View style={styles.trendBadge}>
+              <View
+                style={[
+                  styles.trendBadge,
+                  {
+                    backgroundColor:
+                      trendPercent >= 0 ? "#13ec1330" : "#ef444430",
+                  },
+                ]}
+              >
                 <MaterialIcons
-                  name="trending-up"
+                  name={trendPercent >= 0 ? "trending-up" : "trending-down"}
                   size={14}
-                  color={COLORS.primary}
+                  color={trendPercent >= 0 ? COLORS.success : COLORS.danger}
                 />
-                <Text style={styles.trendText}>+12%</Text>
+                <Text
+                  style={[
+                    styles.trendText,
+                    {
+                      color: trendPercent >= 0 ? COLORS.success : COLORS.danger,
+                    },
+                  ]}
+                >
+                  {trendPercent >= 0 ? `+${trendPercent}%` : `${trendPercent}%`}
+                </Text>
               </View>
               <Text style={styles.trendLabel}>vs hier</Text>
             </View>
@@ -277,8 +439,8 @@ export default function Dashboard() {
             </Text>
           </View> */}
 
-          {/* Graphique simplifié */}
-          {/* <View style={styles.graphPlaceholder}>
+        {/* Graphique simplifié */}
+        {/* <View style={styles.graphPlaceholder}>
             <Text style={styles.graphText}>
               Graphique hebdomadaire à implémenter
             </Text>
@@ -688,5 +850,46 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     textAlign: "center",
     padding: 20,
+  },
+  financeCard: {
+    backgroundColor: COLORS.card,
+    padding: 20,
+    borderRadius: 20,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.05)",
+  },
+  financeTitle: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  financeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  financeLabel: {
+    color: COLORS.muted,
+    fontSize: 13,
+  },
+  financeValue: {
+    color: COLORS.white,
+    fontWeight: "bold",
+  },
+  accountingButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: COLORS.primary,
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 16,
+  },
+  accountingText: {
+    color: "#000",
+    fontWeight: "bold",
   },
 });

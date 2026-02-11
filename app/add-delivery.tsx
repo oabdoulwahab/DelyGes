@@ -9,6 +9,7 @@ import {
   StatusBar,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
@@ -37,7 +38,18 @@ export default function AddDelivery() {
     address: false,
     parcelValue: false,
     deliveryFee: false,
+    merchantName: false,
   });
+
+  const [merchants, setMerchants] = useState<any[]>([]);
+  const [filteredMerchants, setFilteredMerchants] = useState<any[]>([]);
+  const [merchantName, setMerchantName] = useState("");
+  const [merchantId, setMerchantId] = useState<number | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const [paymentType, setPaymentType] = useState<
+    "COLIS_DEJA_PAYE" | "CLIENT_PAYE_LIVRAISON" | "CLIENT_PAYE_TOUT"
+  >("CLIENT_PAYE_TOUT");
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -50,6 +62,7 @@ export default function AddDelivery() {
         !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
       deliveryFee:
         !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
+      merchantName: !merchantName.trim(),
     };
 
     setErrors(newErrors);
@@ -57,17 +70,80 @@ export default function AddDelivery() {
     return !Object.values(newErrors).some((error) => error);
   };
 
+  // Charger tous les commerçants
+  useEffect(() => {
+    const loadMerchants = async () => {
+      const result = await db.getAllAsync<any>(
+        "SELECT * FROM merchants ORDER BY name ASC",
+      );
+      setMerchants(result);
+    };
+
+    loadMerchants();
+  }, []);
+
+  // Filtrer les commerçants en fonction de la saisie
+  useEffect(() => {
+    if (merchantName.trim().length > 0) {
+      const filtered = merchants.filter((merchant) =>
+        merchant.name.toLowerCase().includes(merchantName.toLowerCase()),
+      );
+      setFilteredMerchants(filtered);
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setFilteredMerchants([]);
+      setShowSuggestions(false);
+    }
+  }, [merchantName, merchants]);
+
+  // Créer ou récupérer un commerçant
+  const getOrCreateMerchant = async () => {
+    if (!merchantName.trim()) return null;
+
+    // Vérifier si le commerçant existe déjà
+    const existingMerchant = await db.getFirstAsync<any>(
+      "SELECT * FROM merchants WHERE name = ?",
+      [merchantName.trim()],
+    );
+
+    if (existingMerchant) {
+      return existingMerchant.id;
+    }
+
+    // Créer un nouveau commerçant
+    const result = await db.runAsync(
+      "INSERT INTO merchants (name, created_at) VALUES (?, ?)",
+      [merchantName.trim(), new Date().toISOString()],
+    );
+
+    console.log("✅ Nouveau commerçant créé avec ID:", result.lastInsertRowId);
+    return result.lastInsertRowId;
+  };
+
+  const parcelValueNum = Number(parcelValue.replace(",", ".")) || 0;
+  const deliveryFeeNum = Number(deliveryFee.replace(",", ".")) || 0;
+
+  const amountCollected =
+    paymentType === "CLIENT_PAYE_TOUT"
+      ? parcelValueNum + deliveryFeeNum
+      : deliveryFeeNum;
+
+  const amountToReturn =
+    paymentType === "CLIENT_PAYE_TOUT" ? parcelValueNum : 0;
+
+  const profit = deliveryFeeNum;
+
   const handleSave = async () => {
     if (!validateForm()) {
       showError(
         "Erreur",
         "Veuillez remplir tous les champs obligatoires avec des valeurs valides",
-      ); // REMPLACER
+      );
       return;
     }
 
     if (!isAuthenticated || !user) {
-      showError("Erreur", "Vous devez être connecté pour créer une livraison"); // REMPLACER
+      showError("Erreur", "Vous devez être connecté pour créer une livraison");
       return;
     }
 
@@ -82,19 +158,39 @@ export default function AddDelivery() {
         ? Number(deliveryFee.replace(",", "."))
         : 0;
 
+      // Créer ou récupérer le commerçant
+      const merchantIdValue = await getOrCreateMerchant();
+
       // Insérer la livraison avec l'user_id
       const result = await db.runAsync(
-        `INSERT INTO deliveries 
-        (recipient_name, phone, address, parcel_value, delivery_fee, status, user_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO deliveries (
+    recipient_name,
+    phone,
+    address,
+    parcel_value,
+    delivery_fee,
+    merchant_id,
+    payment_type,
+    amount_collected,
+    amount_to_return,
+    profit,
+    status,
+    user_id,
+    created_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           recipientName.trim(),
           phone.trim(),
           address.trim(),
           parcelValueNum,
           deliveryFeeNum,
+          merchantIdValue,
+          paymentType,
+          amountCollected,
+          amountToReturn,
+          profit,
           "A_LIVRER",
-          user.id, // ← ICI: user.id récupéré du hook useAuth
+          user.id,
           new Date().toISOString(),
         ],
       );
@@ -104,10 +200,12 @@ export default function AddDelivery() {
         result.lastInsertRowId,
         "pour l'utilisateur:",
         user.id,
+        "commerçant ID:",
+        merchantIdValue,
       );
 
       // 📨 Envoyer une notification de création
-    await sendDeliveryCreatedNotification(user.id, 1);
+      await sendDeliveryCreatedNotification(user.id, 1);
 
       showSuccess("Succès", "Livraison ajoutée avec succès");
       setTimeout(() => router.back(), 1000);
@@ -120,6 +218,8 @@ export default function AddDelivery() {
           "Erreur de base de données : l'ID utilisateur est requis";
       } else if (error.message?.includes("user_id")) {
         errorMessage = "Erreur d'authentification. Veuillez vous reconnecter.";
+      } else if (error.message?.includes("merchant_id")) {
+        errorMessage = "Erreur avec le commerçant. Veuillez réessayer.";
       }
 
       showError("Erreur", errorMessage);
@@ -129,7 +229,7 @@ export default function AddDelivery() {
   };
 
   const handleCancel = () => {
-    if (recipientName || phone || address || parcelValue || deliveryFee) {
+    if (recipientName || phone || address || parcelValue || deliveryFee || merchantName) {
       showConfirm(
         "Annuler",
         "Voulez-vous vraiment annuler ? Les modifications seront perdues.",
@@ -174,6 +274,13 @@ export default function AddDelivery() {
     setter(withComma);
   };
 
+  const selectMerchant = (merchant: any) => {
+    setMerchantName(merchant.name);
+    setMerchantId(merchant.id);
+    setShowSuggestions(false);
+    setErrors((prev) => ({ ...prev, merchantName: false }));
+  };
+
   // Déboguer l'état d'authentification
   useEffect(() => {
     console.log("🔐 État d'authentification dans AddDelivery:");
@@ -207,15 +314,6 @@ export default function AddDelivery() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={addDeliveryStyles.scrollContent}
       >
-        {/* Afficher l'info utilisateur pour débogage */}
-        {/* {isAuthenticated && user && (
-          <View style={styles.userInfo}>
-            <Text style={styles.userInfoText}>
-              Connecté en tant que: {user.name} (ID: {user.id})
-            </Text>
-          </View>
-        )} */}
-
         {/* Section Logistique */}
         <View style={commonStyles.section}>
           <Text style={addDeliveryStyles.sectionTitle}>
@@ -317,6 +415,110 @@ export default function AddDelivery() {
           </View>
         </View>
 
+        {/* Section Commerçant - Formulaire avec suggestions */}
+        <View style={commonStyles.section}>
+          <Text style={addDeliveryStyles.sectionTitle}>Commerçant</Text>
+
+          <View style={commonStyles.card}>
+            <View
+              style={[
+                addDeliveryStyles.inputGroup,
+                errors.merchantName && styles.inputError,
+              ]}
+            >
+              <Text style={addDeliveryStyles.inputLabel}>
+                Nom du commerçant <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.merchantInputContainer}>
+                <TextInput
+                  style={[
+                    addDeliveryStyles.input,
+                    showSuggestions && styles.inputWithSuggestions,
+                  ]}
+                  placeholder="ex: Boutique du Centre"
+                  placeholderTextColor={COLORS.muted}
+                  value={merchantName}
+                  onChangeText={(text) => {
+                    setMerchantName(text);
+                    setMerchantId(null);
+                    setErrors((prev) => ({ ...prev, merchantName: false }));
+                  }}
+                  onFocus={() => {
+                    if (merchantName.trim().length > 0 && filteredMerchants.length > 0) {
+                      setShowSuggestions(true);
+                    }
+                  }}
+                  autoCapitalize="words"
+                />
+                
+                {merchantName.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.clearButton}
+                    onPress={() => {
+                      setMerchantName("");
+                      setMerchantId(null);
+                      setShowSuggestions(false);
+                    }}
+                  >
+                    <MaterialIcons name="close" size={20} color={COLORS.muted} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Liste des suggestions */}
+              {showSuggestions && (
+                <View style={styles.suggestionsContainer}>
+                  <FlatList
+                    data={filteredMerchants}
+                    keyExtractor={(item) => item.id.toString()}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.suggestionItem}
+                        onPress={() => selectMerchant(item)}
+                      >
+                        <MaterialIcons
+                          name="store"
+                          size={18}
+                          color={COLORS.primary}
+                          style={styles.suggestionIcon}
+                        />
+                        <View style={styles.suggestionContent}>
+                          <Text style={styles.suggestionName}>{item.name}</Text>
+                          {item.phone && (
+                            <Text style={styles.suggestionPhone}>{item.phone}</Text>
+                          )}
+                        </View>
+                        <MaterialIcons
+                          name="check-circle"
+                          size={18}
+                          color={COLORS.primary}
+                          style={styles.suggestionCheck}
+                        />
+                      </TouchableOpacity>
+                    )}
+                    style={styles.suggestionsList}
+                  />
+                </View>
+              )}
+
+              {errors.merchantName && (
+                <Text style={addDeliveryStyles.errorText}>
+                  Ce champ est obligatoire
+                </Text>
+              )}
+              
+              {merchantId && (
+                <View style={styles.selectedMerchantInfo}>
+                  <MaterialIcons name="check-circle" size={16} color={COLORS.success} />
+                  <Text style={styles.selectedMerchantText}>
+                    Commerçant existant sélectionné
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+
         {/* Section Détails financiers */}
         <View style={commonStyles.section}>
           <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
@@ -406,6 +608,35 @@ export default function AddDelivery() {
                   Valeur supérieure à 0 requise
                 </Text>
               )}
+            </View>
+          </View>
+
+          <View style={commonStyles.section}>
+            <Text style={addDeliveryStyles.sectionTitle}>Paiement</Text>
+
+            <View style={commonStyles.card}>
+              {[
+                {
+                  key: "CLIENT_PAYE_TOUT",
+                  label: "Client paie colis + livraison",
+                },
+                {
+                  key: "CLIENT_PAYE_LIVRAISON",
+                  label: "Client paie livraison seulement",
+                },
+                { key: "COLIS_DEJA_PAYE", label: "Colis déjà payé" },
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item.key}
+                  style={[
+                    styles.paymentOption,
+                    paymentType === item.key && styles.paymentSelected,
+                  ]}
+                  onPress={() => setPaymentType(item.key as any)}
+                >
+                  <Text style={styles.paymentText}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
@@ -594,5 +825,100 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 12,
     fontWeight: "500",
+  },
+  merchantItem: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    marginBottom: 8,
+  },
+  merchantSelected: {
+    backgroundColor: COLORS.primarySoft,
+    borderColor: COLORS.primary,
+  },
+  merchantName: {
+    color: COLORS.white,
+    fontSize: 16,
+  },
+  paymentOption: {
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    marginBottom: 8,
+  },
+  paymentSelected: {
+    backgroundColor: COLORS.primarySoft,
+    borderColor: COLORS.primary,
+  },
+  paymentText: {
+    color: COLORS.white,
+    fontSize: 15,
+  },
+  
+  // Nouveaux styles pour le champ commerçant avec suggestions
+  merchantInputContainer: {
+    position: "relative",
+    width: "100%",
+  },
+  inputWithSuggestions: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
+  clearButton: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    transform: [{ translateY: -10 }],
+  },
+  suggestionsContainer: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderTopWidth: 0,
+    borderColor: COLORS.borderLight,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    maxHeight: 200,
+    overflow: "hidden",
+  },
+  suggestionsList: {
+    width: "100%",
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  suggestionIcon: {
+    marginRight: 12,
+  },
+  suggestionContent: {
+    flex: 1,
+  },
+  suggestionName: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  suggestionPhone: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  suggestionCheck: {
+    marginLeft: 8,
+  },
+  selectedMerchantInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    gap: 6,
+  },
+  selectedMerchantText: {
+    color: COLORS.success,
+    fontSize: 12,
   },
 });

@@ -9,11 +9,36 @@ export type User = {
   updated_at: string;
 };
 
-export type UserCreateDTO = Omit<User, 'id' | 'created_at' | 'updated_at'>;
-export type UserUpdateDTO = Partial<Omit<User, 'id' | 'created_at' | 'updated_at'>>;
+export type UserCreateDTO = Omit<User, "id" | "created_at" | "updated_at">;
+export type UserUpdateDTO = Partial<
+  Omit<User, "id" | "created_at" | "updated_at">
+>;
 
 // Types de livraison
-export type DeliveryStatus = 'A_LIVRER' | 'LIVREE' | 'ANNULEE';
+export type DeliveryStatus = "A_LIVRER" | "LIVREE" | "ANNULEE";
+
+// app/src/types.ts
+export type PaymentType =
+  | "COLIS_DEJA_PAYE"
+  | "CLIENT_PAYE_LIVRAISON"
+  | "CLIENT_PAYE_TOUT";
+
+export type Merchant = {
+  id: number;
+  business_name: string;
+  contact_name?: string;
+  phone?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Settlement = {
+  id: number;
+  merchant_id: number;
+  amount: number;
+  settled_at: string;
+  notes?: string;
+};
 
 export type Delivery = {
   id: number;
@@ -26,6 +51,15 @@ export type Delivery = {
   created_at: string;
   delivered_at?: string;
   user_id: number;
+
+  // Nouveaux champs
+  merchant_id?: number;
+  payment_type: PaymentType;
+  amount_collected: number;
+  amount_to_return: number;
+  profit: number;
+  is_settled: number; // 0 ou 1
+  settled_at?: string;
 };
 
 export type DeliveryCreateDTO = {
@@ -35,6 +69,8 @@ export type DeliveryCreateDTO = {
   parcel_value?: number;
   delivery_fee: number;
   user_id: number;
+  merchant_id?: number;
+  payment_type: PaymentType;
 };
 
 export type DeliveryUpdateDTO = Partial<{
@@ -53,7 +89,7 @@ export type DeliveryFilters = {
   dateTo?: string;
   search?: string;
   userId?: number;
-  period?: 'today' | 'week' | 'month' | 'custom';
+  period?: "today" | "week" | "month" | "custom";
 };
 
 // Types pour les statistiques

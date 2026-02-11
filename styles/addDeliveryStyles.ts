@@ -71,4 +71,6 @@ export const addDeliveryStyles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 140,
   },
+
+  
 });

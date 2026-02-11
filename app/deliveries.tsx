@@ -14,9 +14,16 @@ import { db } from "../src/database/db";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay } from 'date-fns'
-import { fr } from 'date-fns/locale';
+import DateTimePicker from "@react-native-community/datetimepicker";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  isSameDay,
+} from "date-fns";
+import { fr } from "date-fns/locale";
 import { commonStyles } from "../styles/common";
 import { COLORS } from "../styles/colors";
 import { useModal } from "../providers/ModalProvider";
@@ -28,10 +35,12 @@ type Delivery = {
   recipient_name: string;
   address: string;
   delivery_fee: number;
+  parcel_value: number;
+  payment_type: string;
+  merchant_id?: number;
   status: string;
   created_at: string;
   phone?: string;
-  parcel_value?: number;
   delivered_at?: string;
 };
 
@@ -53,27 +62,27 @@ export default function Deliveries() {
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [deliveryDates, setDeliveryDates] = useState<Date[]>([]);
   const { showConfirm, showSuccess, showError } = useModal();
-  const { user } = useAuth(); 
-  
+  const { user } = useAuth();
+
   // Charger les dates des livraisons pour le calendrier
   const loadDeliveryDates = async () => {
     try {
-      const result = await db.getAllAsync<{created_at: string}>(
-        "SELECT DISTINCT date(created_at) as created_at FROM deliveries ORDER BY created_at DESC"
+      const result = await db.getAllAsync<{ created_at: string }>(
+        "SELECT DISTINCT date(created_at) as created_at FROM deliveries ORDER BY created_at DESC",
       );
-      
-      const dates = result.map(item => new Date(item.created_at));
+
+      const dates = result.map((item) => new Date(item.created_at));
       setDeliveryDates(dates);
     } catch (error) {
       console.error("Erreur lors du chargement des dates de livraison:", error);
     }
   };
-  
+
   // Charger les livraisons en fonction des filtres
   const loadDeliveries = async () => {
     let query = "";
     let params: any[] = [];
-    
+
     // Construire la requête selon l'onglet actif
     switch (activeTab) {
       case "A_LIVRER":
@@ -94,18 +103,18 @@ export default function Deliveries() {
         params = ["ANNULEE"];
         break;
     }
-    
+
     // Ajouter le filtre par période si activé
     if (dateFilterEnabled && selectedDate) {
       let dateCondition = "";
-      
+
       switch (activePeriod) {
         case "today":
           const todayStr = selectedDate.toISOString().split("T")[0];
           dateCondition = "date(created_at) = ?";
           params = [todayStr, ...params];
           break;
-          
+
         case "week":
           const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
           const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -114,7 +123,7 @@ export default function Deliveries() {
           dateCondition = "date(created_at) BETWEEN ? AND ?";
           params = [weekStartStr, weekEndStr, ...params];
           break;
-          
+
         case "month":
           const monthStart = startOfMonth(selectedDate);
           const monthEnd = endOfMonth(selectedDate);
@@ -123,7 +132,7 @@ export default function Deliveries() {
           dateCondition = "date(created_at) BETWEEN ? AND ?";
           params = [monthStartStr, monthEndStr, ...params];
           break;
-          
+
         case "custom":
           if (selectedEndDate) {
             const customStartStr = selectedDate.toISOString().split("T")[0];
@@ -137,7 +146,7 @@ export default function Deliveries() {
           }
           break;
       }
-      
+
       if (dateCondition) {
         if (query.includes("WHERE")) {
           query = query.replace("WHERE", `WHERE ${dateCondition} AND`);
@@ -146,25 +155,31 @@ export default function Deliveries() {
         }
       }
     }
-    
+
     // Ajouter la recherche si nécessaire
     if (searchQuery.trim()) {
-      const searchCondition = "(recipient_name LIKE ? OR address LIKE ? OR phone LIKE ?)";
+      const searchCondition =
+        "(recipient_name LIKE ? OR address LIKE ? OR phone LIKE ?)";
       if (query.includes("WHERE")) {
         query = query.replace("WHERE", `WHERE ${searchCondition} AND`);
       } else {
         query += ` WHERE ${searchCondition}`;
       }
-      params = [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, ...params];
+      params = [
+        `%${searchQuery}%`,
+        `%${searchQuery}%`,
+        `%${searchQuery}%`,
+        ...params,
+      ];
     }
-    
+
     // Ajouter le tri
     if (activeTab === "LIVREE") {
       query += " ORDER BY delivered_at DESC";
     } else {
       query += " ORDER BY created_at DESC";
     }
-    
+
     try {
       const result = await db.getAllAsync<Delivery>(query, params);
       setDeliveries(result);
@@ -174,85 +189,98 @@ export default function Deliveries() {
       Alert.alert("Erreur", "Impossible de charger les livraisons");
     }
   };
-  
+
   useEffect(() => {
     loadDeliveries();
     loadDeliveryDates();
-  }, [activeTab, searchQuery, dateFilterEnabled, selectedDate, selectedEndDate, activePeriod]);
-  
+  }, [
+    activeTab,
+    searchQuery,
+    dateFilterEnabled,
+    selectedDate,
+    selectedEndDate,
+    activePeriod,
+  ]);
+
   const toggleDeliverySelection = (id: number) => {
-    const delivery = deliveries.find(d => d.id === id);
-    
-    if (delivery && (delivery.status === "LIVREE" || delivery.status === "ANNULEE")) {
+    const delivery = deliveries.find((d) => d.id === id);
+
+    if (
+      delivery &&
+      (delivery.status === "LIVREE" || delivery.status === "ANNULEE")
+    ) {
       return;
     }
-    
-    setSelectedDeliveries(prev => 
-      prev.includes(id) 
-        ? prev.filter(deliveryId => deliveryId !== id)
-        : [...prev, id]
+
+    setSelectedDeliveries((prev) =>
+      prev.includes(id)
+        ? prev.filter((deliveryId) => deliveryId !== id)
+        : [...prev, id],
     );
   };
-  
+
   const markAsDelivered = async (id: number) => {
-    setSelectedDeliveries(prev => prev.filter(deliveryId => deliveryId !== id));
+    setSelectedDeliveries((prev) =>
+      prev.filter((deliveryId) => deliveryId !== id),
+    );
 
     // Récupérer le montant de la livraison
-    const delivery = deliveries.find(d => d.id === id);
+    const delivery = deliveries.find((d) => d.id === id);
     const amount = delivery?.delivery_fee || 0;
-    
+
     await db.runAsync(
       "UPDATE deliveries SET status = ?, delivered_at = ? WHERE id = ?",
-      ["LIVREE", new Date().toISOString(), id]
+      ["LIVREE", new Date().toISOString(), id],
     );
-     // 📨 Envoyer une notification de livraison terminée
-      if (user?.id) {
-        await sendDeliveryCompletedNotification(user.id, amount);
-      }
-    
+    // 📨 Envoyer une notification de livraison terminée
+    if (user?.id) {
+      await sendDeliveryCompletedNotification(user.id, amount);
+    }
+
     showSuccess("Succès", "Livraison marquée comme livrée");
     loadDeliveries();
   };
-  
+
   const markSelectedAsPaid = async () => {
     if (selectedDeliveries.length === 0) return;
-    
-    const validDeliveries = deliveries.filter(d => 
-      selectedDeliveries.includes(d.id) && 
-      d.status !== "ANNULEE"
+
+    const validDeliveries = deliveries.filter(
+      (d) => selectedDeliveries.includes(d.id) && d.status !== "ANNULEE",
     );
-    
+
     if (validDeliveries.length === 0) return;
-    
+
     showConfirm(
       "Marquer comme payé",
       `Marquer ${validDeliveries.length} livraison(s) comme payée(s) ?`,
       () => {
-        showSuccess("Succès", "Livraisons marquées comme payées"); 
+        showSuccess("Succès", "Livraisons marquées comme payées");
         setSelectedDeliveries([]);
-      }
+      },
     );
   };
-  
+
   const markAsCancelled = async (id: number) => {
-    setSelectedDeliveries(prev => prev.filter(deliveryId => deliveryId !== id));
-    
+    setSelectedDeliveries((prev) =>
+      prev.filter((deliveryId) => deliveryId !== id),
+    );
+
     showConfirm(
       "Annuler la livraison",
       "Êtes-vous sûr de vouloir annuler cette livraison ?",
       async () => {
-        await db.runAsync(
-          "UPDATE deliveries SET status = ? WHERE id = ?",
-          ["ANNULEE", id]
-        );
+        await db.runAsync("UPDATE deliveries SET status = ? WHERE id = ?", [
+          "ANNULEE",
+          id,
+        ]);
         showSuccess("Succès", "Livraison annulée"); // REMPLACER
         loadDeliveries();
       },
       "Oui, annuler",
-      "Non"
+      "Non",
     );
   };
-  
+
   const getStatusConfig = (status: string, isSelected?: boolean) => {
     switch (status) {
       case "LIVREE":
@@ -261,7 +289,7 @@ export default function Deliveries() {
           borderColor: "#10b98130",
           textColor: COLORS.success,
           text: "Terminée",
-          icon: "check-circle"
+          icon: "check-circle",
         };
       case "A_LIVRER":
         return {
@@ -269,7 +297,7 @@ export default function Deliveries() {
           borderColor: isSelected ? "#fbbf2430" : "#e5e7eb",
           textColor: COLORS.warning,
           text: "En attente",
-          icon: "schedule"
+          icon: "schedule",
         };
       case "ANNULEE":
         return {
@@ -277,7 +305,7 @@ export default function Deliveries() {
           borderColor: "#ef444430",
           textColor: COLORS.danger,
           text: "Annulée",
-          icon: "cancel"
+          icon: "cancel",
         };
       default:
         return {
@@ -285,26 +313,26 @@ export default function Deliveries() {
           borderColor: "#6b728030",
           textColor: "#6b7280",
           text: "Prévu",
-          icon: "pending"
+          icon: "pending",
         };
     }
   };
-  
+
   const groupDeliveriesByTime = () => {
     const morning: Delivery[] = [];
     const afternoon: Delivery[] = [];
     const evening: Delivery[] = [];
-    
-    deliveries.forEach(delivery => {
+
+    deliveries.forEach((delivery) => {
       const hour = new Date(delivery.created_at).getHours();
       if (hour < 12) morning.push(delivery);
       else if (hour < 18) afternoon.push(delivery);
       else evening.push(delivery);
     });
-    
+
     return { morning, afternoon, evening };
   };
-  
+
   const onDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false);
     if (date) {
@@ -314,7 +342,7 @@ export default function Deliveries() {
       setDateFilterEnabled(true);
     }
   };
-  
+
   const clearDateFilter = () => {
     setSelectedDate(null);
     setSelectedEndDate(null);
@@ -322,40 +350,40 @@ export default function Deliveries() {
     setDateFilterEnabled(false);
     setCalendarDate(new Date());
   };
-  
+
   const formatDateForDisplay = () => {
     if (!dateFilterEnabled || !selectedDate) return "Aucun filtre actif";
-    
+
     switch (activePeriod) {
       case "today":
         return `Aujourd'hui (${format(selectedDate, "dd/MM/yyyy")})`;
-        
+
       case "week":
         const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
         const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
         return `Semaine du ${format(weekStart, "dd/MM")} au ${format(weekEnd, "dd/MM/yyyy")}`;
-        
+
       case "month":
         const monthStart = startOfMonth(selectedDate);
         const monthEnd = endOfMonth(selectedDate);
         return `${format(selectedDate, "MMMM yyyy", { locale: fr })} (${format(monthStart, "dd/MM")} - ${format(monthEnd, "dd/MM")})`;
-        
+
       case "custom":
         if (selectedEndDate) {
           return `${format(selectedDate, "dd/MM/yyyy")} - ${format(selectedEndDate, "dd/MM/yyyy")}`;
         } else {
           return format(selectedDate, "dd MMMM yyyy", { locale: fr });
         }
-        
+
       default:
         return format(selectedDate, "dd/MM/yyyy");
     }
   };
-  
+
   const selectPeriod = (period: PeriodType) => {
     const today = new Date();
     setActivePeriod(period);
-    
+
     switch (period) {
       case "today":
         setSelectedDate(today);
@@ -363,21 +391,21 @@ export default function Deliveries() {
         setDateFilterEnabled(true);
         setShowFilterModal(false);
         break;
-        
+
       case "week":
         setSelectedDate(startOfWeek(today, { weekStartsOn: 1 }));
         setSelectedEndDate(endOfWeek(today, { weekStartsOn: 1 }));
         setDateFilterEnabled(true);
         setShowFilterModal(false);
         break;
-        
+
       case "month":
         setSelectedDate(startOfMonth(today));
         setSelectedEndDate(endOfMonth(today));
         setDateFilterEnabled(true);
         setShowFilterModal(false);
         break;
-        
+
       case "custom":
         setSelectedDate(today);
         setSelectedEndDate(null);
@@ -385,46 +413,42 @@ export default function Deliveries() {
         break;
     }
   };
-  
+
   const handleApplyFilters = () => {
     if (activePeriod === "custom" && selectedDate) {
       setDateFilterEnabled(true);
     }
     setShowFilterModal(false);
   };
-  
+
   const hasDeliveriesOnDate = (date: Date) => {
-    return deliveryDates.some(deliveryDate => 
-      isSameDay(deliveryDate, date)
-    );
+    return deliveryDates.some((deliveryDate) => isSameDay(deliveryDate, date));
   };
-  
+
   const generateCalendarDays = () => {
     const year = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-    
+
     const days = [];
-    
+
     for (let i = 0; i < startDay; i++) {
       const date = new Date(year, month, -i);
       days.push(
         <View key={`prev-${i}`} style={styles.calendarDayInactive}>
-          <Text style={styles.calendarDayTextInactive}>
-            {date.getDate()}
-          </Text>
-        </View>
+          <Text style={styles.calendarDayTextInactive}>{date.getDate()}</Text>
+        </View>,
       );
     }
-    
+
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const date = new Date(year, month, i);
       const hasDeliveries = hasDeliveriesOnDate(date);
       const isSelected = selectedDate && isSameDay(selectedDate, date);
       const isToday = isSameDay(date, new Date());
-      
+
       days.push(
         <TouchableOpacity
           key={`day-${i}`}
@@ -432,7 +456,7 @@ export default function Deliveries() {
             styles.calendarDay,
             isToday && styles.calendarDayToday,
             isSelected && styles.calendarDaySelected,
-            hasDeliveries && styles.calendarDayHasDeliveries
+            hasDeliveries && styles.calendarDayHasDeliveries,
           ]}
           onPress={() => {
             setSelectedDate(date);
@@ -440,38 +464,54 @@ export default function Deliveries() {
             setActivePeriod("custom");
           }}
         >
-          <Text style={[
-            styles.calendarDayText,
-            isToday && styles.calendarDayTextToday,
-            isSelected && styles.calendarDayTextSelected
-          ]}>
+          <Text
+            style={[
+              styles.calendarDayText,
+              isToday && styles.calendarDayTextToday,
+              isSelected && styles.calendarDayTextSelected,
+            ]}
+          >
             {i}
           </Text>
           {hasDeliveries && <View style={styles.deliveryIndicator} />}
-        </TouchableOpacity>
+        </TouchableOpacity>,
       );
     }
-    
+
     const totalCells = 42;
     const remainingCells = totalCells - days.length;
-    
+
     for (let i = 1; i <= remainingCells; i++) {
       days.push(
         <View key={`next-${i}`} style={styles.calendarDayInactive}>
           <Text style={styles.calendarDayTextInactive}>{i}</Text>
-        </View>
+        </View>,
       );
     }
-    
+
     return days;
   };
-  
+
   const renderDeliveryCard = (delivery: Delivery) => {
     const isSelected = selectedDeliveries.includes(delivery.id);
     const statusConfig = getStatusConfig(delivery.status, isSelected);
-    const isToday = new Date(delivery.created_at).toDateString() === new Date().toDateString();
-    const isCheckboxDisabled = delivery.status === "LIVREE" || delivery.status === "ANNULEE";
-    
+    const isToday =
+      new Date(delivery.created_at).toDateString() ===
+      new Date().toDateString();
+    const isCheckboxDisabled =
+      delivery.status === "LIVREE" || delivery.status === "ANNULEE";
+    const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
+    const isClientPaysLivraison =
+      delivery.payment_type === "CLIENT_PAYE_LIVRAISON";
+    const isColisDejaPaye = delivery.payment_type === "COLIS_DEJA_PAYE";
+
+    const montantEncaisse =
+      delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+
+    const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
+
+    const profit = delivery.delivery_fee;
+
     return (
       <TouchableOpacity
         style={[
@@ -479,24 +519,30 @@ export default function Deliveries() {
           {
             backgroundColor: statusConfig.backgroundColor,
             borderColor: statusConfig.borderColor,
-            opacity: delivery.status === "ANNULEE" ? 0.6 : 1
-          }
+            opacity: delivery.status === "ANNULEE" ? 0.6 : 1,
+          },
         ]}
         onPress={() => router.push(`/delivery/${delivery.id}`)}
-        onLongPress={() => !isCheckboxDisabled && toggleDeliverySelection(delivery.id)}
+        onLongPress={() =>
+          !isCheckboxDisabled && toggleDeliverySelection(delivery.id)
+        }
         activeOpacity={0.7}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.checkboxContainer}
-          onPress={() => !isCheckboxDisabled && toggleDeliverySelection(delivery.id)}
+          onPress={() =>
+            !isCheckboxDisabled && toggleDeliverySelection(delivery.id)
+          }
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           disabled={isCheckboxDisabled}
         >
-          <View style={[
-            styles.checkbox,
-            isSelected && styles.checkboxSelected,
-            isCheckboxDisabled && styles.checkboxDisabled
-          ]}>
+          <View
+            style={[
+              styles.checkbox,
+              isSelected && styles.checkboxSelected,
+              isCheckboxDisabled && styles.checkboxDisabled,
+            ]}
+          >
             {isSelected && !isCheckboxDisabled && (
               <MaterialIcons name="check" size={14} color="#102210" />
             )}
@@ -508,74 +554,109 @@ export default function Deliveries() {
             )}
           </View>
         </TouchableOpacity>
-        
+
         <View style={styles.deliveryContent}>
           <View style={styles.deliveryHeader}>
             <View style={styles.statusTimeContainer}>
-              <View style={[
-                styles.statusBadge,
-                { backgroundColor: `${statusConfig.textColor}20` }
-              ]}>
-                <MaterialIcons 
-                  name={statusConfig.icon as any} 
-                  size={12} 
-                  color={statusConfig.textColor} 
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: `${statusConfig.textColor}20` },
+                ]}
+              >
+                <MaterialIcons
+                  name={statusConfig.icon as any}
+                  size={12}
+                  color={statusConfig.textColor}
                 />
-                <Text style={[styles.statusText, { color: statusConfig.textColor }]}>
+                <Text
+                  style={[styles.statusText, { color: statusConfig.textColor }]}
+                >
                   {statusConfig.text}
                 </Text>
               </View>
-              
+
               <Text style={styles.timeText}>
                 {new Date(delivery.created_at).toLocaleTimeString("fr-FR", {
                   hour: "2-digit",
-                  minute: "2-digit"
+                  minute: "2-digit",
                 })}
                 {isToday && " • Aujourd'hui"}
               </Text>
             </View>
-            
+
             <Text style={styles.feeText}>
               +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
             </Text>
           </View>
-          
+
           <View style={styles.addressContainer}>
             <View style={styles.addressLine}>
-              <View style={[styles.addressDot, { backgroundColor: "#6b7280" }]} />
+              <View
+                style={[styles.addressDot, { backgroundColor: "#6b7280" }]}
+              />
               <Text style={styles.addressText} numberOfLines={1}>
                 {delivery.address || "Adresse non spécifiée"}
               </Text>
             </View>
-            
+
             <View style={styles.addressLine}>
-              <View style={[styles.addressDot, { backgroundColor: COLORS.primary }]} />
+              <View
+                style={[styles.addressDot, { backgroundColor: COLORS.primary }]}
+              />
               <Text style={styles.addressText} numberOfLines={1}>
                 {delivery.recipient_name}
                 {delivery.phone ? ` • ${delivery.phone}` : ""}
               </Text>
             </View>
           </View>
-          
+          <View style={{ marginBottom: 8 }}>
+            <Text style={{ color: COLORS.muted, fontSize: 12 }}>
+              {isClientPaysTout && "💰 Client paie colis + livraison"}
+              {isClientPaysLivraison && "🚚 Client paie livraison seulement"}
+              {isColisDejaPaye && "📦 Colis déjà payé"}
+            </Text>
+
+            <Text style={{ color: COLORS.white, fontSize: 12 }}>
+              Encaissé : {montantEncaisse.toLocaleString("fr-FR")} FCFA
+            </Text>
+
+            {montantAReverser > 0 && (
+              <Text style={{ color: COLORS.warning, fontSize: 12 }}>
+                À reverser : {montantAReverser.toLocaleString("fr-FR")} FCFA
+              </Text>
+            )}
+          </View>
+
           {delivery.status === "A_LIVRER" && (
             <View style={styles.actionsContainer}>
               <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: COLORS.primary }]}
+                style={[
+                  styles.actionButton,
+                  { backgroundColor: COLORS.primary },
+                ]}
                 onPress={() => markAsDelivered(delivery.id)}
               >
                 <MaterialIcons name="check" size={16} color="#000" />
                 <Text style={styles.actionButtonText}>Marquer livrée</Text>
               </TouchableOpacity>
-              
+
               <TouchableOpacity
-                style={[styles.actionButton, { 
-                  backgroundColor: COLORS.dangerSoft, 
-                  borderColor: COLORS.danger 
-                }]}
+                style={[
+                  styles.actionButton,
+                  {
+                    backgroundColor: COLORS.dangerSoft,
+                    borderColor: COLORS.danger,
+                  },
+                ]}
                 onPress={() => markAsCancelled(delivery.id)}
               >
                 <MaterialIcons name="close" size={16} color={COLORS.danger} />
-                <Text style={[styles.actionButtonText, { color: COLORS.danger }]}>Annuler</Text>
+                <Text
+                  style={[styles.actionButtonText, { color: COLORS.danger }]}
+                >
+                  Annuler
+                </Text>
               </TouchableOpacity>
             </View>
           )}
@@ -583,17 +664,17 @@ export default function Deliveries() {
       </TouchableOpacity>
     );
   };
-  
+
   const { morning, afternoon, evening } = groupDeliveriesByTime();
-  
+
   const totalSelectedAmount = deliveries
-    .filter(d => selectedDeliveries.includes(d.id) && d.status !== "ANNULEE")
+    .filter((d) => selectedDeliveries.includes(d.id) && d.status !== "ANNULEE")
     .reduce((sum, d) => sum + d.delivery_fee, 0);
-  
+
   return (
     <View style={commonStyles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
-      
+
       <BlurView intensity={95} tint="dark" style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Historique et Planning</Text>
@@ -602,15 +683,20 @@ export default function Deliveries() {
           </TouchableOpacity>
         </View>
       </BlurView>
-      
-      <ScrollView 
+
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
-            <MaterialIcons name="search" size={20} color={COLORS.muted} style={styles.searchIcon} />
+            <MaterialIcons
+              name="search"
+              size={20}
+              color={COLORS.muted}
+              style={styles.searchIcon}
+            />
             <TextInput
               style={styles.searchInput}
               placeholder="Rechercher un client..."
@@ -619,24 +705,31 @@ export default function Deliveries() {
               onChangeText={setSearchQuery}
             />
           </View>
-          
-          <TouchableOpacity 
-            style={[styles.filterButton, dateFilterEnabled && styles.filterButtonActive]}
+
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              dateFilterEnabled && styles.filterButtonActive,
+            ]}
             onPress={() => setShowFilterModal(true)}
           >
-            <MaterialIcons 
-              name="filter-list" 
-              size={20} 
-              color={dateFilterEnabled ? COLORS.primary : COLORS.muted} 
+            <MaterialIcons
+              name="filter-list"
+              size={20}
+              color={dateFilterEnabled ? COLORS.primary : COLORS.muted}
             />
             {dateFilterEnabled && <View style={styles.filterIndicator} />}
           </TouchableOpacity>
         </View>
-        
+
         {dateFilterEnabled && (
           <View style={styles.dateFilterContainer}>
             <View style={styles.dateFilterContent}>
-              <MaterialIcons name="calendar-today" size={16} color={COLORS.primary} />
+              <MaterialIcons
+                name="calendar-today"
+                size={16}
+                color={COLORS.primary}
+              />
               <Text style={styles.dateFilterText}>
                 {formatDateForDisplay()}
               </Text>
@@ -646,93 +739,107 @@ export default function Deliveries() {
             </View>
           </View>
         )}
-        
+
         <View style={styles.tabsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsScroll}>
-            {(["A_LIVRER", "AUJOURDHUI", "LIVREE", "ANNULEE"] as TabType[]).map((tab) => (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.tab, activeTab === tab && styles.activeTab]}
-                onPress={() => setActiveTab(tab)}
-              >
-                <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-                  {tab === "A_LIVRER" && "En cours"}
-                  {tab === "AUJOURDHUI" && "Aujourd'hui"}
-                  {tab === "LIVREE" && "Terminées"}
-                  {tab === "ANNULEE" && "Annulées"}
-                </Text>
-                <View style={[styles.tabIndicator, activeTab === tab && styles.activeTabIndicator]} />
-              </TouchableOpacity>
-            ))}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabsScroll}
+          >
+            {(["A_LIVRER", "AUJOURDHUI", "LIVREE", "ANNULEE"] as TabType[]).map(
+              (tab) => (
+                <TouchableOpacity
+                  key={tab}
+                  style={[styles.tab, activeTab === tab && styles.activeTab]}
+                  onPress={() => setActiveTab(tab)}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      activeTab === tab && styles.activeTabText,
+                    ]}
+                  >
+                    {tab === "A_LIVRER" && "En cours"}
+                    {tab === "AUJOURDHUI" && "Aujourd'hui"}
+                    {tab === "LIVREE" && "Terminées"}
+                    {tab === "ANNULEE" && "Annulées"}
+                  </Text>
+                  <View
+                    style={[
+                      styles.tabIndicator,
+                      activeTab === tab && styles.activeTabIndicator,
+                    ]}
+                  />
+                </TouchableOpacity>
+              ),
+            )}
           </ScrollView>
         </View>
-        
+
         {activeTab === "AUJOURDHUI" ? (
           <View style={styles.deliveriesList}>
             {morning.length > 0 && (
               <View style={commonStyles.section}>
                 <Text style={styles.sectionTitle}>Tournées du matin</Text>
-                {morning.map(delivery => (
-                  <View key={delivery.id}>
-                    {renderDeliveryCard(delivery)}
-                  </View>
+                {morning.map((delivery) => (
+                  <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
               </View>
             )}
-            
+
             {afternoon.length > 0 && (
               <View style={commonStyles.section}>
                 <Text style={styles.sectionTitle}>Bloc après-midi</Text>
-                {afternoon.map(delivery => (
-                  <View key={delivery.id}>
-                    {renderDeliveryCard(delivery)}
-                  </View>
+                {afternoon.map((delivery) => (
+                  <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
               </View>
             )}
-            
+
             {evening.length > 0 && (
               <View style={commonStyles.section}>
                 <Text style={styles.sectionTitle}>Soirée</Text>
-                {evening.map(delivery => (
-                  <View key={delivery.id}>
-                    {renderDeliveryCard(delivery)}
-                  </View>
+                {evening.map((delivery) => (
+                  <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
               </View>
             )}
-            
+
             {deliveries.length === 0 && (
               <View style={styles.emptyState}>
-                <MaterialIcons name="local-shipping" size={48} color={COLORS.muted} />
+                <MaterialIcons
+                  name="local-shipping"
+                  size={48}
+                  color={COLORS.muted}
+                />
                 <Text style={styles.emptyStateText}>
-                  {searchQuery 
-                    ? "Aucune livraison trouvée" 
+                  {searchQuery
+                    ? "Aucune livraison trouvée"
                     : dateFilterEnabled
-                    ? `Aucune livraison pour ${formatDateForDisplay().toLowerCase()}`
-                    : "Aucune livraison pour aujourd'hui"}
+                      ? `Aucune livraison pour ${formatDateForDisplay().toLowerCase()}`
+                      : "Aucune livraison pour aujourd'hui"}
                 </Text>
               </View>
             )}
           </View>
         ) : (
           <View style={styles.deliveriesList}>
-            {deliveries.map(delivery => (
-              <View key={delivery.id}>
-                {renderDeliveryCard(delivery)}
-              </View>
+            {deliveries.map((delivery) => (
+              <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
             ))}
-            
+
             {deliveries.length === 0 && (
               <View style={styles.emptyState}>
-                <MaterialIcons 
+                <MaterialIcons
                   name={
-                    activeTab === "A_LIVRER" ? "schedule" :
-                    activeTab === "LIVREE" ? "check-circle" :
-                    "cancel"
-                  } 
-                  size={48} 
-                  color={COLORS.muted} 
+                    activeTab === "A_LIVRER"
+                      ? "schedule"
+                      : activeTab === "LIVREE"
+                        ? "check-circle"
+                        : "cancel"
+                  }
+                  size={48}
+                  color={COLORS.muted}
                 />
                 <Text style={styles.emptyStateText}>
                   {activeTab === "A_LIVRER" && "Aucune livraison à venir"}
@@ -744,24 +851,30 @@ export default function Deliveries() {
           </View>
         )}
       </ScrollView>
-      
+
       {selectedDeliveries.length > 0 && (
         <View style={styles.selectionBar}>
           <View style={styles.selectionInfo}>
             <Text style={styles.selectionCount}>
-              {selectedDeliveries.length} élément{selectedDeliveries.length > 1 ? "s" : ""} sélectionné{selectedDeliveries.length > 1 ? "s" : ""}
+              {selectedDeliveries.length} élément
+              {selectedDeliveries.length > 1 ? "s" : ""} sélectionné
+              {selectedDeliveries.length > 1 ? "s" : ""}
             </Text>
             <Text style={styles.selectionAmount}>
               +{totalSelectedAmount.toLocaleString("fr-FR")} FCFA total
             </Text>
           </View>
-          
+
           <View style={styles.selectionActions}>
             <TouchableOpacity style={styles.pdfButton}>
-              <MaterialIcons name="picture-as-pdf" size={20} color={COLORS.white} />
+              <MaterialIcons
+                name="picture-as-pdf"
+                size={20}
+                color={COLORS.white}
+              />
             </TouchableOpacity>
-            
-            <TouchableOpacity 
+
+            <TouchableOpacity
               style={styles.markPaidButton}
               onPress={markSelectedAsPaid}
             >
@@ -770,7 +883,7 @@ export default function Deliveries() {
           </View>
         </View>
       )}
-      
+
       <Modal
         visible={showFilterModal}
         transparent
@@ -780,16 +893,16 @@ export default function Deliveries() {
         <View style={styles.modalOverlay}>
           <BlurView intensity={95} tint="dark" style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowFilterModal(false)}
                 style={styles.modalCloseButton}
               >
                 <MaterialIcons name="close" size={24} color={COLORS.muted} />
               </TouchableOpacity>
-              
+
               <Text style={styles.modalTitle}>Filtres</Text>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 onPress={clearDateFilter}
                 style={styles.modalResetButton}
               >
@@ -797,111 +910,141 @@ export default function Deliveries() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.modalScrollView}
+              showsVerticalScrollIndicator={false}
+            >
               <View style={styles.modalSection}>
                 <Text style={styles.modalSectionTitle}>Période</Text>
-                
+
                 <View style={styles.periodButtonsContainer}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     style={[
-                      styles.periodButton, 
-                      activePeriod === "today" && styles.periodButtonActive
+                      styles.periodButton,
+                      activePeriod === "today" && styles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("today")}
                   >
-                    <Text style={[
-                      styles.periodButtonText,
-                      activePeriod === "today" && styles.periodButtonTextActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.periodButtonText,
+                        activePeriod === "today" &&
+                          styles.periodButtonTextActive,
+                      ]}
+                    >
                       Aujourd'hui
                     </Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={[
                       styles.periodButton,
-                      activePeriod === "week" && styles.periodButtonActive
+                      activePeriod === "week" && styles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("week")}
                   >
-                    <Text style={[
-                      styles.periodButtonText,
-                      activePeriod === "week" && styles.periodButtonTextActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.periodButtonText,
+                        activePeriod === "week" &&
+                          styles.periodButtonTextActive,
+                      ]}
+                    >
                       Cette semaine
                     </Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={[
                       styles.periodButton,
-                      activePeriod === "month" && styles.periodButtonActive
+                      activePeriod === "month" && styles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("month")}
                   >
-                    <Text style={[
-                      styles.periodButtonText,
-                      activePeriod === "month" && styles.periodButtonTextActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.periodButtonText,
+                        activePeriod === "month" &&
+                          styles.periodButtonTextActive,
+                      ]}
+                    >
                       Ce mois
                     </Text>
                   </TouchableOpacity>
-                  
-                  <TouchableOpacity 
+
+                  <TouchableOpacity
                     style={[
                       styles.periodButton,
                       styles.periodButtonCustom,
-                      activePeriod === "custom" && styles.periodButtonCustomActive
+                      activePeriod === "custom" &&
+                        styles.periodButtonCustomActive,
                     ]}
                     onPress={() => selectPeriod("custom")}
                   >
-                    <MaterialIcons name="calendar-today" size={16} color={COLORS.primary} />
-                    <Text style={styles.periodButtonCustomText}>Personnalisé</Text>
+                    <MaterialIcons
+                      name="calendar-today"
+                      size={16}
+                      color={COLORS.primary}
+                    />
+                    <Text style={styles.periodButtonCustomText}>
+                      Personnalisé
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
                 {activePeriod === "custom" && (
                   <View style={styles.calendarContainer}>
                     <View style={styles.calendarHeader}>
-                      <TouchableOpacity 
+                      <TouchableOpacity
                         onPress={() => {
                           const prevMonth = new Date(calendarDate);
                           prevMonth.setMonth(prevMonth.getMonth() - 1);
                           setCalendarDate(prevMonth);
                         }}
                       >
-                        <MaterialIcons name="chevron-left" size={20} color={COLORS.muted} />
+                        <MaterialIcons
+                          name="chevron-left"
+                          size={20}
+                          color={COLORS.muted}
+                        />
                       </TouchableOpacity>
-                      
+
                       <Text style={styles.calendarTitle}>
                         {format(calendarDate, "MMMM yyyy", { locale: fr })}
                       </Text>
-                      
-                      <TouchableOpacity 
+
+                      <TouchableOpacity
                         onPress={() => {
                           const nextMonth = new Date(calendarDate);
                           nextMonth.setMonth(nextMonth.getMonth() + 1);
                           setCalendarDate(nextMonth);
                         }}
                       >
-                        <MaterialIcons name="chevron-right" size={20} color={COLORS.muted} />
+                        <MaterialIcons
+                          name="chevron-right"
+                          size={20}
+                          color={COLORS.muted}
+                        />
                       </TouchableOpacity>
                     </View>
-                    
+
                     <View style={styles.weekDaysContainer}>
-                      {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((day, index) => (
-                        <Text key={index} style={styles.weekDayText}>{day}</Text>
+                      {["L", "M", "M", "J", "V", "S", "D"].map((day, index) => (
+                        <Text key={index} style={styles.weekDayText}>
+                          {day}
+                        </Text>
                       ))}
                     </View>
-                    
+
                     <View style={styles.datesContainer}>
                       {generateCalendarDays()}
                     </View>
-                    
+
                     {selectedDate && (
                       <View style={styles.selectedDateInfo}>
                         <Text style={styles.selectedDateText}>
-                          Date sélectionnée : {format(selectedDate, "dd MMMM yyyy", { locale: fr })}
+                          Date sélectionnée :{" "}
+                          {format(selectedDate, "dd MMMM yyyy", { locale: fr })}
                         </Text>
                       </View>
                     )}
@@ -911,18 +1054,20 @@ export default function Deliveries() {
             </ScrollView>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.resetButton}
                 onPress={clearDateFilter}
               >
                 <Text style={styles.resetButtonText}>Réinitialiser</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.applyButton}
                 onPress={handleApplyFilters}
               >
-                <Text style={styles.applyButtonText}>Appliquer les filtres</Text>
+                <Text style={styles.applyButtonText}>
+                  Appliquer les filtres
+                </Text>
               </TouchableOpacity>
             </View>
           </BlurView>
