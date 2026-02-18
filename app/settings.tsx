@@ -361,7 +361,7 @@ export default function Settings() {
   return (
     <SafeAreaView style={commonStyles.container}>
       {/* En-tête flou */}
-      <BlurView intensity={95} tint="dark" style={styles.header}>
+      <BlurView intensity={95}  style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>

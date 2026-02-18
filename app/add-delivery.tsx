@@ -229,7 +229,14 @@ export default function AddDelivery() {
   };
 
   const handleCancel = () => {
-    if (recipientName || phone || address || parcelValue || deliveryFee || merchantName) {
+    if (
+      recipientName ||
+      phone ||
+      address ||
+      parcelValue ||
+      deliveryFee ||
+      merchantName
+    ) {
       showConfirm(
         "Annuler",
         "Voulez-vous vraiment annuler ? Les modifications seront perdues.",
@@ -297,7 +304,7 @@ export default function AddDelivery() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       {/* En-tête */}
-      <BlurView intensity={95} tint="dark" style={addDeliveryStyles.header}>
+      <BlurView intensity={95} style={addDeliveryStyles.header}>
         <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
           <Text style={styles.cancelButtonText}>Annuler</Text>
         </TouchableOpacity>
@@ -444,13 +451,16 @@ export default function AddDelivery() {
                     setErrors((prev) => ({ ...prev, merchantName: false }));
                   }}
                   onFocus={() => {
-                    if (merchantName.trim().length > 0 && filteredMerchants.length > 0) {
+                    if (
+                      merchantName.trim().length > 0 &&
+                      filteredMerchants.length > 0
+                    ) {
                       setShowSuggestions(true);
                     }
                   }}
                   autoCapitalize="words"
                 />
-                
+
                 {merchantName.length > 0 && (
                   <TouchableOpacity
                     style={styles.clearButton}
@@ -460,7 +470,11 @@ export default function AddDelivery() {
                       setShowSuggestions(false);
                     }}
                   >
-                    <MaterialIcons name="close" size={20} color={COLORS.muted} />
+                    <MaterialIcons
+                      name="close"
+                      size={20}
+                      color={COLORS.muted}
+                    />
                   </TouchableOpacity>
                 )}
               </View>
@@ -468,36 +482,36 @@ export default function AddDelivery() {
               {/* Liste des suggestions */}
               {showSuggestions && (
                 <View style={styles.suggestionsContainer}>
-                  <FlatList
-                    data={filteredMerchants}
-                    keyExtractor={(item) => item.id.toString()}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={styles.suggestionItem}
-                        onPress={() => selectMerchant(item)}
-                      >
-                        <MaterialIcons
-                          name="store"
-                          size={18}
-                          color={COLORS.primary}
-                          style={styles.suggestionIcon}
-                        />
-                        <View style={styles.suggestionContent}>
-                          <Text style={styles.suggestionName}>{item.name}</Text>
-                          {item.phone && (
-                            <Text style={styles.suggestionPhone}>{item.phone}</Text>
-                          )}
-                        </View>
-                        <MaterialIcons
-                          name="check-circle"
-                          size={18}
-                          color={COLORS.primary}
-                          style={styles.suggestionCheck}
-                        />
-                      </TouchableOpacity>
-                    )}
-                    style={styles.suggestionsList}
-                  />
+                  {filteredMerchants.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.suggestionItem}
+                      onPress={() => selectMerchant(item)}
+                    >
+                      <MaterialIcons
+                        name="store"
+                        size={18}
+                        color={COLORS.primary}
+                        style={styles.suggestionIcon}
+                      />
+
+                      <View style={styles.suggestionContent}>
+                        <Text style={styles.suggestionName}>{item.name}</Text>
+                        {item.phone && (
+                          <Text style={styles.suggestionPhone}>
+                            {item.phone}
+                          </Text>
+                        )}
+                      </View>
+
+                      <MaterialIcons
+                        name="check-circle"
+                        size={18}
+                        color={COLORS.primary}
+                        style={styles.suggestionCheck}
+                      />
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
 
@@ -506,10 +520,14 @@ export default function AddDelivery() {
                   Ce champ est obligatoire
                 </Text>
               )}
-              
+
               {merchantId && (
                 <View style={styles.selectedMerchantInfo}>
-                  <MaterialIcons name="check-circle" size={16} color={COLORS.success} />
+                  <MaterialIcons
+                    name="check-circle"
+                    size={16}
+                    color={COLORS.success}
+                  />
                   <Text style={styles.selectedMerchantText}>
                     Commerçant existant sélectionné
                   </Text>
@@ -664,7 +682,7 @@ export default function AddDelivery() {
       </ScrollView>
 
       {/* Boutons d'action */}
-      <BlurView intensity={95} tint="dark" style={styles.actionButtons}>
+      <BlurView intensity={95}  style={styles.actionButtons}>
         <TouchableOpacity
           style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.7 }]}
           onPress={handleSave}
@@ -675,7 +693,7 @@ export default function AddDelivery() {
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.templateButton}
           onPress={() => {
             showAlert(
@@ -687,7 +705,7 @@ export default function AddDelivery() {
           <Text style={styles.templateButtonText}>
             Enregistrer comme modèle
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </BlurView>
     </KeyboardAvoidingView>
   );
@@ -856,7 +874,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 15,
   },
-  
+
   // Nouveaux styles pour le champ commerçant avec suggestions
   merchantInputContainer: {
     position: "relative",

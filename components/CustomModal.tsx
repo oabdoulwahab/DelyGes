@@ -100,7 +100,7 @@ export default function CustomModal({
           <TouchableWithoutFeedback>
             <BlurView
               intensity={Platform.OS === "ios" ? 100 : 90}
-              tint="dark"
+              
               style={styles.modalContainer}
             >
               <View style={styles.modalContent}>

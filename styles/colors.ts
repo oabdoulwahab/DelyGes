@@ -1,25 +1,25 @@
 export const COLORS = {
-  background: "#0F172A", // Bleu nuit très profond (plus reposant que le vert foncé)
-  card: "#1E293B",       // Gris ardoise pour détacher les éléments
+  background: "#FFFFFF", // Fond blanc pur
+  card: "#F8FAFC",       // Gris très clair pour les cartes
 
-  inputBackground: "#1E293B",
-  inputBorder: "#334155",
-  placeholder: "#64748B",
-  inputPlaceholder: "#64748B",
+  inputBackground: "#F1F5F9",
+  inputBorder: "#E2E8F0",
+  placeholder: "#94A3B8",
+  inputPlaceholder: "#94A3B8",
 
-  primary: "#10B981",    // Un vert émeraude plus pro que le fluo #13ec13
-  primarySoft: "rgba(16, 185, 129, 0.1)",
+  primary: "#2F855A",    // Vert forêt, professionnel et apaisant
+  primarySoft: "rgba(47, 133, 90, 0.1)",
 
-  white: "#F8FAFC",      // Blanc cassé pour réduire l'éblouissement
-  muted: "#94A3B8",
+  white: "#0F172A",      // Texte principal presque noir (fort contraste)
+  muted: "#64748B",      // Texte secondaire gris-bleu
 
-  danger: "#FF4D4D",
+  danger: "#EF4444",
   success: "#10B981",
   warning: "#F59E0B",
 
-  borderLight: "rgba(255, 255, 255, 0.08)",
-  borderVeryLight: "rgba(255, 255, 255, 0.03)",
-    dangerSoft: "rgba(255, 77, 77, 0.1)", // AJOUTER CETTE LIGNE
-    successSoft: "rgba(16, 185, 129, 0.1)", // AJOUTER CETTE LIGNE
-    warningSoft: "rgba(245, 158, 11, 0.1)", // AJOUTER CETTE LIGNE
+  borderLight: "#E2E8F0",
+  borderVeryLight: "#F1F5F9",
+  dangerSoft: "rgba(239, 68, 68, 0.1)",
+  successSoft: "rgba(16, 185, 129, 0.1)",
+  warningSoft: "rgba(245, 158, 11, 0.1)",
 };

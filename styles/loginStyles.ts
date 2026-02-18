@@ -4,7 +4,7 @@ import { COLORS } from "./colors";
 export const loginStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background, // Blanc
   },
   scrollContainer: {
     flexGrow: 1,
@@ -18,7 +18,6 @@ export const loginStyles = StyleSheet.create({
   logoBackground: {
     width: 150,
     height: 150,
-    // backgroundColor: COLORS.primarySoft,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
@@ -33,7 +32,7 @@ export const loginStyles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
   },
   subtitle: {
     color: COLORS.muted,
@@ -60,17 +59,17 @@ export const loginStyles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#193319",
-    borderColor: "#326732",
+    backgroundColor: COLORS.inputBackground,
+    borderColor: COLORS.inputBorder,
     borderWidth: 1,
     borderRadius: 12,
     height: 56,
     paddingHorizontal: 16,
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
   },
   passwordContainer: {
     position: "relative",
@@ -114,11 +113,12 @@ export const loginStyles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
+    backgroundColor: COLORS.primary,    // Vert
   },
   loginText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: COLORS.background,
+    color: "#FFFFFF",                   // Blanc sur vert
   },
   footer: {
     flexDirection: "row",

@@ -234,7 +234,7 @@ export default function Dashboard() {
 
   return (
     <View style={commonStyles.container}>
-      <BlurView intensity={95} tint="dark" style={dashboardStyles.header}>
+      <BlurView intensity={95}  style={dashboardStyles.header}>
         <View style={styles.headerContent}>
           <View style={styles.profileSection}>
             <View style={styles.profileImage} />

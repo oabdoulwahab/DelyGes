@@ -23,6 +23,9 @@ import {
   startOfMonth,
   endOfMonth,
   isSameDay,
+  isToday,
+  isThisWeek,
+  isThisMonth,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -38,6 +41,7 @@ type Delivery = {
   address: string;
   phone?: string;
   status: string;
+  reversed?: number;
 };
 
 type Merchant = {
@@ -56,15 +60,18 @@ type MerchantSummary = {
   totalEncaisse: number;
   totalAReverser: number;
   totalProfit: number;
+  isClosed: boolean;
   deliveries: Delivery[];
 };
 
 type PeriodType = "today" | "week" | "month" | "custom";
+type TabType = "EN_COURS" | "AUJOURDHUI" | "CLOTUREES";
 
 export default function MerchantAccounting() {
   const [summaries, setSummaries] = useState<MerchantSummary[]>([]);
   const [filteredSummaries, setFilteredSummaries] = useState<MerchantSummary[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<TabType>("EN_COURS");
   const { showConfirm, showSuccess, showError } = useModal();
   
   // États pour les filtres
@@ -75,6 +82,9 @@ export default function MerchantAccounting() {
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [deliveryDates, setDeliveryDates] = useState<Date[]>([]);
+  
+  // États pour les cards pliables
+  const [expandedCards, setExpandedCards] = useState<number[]>([]);
 
   const loadAccounting = async () => {
     try {
@@ -146,6 +156,7 @@ export default function MerchantAccounting() {
           totalEncaisse: 0,
           totalAReverser: 0,
           totalProfit: 0,
+          isClosed: true,
           deliveries: [],
         };
       });
@@ -153,12 +164,9 @@ export default function MerchantAccounting() {
       // Agréger les données des livraisons
       deliveries.forEach((delivery) => {
         const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
-
         const montantEncaisse =
           delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
-
         const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
-
         const profit = delivery.delivery_fee;
 
         if (merchantMap[delivery.merchant_id]) {
@@ -167,13 +175,34 @@ export default function MerchantAccounting() {
           merchantMap[delivery.merchant_id].totalAReverser += montantAReverser;
           merchantMap[delivery.merchant_id].totalProfit += profit;
           merchantMap[delivery.merchant_id].deliveries.push(delivery);
+          
+          // Vérifier si au moins une livraison n'est pas reversée
+          if (delivery.reversed !== 1) {
+            merchantMap[delivery.merchant_id].isClosed = false;
+          }
         }
       });
 
       // Ne garder que les commerçants qui ont des livraisons
-      const summariesArray = Object.values(merchantMap).filter(
+      let summariesArray = Object.values(merchantMap).filter(
         (summary) => summary.totalDeliveries > 0
       );
+
+      // Filtrer par onglet
+      summariesArray = summariesArray.filter((summary) => {
+        switch (activeTab) {
+          case "EN_COURS":
+            return !summary.isClosed;
+          case "CLOTUREES":
+            return summary.isClosed;
+          case "AUJOURDHUI":
+            return summary.deliveries.some((delivery) => 
+              isToday(new Date(delivery.delivered_at || delivery.created_at))
+            );
+          default:
+            return true;
+        }
+      });
 
       setSummaries(summariesArray);
       setFilteredSummaries(summariesArray);
@@ -205,7 +234,7 @@ export default function MerchantAccounting() {
   // Recharger quand les filtres changent
   useEffect(() => {
     loadAccounting();
-  }, [dateFilterEnabled, selectedDate, selectedEndDate, activePeriod]);
+  }, [dateFilterEnabled, selectedDate, selectedEndDate, activePeriod, activeTab]);
 
   // Filtrer les commerçants par recherche
   useEffect(() => {
@@ -220,6 +249,14 @@ export default function MerchantAccounting() {
       setFilteredSummaries(summaries);
     }
   }, [searchQuery, summaries]);
+
+  const toggleCard = (merchantId: number) => {
+    setExpandedCards((prev) =>
+      prev.includes(merchantId)
+        ? prev.filter((id) => id !== merchantId)
+        : [...prev, merchantId]
+    );
+  };
 
   const handleCloseMerchant = (merchantId: number, merchantName: string) => {
     showConfirm(
@@ -394,6 +431,7 @@ export default function MerchantAccounting() {
     return days;
   };
 
+  // Calcul des totaux pour l'onglet actif
   const totalGlobalEncaisse = filteredSummaries.reduce(
     (sum, summary) => sum + summary.totalEncaisse,
     0
@@ -482,6 +520,40 @@ export default function MerchantAccounting() {
         </View>
       )}
 
+      {/* Onglets */}
+      <View style={styles.tabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsScroll}
+        >
+          {(["EN_COURS", "AUJOURDHUI", "CLOTUREES"] as TabType[]).map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === tab && styles.activeTabText,
+                ]}
+              >
+                {tab === "EN_COURS" && "En cours"}
+                {tab === "AUJOURDHUI" && "Aujourd'hui"}
+                {tab === "CLOTUREES" && "Clôturées"}
+              </Text>
+              <View
+                style={[
+                  styles.tabIndicator,
+                  activeTab === tab && styles.activeTabIndicator,
+                ]}
+              />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Résumé global */}
       <View style={styles.globalSummary}>
         <View style={styles.globalCard}>
@@ -492,6 +564,12 @@ export default function MerchantAccounting() {
           <Text style={styles.globalLabel}>Encaissé</Text>
           <Text style={styles.globalValue}>
             {totalGlobalEncaisse.toLocaleString("fr-FR")} FCFA
+          </Text>
+        </View>
+        <View style={styles.globalCard}>
+          <Text style={styles.globalLabel}>À reverser</Text>
+          <Text style={[styles.globalValue, { color: COLORS.warning }]}>
+            {totalGlobalAReverser.toLocaleString("fr-FR")} FCFA
           </Text>
         </View>
         <View style={styles.globalCard}>
@@ -508,122 +586,164 @@ export default function MerchantAccounting() {
         contentContainerStyle={styles.scrollContent}
       >
         {filteredSummaries.length > 0 ? (
-          filteredSummaries.map((summary) => (
-            <View key={summary.merchant_id} style={styles.merchantCard}>
-              {/* En-tête du commerçant */}
-              <View style={styles.merchantHeader}>
-                <View style={styles.merchantAvatar}>
-                  <Text style={styles.merchantInitial}>
-                    {summary.merchant_name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.merchantInfo}>
-                  <Text style={styles.merchantName}>
-                    {summary.merchant_name}
-                  </Text>
-                  {summary.merchant_phone && (
-                    <View style={styles.merchantContact}>
-                      <MaterialIcons name="phone" size={12} color={COLORS.muted} />
-                      <Text style={styles.merchantContactText}>
-                        {summary.merchant_phone}
+          filteredSummaries.map((summary) => {
+            const isExpanded = expandedCards.includes(summary.merchant_id);
+            
+            return (
+              <View 
+                key={summary.merchant_id} 
+                style={[
+                  styles.merchantCard,
+                  summary.isClosed && styles.merchantCardClosed
+                ]}
+              >
+                {/* En-tête du commerçant - Toujours visible */}
+                <TouchableOpacity 
+                  style={styles.merchantHeader}
+                  onPress={() => toggleCard(summary.merchant_id)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.merchantAvatar}>
+                    <Text style={styles.merchantInitial}>
+                      {summary.merchant_name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.merchantInfo}>
+                    <View style={styles.merchantNameContainer}>
+                      <Text style={styles.merchantName}>
+                        {summary.merchant_name}
                       </Text>
+                      {summary.isClosed && (
+                        <View style={styles.closedBadge}>
+                          <MaterialIcons name="check-circle" size={14} color={COLORS.success} />
+                          <Text style={styles.closedBadgeText}>Clôturé</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                  {summary.merchant_address && (
-                    <View style={styles.merchantContact}>
-                      <MaterialIcons name="location-on" size={12} color={COLORS.muted} />
-                      <Text style={styles.merchantContactText} numberOfLines={1}>
-                        {summary.merchant_address}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.deliveryCount}>
-                  <Text style={styles.deliveryCountNumber}>
-                    {summary.totalDeliveries}
-                  </Text>
-                  <Text style={styles.deliveryCountLabel}>
-                    livraison{summary.totalDeliveries > 1 ? "s" : ""}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Détails financiers */}
-              <View style={styles.financialSection}>
-                <View style={styles.financialRow}>
-                  <Text style={styles.financialLabel}>Total encaissé</Text>
-                  <Text style={styles.financialValue}>
-                    {summary.totalEncaisse.toLocaleString("fr-FR")} FCFA
-                  </Text>
-                </View>
-
-                <View style={styles.financialRow}>
-                  <Text style={[styles.financialLabel, { color: COLORS.warning }]}>
-                    À reverser
-                  </Text>
-                  <Text style={[styles.financialValue, { color: COLORS.warning }]}>
-                    {summary.totalAReverser.toLocaleString("fr-FR")} FCFA
-                  </Text>
-                </View>
-
-                <View style={styles.financialRow}>
-                  <Text style={[styles.financialLabel, { color: COLORS.success }]}>
-                    Profit réalisé
-                  </Text>
-                  <Text style={[styles.financialValue, { color: COLORS.success }]}>
-                    {summary.totalProfit.toLocaleString("fr-FR")} FCFA
-                  </Text>
-                </View>
-              </View>
-
-              {/* Aperçu des dernières livraisons */}
-              {summary.deliveries.length > 0 && (
-                <View style={styles.recentDeliveries}>
-                  <Text style={styles.recentDeliveriesTitle}>
-                    Dernières livraisons
-                  </Text>
-                  {summary.deliveries.slice(0, 2).map((delivery) => (
-                    <TouchableOpacity
-                      key={delivery.id}
-                      style={styles.deliveryPreview}
-                      onPress={() => router.push(`/delivery/${delivery.id}`)}
-                    >
-                      <View style={styles.deliveryPreviewHeader}>
-                        <Text style={styles.deliveryPreviewName}>
-                          {delivery.recipient_name}
-                        </Text>
-                        <Text style={styles.deliveryPreviewDate}>
-                          {format(new Date(delivery.delivered_at || delivery.created_at), "dd/MM/yyyy")}
+                    {summary.merchant_phone && (
+                      <View style={styles.merchantContact}>
+                        <MaterialIcons name="phone" size={12} color={COLORS.muted} />
+                        <Text style={styles.merchantContactText}>
+                          {summary.merchant_phone}
                         </Text>
                       </View>
-                      <Text style={styles.deliveryPreviewAddress} numberOfLines={1}>
-                        {delivery.address}
-                      </Text>
-                      <Text style={styles.deliveryPreviewFee}>
-                        +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                  {summary.deliveries.length > 2 && (
-                    <Text style={styles.moreDeliveries}>
-                      +{summary.deliveries.length - 2} autres livraisons
+                    )}
+                    {summary.merchant_address && (
+                      <View style={styles.merchantContact}>
+                        <MaterialIcons name="location-on" size={12} color={COLORS.muted} />
+                        <Text style={styles.merchantContactText} numberOfLines={1}>
+                          {summary.merchant_address}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.deliveryCount}>
+                    <Text style={styles.deliveryCountNumber}>
+                      {summary.totalDeliveries}
                     </Text>
-                  )}
-                </View>
-              )}
+                    <Text style={styles.deliveryCountLabel}>
+                      livraison{summary.totalDeliveries > 1 ? "s" : ""}
+                    </Text>
+                  </View>
+                  <MaterialIcons 
+                    name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
+                    size={24} 
+                    color={COLORS.muted} 
+                  />
+                </TouchableOpacity>
 
-              {/* Bouton de clôture */}
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => handleCloseMerchant(summary.merchant_id, summary.merchant_name)}
-              >
-                <MaterialIcons name="check-circle" size={18} color="#000" />
-                <Text style={styles.closeButtonText}>
-                  Clôturer la comptabilité
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))
+                {/* Contenu pliable - Visible seulement si déplié */}
+                {isExpanded && (
+                  <View style={styles.expandedContent}>
+                    {/* Détails financiers */}
+                    <View style={styles.financialSection}>
+                      <View style={styles.financialRow}>
+                        <Text style={styles.financialLabel}>Total encaissé</Text>
+                        <Text style={styles.financialValue}>
+                          {summary.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                        </Text>
+                      </View>
+
+                      <View style={styles.financialRow}>
+                        <Text style={[styles.financialLabel, { color: COLORS.warning }]}>
+                          À reverser
+                        </Text>
+                        <Text style={[styles.financialValue, { color: COLORS.warning }]}>
+                          {summary.totalAReverser.toLocaleString("fr-FR")} FCFA
+                        </Text>
+                      </View>
+
+                      <View style={styles.financialRow}>
+                        <Text style={[styles.financialLabel, { color: COLORS.success }]}>
+                          Profit réalisé
+                        </Text>
+                        <Text style={[styles.financialValue, { color: COLORS.success }]}>
+                          {summary.totalProfit.toLocaleString("fr-FR")} FCFA
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Aperçu des dernières livraisons */}
+                    {summary.deliveries.length > 0 && (
+                      <View style={styles.recentDeliveries}>
+                        <Text style={styles.recentDeliveriesTitle}>
+                          Dernières livraisons
+                        </Text>
+                        {summary.deliveries.slice(0, 3).map((delivery) => (
+                          <TouchableOpacity
+                            key={delivery.id}
+                            style={styles.deliveryPreview}
+                            onPress={() => router.push(`/delivery/${delivery.id}`)}
+                          >
+                            <View style={styles.deliveryPreviewHeader}>
+                              <Text style={styles.deliveryPreviewName}>
+                                {delivery.recipient_name}
+                              </Text>
+                              <Text style={styles.deliveryPreviewDate}>
+                                {format(new Date(delivery.delivered_at || delivery.created_at), "dd/MM/yyyy")}
+                              </Text>
+                            </View>
+                            <Text style={styles.deliveryPreviewAddress} numberOfLines={1}>
+                              {delivery.address}
+                            </Text>
+                            <View style={styles.deliveryPreviewFooter}>
+                              <Text style={styles.deliveryPreviewFee}>
+                                +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
+                              </Text>
+                              {delivery.reversed === 1 && (
+                                <View style={styles.reversedBadge}>
+                                  <MaterialIcons name="check-circle" size={12} color={COLORS.success} />
+                                  <Text style={styles.reversedBadgeText}>Reversé</Text>
+                                </View>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        ))}
+                        {summary.deliveries.length > 3 && (
+                          <Text style={styles.moreDeliveries}>
+                            +{summary.deliveries.length - 3} autres livraisons
+                          </Text>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Bouton de clôture - Visible seulement si non clôturé */}
+                    {!summary.isClosed && (
+                      <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => handleCloseMerchant(summary.merchant_id, summary.merchant_name)}
+                      >
+                        <MaterialIcons name="check-circle" size={18} color="#000" />
+                        <Text style={styles.closeButtonText}>
+                          Clôturer la comptabilité
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })
         ) : (
           <View style={styles.emptyState}>
             <MaterialIcons
@@ -639,7 +759,11 @@ export default function MerchantAccounting() {
                 ? "Aucun commerçant ne correspond à votre recherche"
                 : dateFilterEnabled
                   ? `Aucune livraison pour ${formatDateForDisplay().toLowerCase()}`
-                  : "Aucune livraison effectuée pour le moment"}
+                  : activeTab === "EN_COURS"
+                    ? "Aucun commerçant en cours"
+                    : activeTab === "AUJOURDHUI"
+                      ? "Aucune livraison aujourd'hui"
+                      : "Aucun commerçant clôturé"}
             </Text>
           </View>
         )}
@@ -930,28 +1054,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
+  tabsContainer: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+    paddingBottom: 8,
+  },
+  tabsScroll: {
+    paddingHorizontal: 16,
+  },
+  tab: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 24,
+    alignItems: "center",
+  },
+  activeTab: {},
+  tabText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.muted,
+    marginBottom: 6,
+  },
+  activeTabText: {
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+  tabIndicator: {
+    height: 3,
+    width: "100%",
+    backgroundColor: "transparent",
+    borderRadius: 1.5,
+  },
+  activeTabIndicator: {
+    backgroundColor: COLORS.primary,
+  },
   globalSummary: {
     flexDirection: "row",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginBottom: 16,
-    gap: 12,
+    paddingVertical: 12,
+    gap: 8,
   },
   globalCard: {
     flex: 1,
     backgroundColor: COLORS.card,
-    padding: 12,
+    padding: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   globalLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: COLORS.muted,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   globalValue: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "bold",
     color: COLORS.white,
   },
@@ -965,15 +1122,19 @@ const styles = StyleSheet.create({
   merchantCard: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
-    padding: 16,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
+    overflow: "hidden",
+  },
+  merchantCardClosed: {
+    borderColor: COLORS.success + "30",
+    opacity: 0.8,
   },
   merchantHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    padding: 16,
   },
   merchantAvatar: {
     width: 48,
@@ -992,11 +1153,30 @@ const styles = StyleSheet.create({
   merchantInfo: {
     flex: 1,
   },
+  merchantNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
   merchantName: {
     fontSize: 16,
     fontWeight: "bold",
     color: COLORS.white,
-    marginBottom: 4,
+  },
+  closedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: COLORS.success + "20",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  closedBadgeText: {
+    fontSize: 10,
+    color: COLORS.success,
+    fontWeight: "600",
   },
   merchantContact: {
     flexDirection: "row",
@@ -1011,6 +1191,7 @@ const styles = StyleSheet.create({
   },
   deliveryCount: {
     alignItems: "flex-end",
+    marginRight: 8,
   },
   deliveryCountNumber: {
     fontSize: 20,
@@ -1021,8 +1202,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: COLORS.muted,
   },
+  expandedContent: {
+    padding: 16,
+    paddingTop: 0,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
   financialSection: {
-    backgroundColor: COLORS.cardLight,
+    backgroundColor: COLORS.card,
     padding: 12,
     borderRadius: 12,
     marginBottom: 16,
@@ -1077,10 +1264,24 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     marginBottom: 4,
   },
+  deliveryPreviewFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   deliveryPreviewFee: {
     fontSize: 13,
     fontWeight: "bold",
     color: COLORS.primary,
+  },
+  reversedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  reversedBadgeText: {
+    fontSize: 11,
+    color: COLORS.success,
   },
   moreDeliveries: {
     fontSize: 11,

@@ -14,7 +14,7 @@ export const addDeliveryStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
   },
   inputGroup: {
     padding: SPACING.md,
@@ -29,7 +29,7 @@ export const addDeliveryStyles = StyleSheet.create({
   },
   input: {
     fontSize: 16,
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
     padding: 0,
     margin: 0,
   },
@@ -45,16 +45,11 @@ export const addDeliveryStyles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: "center",
     marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#000",
+    color: "#FFFFFF",                   // Blanc sur vert
   },
   sectionTitle: {
     fontSize: 12,
@@ -71,6 +66,4 @@ export const addDeliveryStyles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 140,
   },
-
-  
 });

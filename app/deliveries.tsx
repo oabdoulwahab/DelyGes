@@ -675,7 +675,7 @@ export default function Deliveries() {
     <View style={commonStyles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
-      <BlurView intensity={95} tint="dark" style={styles.header}>
+      <BlurView intensity={95} style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Historique et Planning</Text>
           <TouchableOpacity style={styles.doneButton}>
@@ -891,7 +891,7 @@ export default function Deliveries() {
         onRequestClose={() => setShowFilterModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <BlurView intensity={95} tint="dark" style={styles.modalContent}>
+          <BlurView intensity={95}  style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 onPress={() => setShowFilterModal(false)}

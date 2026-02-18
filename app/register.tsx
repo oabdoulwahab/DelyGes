@@ -113,7 +113,7 @@ export default function Register() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <BlurView intensity={80} tint="dark" style={styles.header}>
+      <BlurView intensity={80}  style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <MaterialIcons name="arrow-back-ios" size={24} color={COLORS.white} />
         </TouchableOpacity>

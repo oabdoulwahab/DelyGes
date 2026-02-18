@@ -88,7 +88,7 @@ export default function NotificationSettings() {
   return (
     <View style={commonStyles.container}>
       {/* En-tête */}
-      <BlurView intensity={95} tint="dark" style={styles.header}>
+      <BlurView intensity={95}  style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBack}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>

@@ -7,6 +7,7 @@ import { initializeDatabase } from "../src/database/db";
 import { useAuth } from "../src/hooks/useAuth";
 import { ModalProvider } from "../providers/ModalProvider";
 import { setupNotifications, setupBackgroundTask } from "../src/services/notification.service";
+import { DatabaseMigration } from '../src/utils/databaseMigration';
 
 export default function Layout() {
   const [dbReady, setDbReady] = useState(false);
@@ -17,6 +18,7 @@ export default function Layout() {
       try {
         // Initialiser la base de données
         await initializeDatabase();
+        await DatabaseMigration.checkAndMigrate();
         
         // Configurer les notifications
         await setupNotifications();

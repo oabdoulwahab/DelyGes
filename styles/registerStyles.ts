@@ -4,7 +4,7 @@ import { COLORS } from "./colors";
 export const registerStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background, // Blanc
   },
   header: {
     paddingTop: 60,
@@ -15,7 +15,7 @@ export const registerStyles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: {
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -24,18 +24,18 @@ export const registerStyles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
     fontWeight: "bold",
     marginBottom: 24,
   },
   input: {
-    backgroundColor: "#193319",
-    borderColor: "#326732",
+    backgroundColor: COLORS.inputBackground,
+    borderColor: COLORS.inputBorder,
     borderWidth: 1,
     borderRadius: 12,
     height: 56,
     paddingHorizontal: 16,
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
     marginBottom: 16,
   },
   checkboxContainer: {
@@ -56,7 +56,7 @@ export const registerStyles = StyleSheet.create({
     marginBottom: 24,
   },
   buttonText: {
-    color: "#000",
+    color: "#FFFFFF",                   // Blanc sur vert
     fontSize: 18,
     fontWeight: "bold",
   },

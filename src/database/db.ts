@@ -178,7 +178,6 @@ export const initializeDatabase = async (): Promise<void> => {
     await initDB();
     await migrateFromOldDB();
     await createIndexes();
-    await DatabaseMigration.checkAndMigrate();
     console.log("🚀 Base de données prête");
   } catch (error) {
     console.error("❌ Initialisation DB échouée:", error);

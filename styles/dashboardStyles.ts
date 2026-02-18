@@ -13,7 +13,7 @@ export const dashboardStyles = StyleSheet.create({
     fontSize: 12,
   },
   name: {
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -28,15 +28,10 @@ export const dashboardStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   floatingButtonText: {
     fontWeight: "bold",
-
     fontSize: 14,
+    color: "#FFFFFF",                   // Blanc sur vert
   },
 });

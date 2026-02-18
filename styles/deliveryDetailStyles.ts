@@ -23,7 +23,7 @@ export const deliveryDetailStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: COLORS.white,
+    color: COLORS.white,                // Texte foncé
   },
   statusBadgeHeader: {
     paddingHorizontal: 12,
@@ -75,17 +75,17 @@ export const deliveryDetailStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.primary,
+    backgroundColor: COLORS.primary,    // Vert
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
     borderWidth: 2,
-    borderColor: "rgba(19, 236, 19, 0.3)",
+    borderColor: COLORS.primarySoft,
   },
   clientInitial: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#000",
+    color: "#FFFFFF",                   // Blanc sur fond vert
   },
   clientDetails: {
     flex: 1,
@@ -99,8 +99,11 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.primary,
     marginTop: 4,
+  },
+  clientPhoneContainer: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 4,
   },
   addressContainer: {
     padding: SPACING.md,
@@ -134,14 +137,11 @@ export const deliveryDetailStyles = StyleSheet.create({
     color: COLORS.white,
   },
   financialCard: {
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.card,       // Gris clair
     borderRadius: 16,
     padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
   },
   financialItem: {
     flexDirection: "row",
@@ -152,16 +152,16 @@ export const deliveryDetailStyles = StyleSheet.create({
   financialLabel: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#6b7280",
+    color: COLORS.muted,
   },
   financialValue: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#111827",
+    color: COLORS.white,
   },
   separator: {
     height: 1,
-    backgroundColor: "#e5e7eb",
+    backgroundColor: COLORS.borderLight,
     marginVertical: 16,
   },
   totalItem: {
@@ -173,16 +173,13 @@ export const deliveryDetailStyles = StyleSheet.create({
   totalLabel: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#111827",
+    color: COLORS.white,
     textTransform: "uppercase",
   },
   totalValue: {
     fontSize: 28,
     fontWeight: "900",
-    color: "#111827",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    color: COLORS.primary,              // Vert
   },
   trackingRow: {
     gap: 16,
@@ -232,7 +229,7 @@ export const deliveryDetailStyles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: SPACING.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.background, // Blanc
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
   },
@@ -245,16 +242,11 @@ export const deliveryDetailStyles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#000",
+    color: "#FFFFFF",                   // Blanc sur vert
   },
   actionButtonsRow: {
     flexDirection: "row",
@@ -262,7 +254,7 @@ export const deliveryDetailStyles = StyleSheet.create({
   },
   editButton: {
     flex: 1,
-    backgroundColor: COLORS.borderLight,
+    backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     borderRadius: 12,
@@ -294,14 +286,4 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.danger,
   },
-  clientPhoneContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  
-  // clientPhone: {
-  //   fontSize: 14,
-  //   color: COLORS.primary,
-  // },
 });

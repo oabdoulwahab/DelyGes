@@ -267,7 +267,7 @@ export default function DeliveryDetail() {
       <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
 
       {/* En-tête */}
-      <BlurView intensity={95} tint="dark" style={deliveryDetailStyles.header}>
+      <BlurView intensity={95} style={deliveryDetailStyles.header}>
         <View style={deliveryDetailStyles.headerContent}>
           <TouchableOpacity
             style={deliveryDetailStyles.backButtonHeader}
@@ -576,7 +576,7 @@ export default function DeliveryDetail() {
       {/* Actions */}
       <BlurView
         intensity={95}
-        tint="dark"
+        
         style={deliveryDetailStyles.actionBar}
       >
         <TouchableOpacity
