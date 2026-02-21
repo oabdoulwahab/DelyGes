@@ -4,8 +4,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
-  Alert,
   SafeAreaView,
   Switch,
 } from "react-native";
@@ -16,7 +14,7 @@ import { db } from "../src/database/db";
 import { BlurView } from "expo-blur";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
-import { settingsStyles as styles } from "../styles/settingsStyles";
+import { settingsStyles } from "../styles/settingsStyles";
 import { useAuth } from "../src/hooks/useAuth";
 import { useAutoSave } from "../src/hooks/useAutoSave";
 import { useModal } from "../providers/ModalProvider";
@@ -36,7 +34,7 @@ type UserSettings = {
 };
 
 export default function Settings() {
-  const { user, isAuthenticated, logout, authReady } = useAuth(); // Ajout de authReady
+  const { user, isAuthenticated, logout, authReady } = useAuth();
   const [appVersion, setAppVersion] = useState("");
 
   const { autoSave } = useAutoSave({
@@ -200,11 +198,8 @@ export default function Settings() {
 
   useEffect(() => {
     const buildVersion = Application.nativeApplicationVersion ?? "unknown";
-
     const buildNumber = Application.nativeBuildVersion ?? "0";
-
     const runtimeVersion = Updates.runtimeVersion ?? buildVersion;
-
     const updateId = Updates.updateId ? Updates.updateId.slice(0, 8) : "build";
 
     setAppVersion(`${runtimeVersion} (build ${buildNumber}, ${updateId})`);
@@ -220,9 +215,9 @@ export default function Settings() {
   if (isLoading || !authReady) {
     return (
       <SafeAreaView style={commonStyles.container}>
-        <View style={styles.loadingContainer}>
+        <View style={settingsStyles.loadingContainer}>
           <MaterialIcons name="settings" size={48} color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement des paramètres...</Text>
+          <Text style={settingsStyles.loadingText}>Chargement des paramètres...</Text>
         </View>
       </SafeAreaView>
     );
@@ -232,21 +227,20 @@ export default function Settings() {
   if (!isAuthenticated || !user) {
     return (
       <SafeAreaView style={commonStyles.container}>
-        <View style={styles.authErrorContainer}>
+        <View style={settingsStyles.authErrorContainer}>
           <MaterialIcons name="error-outline" size={48} color={COLORS.danger} />
-          <Text style={styles.authErrorText}>Non connecté</Text>
+          <Text style={settingsStyles.authErrorText}>Non connecté</Text>
           <TouchableOpacity
-            style={styles.authErrorButton}
+            style={settingsStyles.authErrorButton}
             onPress={() => router.replace("/login")}
           >
-            <Text style={styles.authErrorButtonText}>Se connecter</Text>
+            <Text style={settingsStyles.authErrorButtonText}>Se connecter</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Le reste du code reste inchangé...
   const handleSave = () => {
     showAlert(
       "Sauvegarde",
@@ -302,12 +296,12 @@ export default function Settings() {
           showSuccess(
             "Compte supprimé",
             "Votre compte a été supprimé avec succès.",
-          ); // REMPLACER
+          );
           await logout();
           router.replace("/register");
         } catch (error) {
           console.error("❌ Erreur suppression compte:", error);
-          showError("Erreur", "Impossible de supprimer le compte"); // REMPLACER
+          showError("Erreur", "Impossible de supprimer le compte");
         }
       },
       "Supprimer",
@@ -331,223 +325,150 @@ export default function Settings() {
   };
 
   const handleVehicleSelect = () => {
-    const handleVehicleSelect = () => {
-      // Utiliser showModal au lieu de showConfirm car on a plusieurs boutons
-      showModal({
-        title: "Sélectionner un véhicule",
-        message: "Choisissez votre type de véhicule :",
-        type: "confirm",
-        buttons: [
-          {
-            text: "Scooter 125cc",
-            onPress: () => updateSetting("vehicle", "Scooter 125cc"),
-          },
-          { text: "Moto", onPress: () => updateSetting("vehicle", "Moto") },
-          {
-            text: "Voiture",
-            onPress: () => updateSetting("vehicle", "Voiture"),
-          },
-          { text: "Vélo", onPress: () => updateSetting("vehicle", "Vélo") },
-          {
-            text: "Camionnette",
-            onPress: () => updateSetting("vehicle", "Camionnette"),
-          },
-          { text: "Annuler", style: "cancel" },
-        ],
-      });
-    };
+    showModal({
+      title: "Sélectionner un véhicule",
+      message: "Choisissez votre type de véhicule :",
+      type: "confirm",
+      buttons: [
+        {
+          text: "Scooter 125cc",
+          onPress: () => updateSetting("vehicle", "Scooter 125cc"),
+        },
+        { text: "Moto", onPress: () => updateSetting("vehicle", "Moto") },
+        {
+          text: "Voiture",
+          onPress: () => updateSetting("vehicle", "Voiture"),
+        },
+        { text: "Vélo", onPress: () => updateSetting("vehicle", "Vélo") },
+        {
+          text: "Camionnette",
+          onPress: () => updateSetting("vehicle", "Camionnette"),
+        },
+        { text: "Annuler", style: "cancel" },
+      ],
+    });
   };
 
   return (
     <SafeAreaView style={commonStyles.container}>
       {/* En-tête flou */}
-      <BlurView intensity={95}  style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+      <BlurView intensity={95} style={settingsStyles.header}>
+        <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Paramètres</Text>
+        <Text style={settingsStyles.headerTitle}>Paramètres</Text>
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}></Text>
+        <TouchableOpacity style={settingsStyles.saveButton} onPress={handleSave}>
+          <Text style={settingsStyles.saveButtonText}></Text>
         </TouchableOpacity>
       </BlurView>
 
       <ScrollView
-        style={styles.content}
+        style={settingsStyles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={settingsStyles.scrollContent}
       >
         {/* Section Profil */}
-        <View style={styles.profileSection}>
-          <View style={styles.profileImageContainer}>
-            <View style={styles.profileImage}>
+        <View style={settingsStyles.profileSection}>
+          <View style={settingsStyles.profileImageContainer}>
+            <View style={settingsStyles.profileImage}>
               <MaterialIcons name="person" size={48} color={COLORS.primary} />
             </View>
-            <View style={styles.onlineIndicator}>
-              <View style={styles.onlineDot} />
+            <View style={settingsStyles.onlineIndicator}>
+              <View style={settingsStyles.onlineDot} />
             </View>
           </View>
 
-          <Text style={styles.profileName}>
+          <Text style={settingsStyles.profileName}>
             {settings.name || user.name || "Utilisateur"}
           </Text>
-          <Text style={styles.profileSubtitle}>
-            {user.phone ? `${user.phone} ` : ""}
-            {/* En ligne */}
+          <Text style={settingsStyles.profileSubtitle}>
+            {user.phone ? `${user.phone}` : ""}
           </Text>
-          {/* <Text style={styles.userIdText}>ID: {user.id}</Text> */}
         </View>
 
         {/* Section: Profil Professionnel */}
         <View style={commonStyles.section}>
-          <Text style={styles.sectionTitle}>PROFIL PROFESSIONNEL</Text>
+          <Text style={settingsStyles.sectionTitle}>PROFIL PROFESSIONNEL</Text>
 
           <View style={commonStyles.card}>
             {/* Nom */}
-            <View style={styles.cardItem}>
-              <View style={styles.cardItemLeft}>
+            <View style={settingsStyles.cardItem}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons name="badge" size={20} color={COLORS.muted} />
-                <Text style={styles.cardItemLabel}>Nom complet</Text>
+                <Text style={settingsStyles.cardItemLabel}>Nom complet</Text>
               </View>
               <TextInput
-                style={styles.cardItemInput}
+                style={settingsStyles.cardItemInput}
                 value={settings.name}
                 onChangeText={(text) => updateSetting("name", text)}
                 placeholder="Votre nom"
-                placeholderTextColor="#92c992"
+                placeholderTextColor={COLORS.inputPlaceholder}
               />
             </View>
 
             {/* Email */}
             {user.email && (
-              <View style={styles.cardItem}>
-                <View style={styles.cardItemLeft}>
+              <View style={settingsStyles.cardItem}>
+                <View style={settingsStyles.cardItemLeft}>
                   <MaterialIcons name="email" size={20} color={COLORS.muted} />
-                  <Text style={styles.cardItemLabel}>Email</Text>
+                  <Text style={settingsStyles.cardItemLabel}>Email</Text>
                 </View>
-                <Text style={styles.cardItemValue}>{user.email}</Text>
+                <Text style={settingsStyles.cardItemValue}>{user.email}</Text>
               </View>
             )}
 
             {/* Téléphone */}
-            <View style={styles.cardItem}>
-              <View style={styles.cardItemLeft}>
+            <View style={settingsStyles.cardItem}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons name="phone" size={20} color={COLORS.muted} />
-                <Text style={styles.cardItemLabel}>Téléphone</Text>
+                <Text style={settingsStyles.cardItemLabel}>Téléphone</Text>
               </View>
-              <Text style={styles.cardItemValue}>{user.phone}</Text>
+              <Text style={settingsStyles.cardItemValue}>{user.phone}</Text>
             </View>
-
-            {/* SIRET */}
-            {/* <View style={styles.cardItem}>
-              <View style={styles.cardItemLeft}>
-                <MaterialIcons
-                  name="fingerprint"
-                  size={20}
-                  color={COLORS.muted}
-                />
-                <Text style={styles.cardItemLabel}>SIRET</Text>
-              </View>
-              <TextInput
-                style={styles.cardItemInput}
-                value={settings.siret}
-                onChangeText={(text) => updateSetting("siret", text)}
-                placeholder="Numéro SIRET"
-                placeholderTextColor="#92c992"
-                keyboardType="numeric"
-              />
-            </View> */}
-
-            {/* Véhicule */}
-            {/* <TouchableOpacity
-              style={styles.cardItem}
-              onPress={handleVehicleSelect}
-            >
-              <View style={styles.cardItemLeft}>
-                <MaterialIcons
-                  name="local-shipping"
-                  size={20}
-                  color={COLORS.muted}
-                />
-                <Text style={styles.cardItemLabel}>Véhicule</Text>
-              </View>
-              <View style={styles.cardItemRight}>
-                <Text style={styles.cardItemValue}>{settings.vehicle}</Text>
-                <MaterialIcons
-                  name="arrow-forward-ios"
-                  size={14}
-                  color={COLORS.muted}
-                />
-              </View>
-            </TouchableOpacity> */}
           </View>
         </View>
 
         {/* Section: Configuration Financière */}
         <View style={commonStyles.section}>
-          <Text style={styles.sectionTitle}>CONFIGURATION FINANCIÈRE</Text>
+          <Text style={settingsStyles.sectionTitle}>CONFIGURATION FINANCIÈRE</Text>
 
           <View style={commonStyles.card}>
             {/* TVA */}
-            <View style={styles.cardItem}>
-              <View style={styles.cardItemLeft}>
+            <View style={settingsStyles.cardItem}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons name="percent" size={20} color={COLORS.muted} />
-                <Text style={styles.cardItemLabel}>Assujetti à la TVA</Text>
+                <Text style={settingsStyles.cardItemLabel}>Assujetti à la TVA</Text>
               </View>
               <Switch
                 value={settings.is_vat === 1}
                 onValueChange={(value) =>
                   updateSetting("is_vat", value ? 1 : 0)
                 }
-                trackColor={{ false: "#374151", true: COLORS.primary }}
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
             </View>
-
-            {/* Objectif Mensuel */}
-            {/* <View style={styles.cardItem}>
-              <View style={styles.cardItemLeft}>
-                <MaterialIcons name="savings" size={20} color={COLORS.muted} />
-                <Text style={styles.cardItemLabel}>
-                  Objectif mensuel (FCFA)
-                </Text>
-              </View>
-              <View style={styles.goalInputContainer}>
-                <TextInput
-                  style={styles.goalInput}
-                  value={String(settings.monthly_goal)}
-                  onChangeText={(text) => {
-                    const cleaned = text.replace(/[^0-9]/g, "");
-                    const numValue = cleaned ? parseInt(cleaned, 10) : 0;
-                    updateSetting("monthly_goal", numValue);
-                  }}
-                  placeholder="2500"
-                  placeholderTextColor="#92c992"
-                  keyboardType="numeric"
-                />
-                <Text style={styles.currency}>FCFA</Text>
-              </View>
-            </View> */}
           </View>
         </View>
 
         {/* Section: Notifications */}
         <View style={commonStyles.section}>
-          <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
+          <Text style={settingsStyles.sectionTitle}>NOTIFICATIONS</Text>
 
           <View style={commonStyles.card}>
             <TouchableOpacity
-              style={styles.cardItem}
+              style={settingsStyles.cardItem}
               onPress={() => router.push("/notification-settings")}
             >
-              <View style={styles.cardItemLeft}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons
                   name="notifications"
                   size={20}
                   color={COLORS.muted}
                 />
-                <Text style={styles.cardItemLabel}>
+                <Text style={settingsStyles.cardItemLabel}>
                   Gérer les notifications
                 </Text>
               </View>
@@ -559,16 +480,16 @@ export default function Settings() {
             </TouchableOpacity>
 
             {/* Rappels de saisie */}
-            <View style={styles.cardItem}>
-              <View style={styles.cardItemLeft}>
+            <View style={settingsStyles.cardItem}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons
                   name="edit-notifications"
                   size={20}
                   color={COLORS.muted}
                 />
-                <View style={styles.notificationContent}>
-                  <Text style={styles.cardItemLabel}>Rappels de saisie</Text>
-                  <Text style={styles.notificationSubtitle}>
+                <View style={settingsStyles.notificationContent}>
+                  <Text style={settingsStyles.cardItemLabel}>Rappels de saisie</Text>
+                  <Text style={settingsStyles.notificationSubtitle}>
                     Pour ne pas oublier vos km
                   </Text>
                 </View>
@@ -578,23 +499,23 @@ export default function Settings() {
                 onValueChange={(value) =>
                   updateSetting("reminder_notifications", value ? 1 : 0)
                 }
-                trackColor={{ false: "#374151", true: COLORS.primary }}
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
             </View>
 
             {/* Alertes de paiement */}
-            <View style={[styles.cardItem, styles.cardItemNoBorder]}>
-              <View style={styles.cardItemLeft}>
+            <View style={[settingsStyles.cardItem, settingsStyles.cardItemNoBorder]}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons name="payments" size={20} color={COLORS.muted} />
-                <Text style={styles.cardItemLabel}>Alertes de paiement</Text>
+                <Text style={settingsStyles.cardItemLabel}>Alertes de paiement</Text>
               </View>
               <Switch
                 value={settings.payment_notifications === 1}
                 onValueChange={(value) =>
                   updateSetting("payment_notifications", value ? 1 : 0)
                 }
-                trackColor={{ false: "#374151", true: COLORS.primary }}
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
             </View>
@@ -603,21 +524,21 @@ export default function Settings() {
 
         {/* Section: Données & Sécurité */}
         <View style={commonStyles.section}>
-          <Text style={styles.sectionTitle}>DONNÉES & SÉCURITÉ</Text>
+          <Text style={settingsStyles.sectionTitle}>DONNÉES & SÉCURITÉ</Text>
 
           <View style={commonStyles.card}>
             {/* Changer le mot de passe */}
             <TouchableOpacity
-              style={styles.cardItem}
+              style={settingsStyles.cardItem}
               onPress={handleChangePassword}
             >
-              <View style={styles.cardItemLeft}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons
                   name="lock-reset"
                   size={20}
                   color={COLORS.muted}
                 />
-                <Text style={styles.cardItemLabel}>
+                <Text style={settingsStyles.cardItemLabel}>
                   Changer le mot de passe
                 </Text>
               </View>
@@ -630,12 +551,12 @@ export default function Settings() {
 
             {/* Exporter les données */}
             <TouchableOpacity
-              style={styles.cardItem}
+              style={settingsStyles.cardItem}
               onPress={handleExportData}
             >
-              <View style={styles.cardItemLeft}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons name="download" size={20} color={COLORS.muted} />
-                <Text style={styles.cardItemLabel}>
+                <Text style={settingsStyles.cardItemLabel}>
                   Exporter les données (CSV)
                 </Text>
               </View>
@@ -648,16 +569,16 @@ export default function Settings() {
 
             {/* Supprimer le compte */}
             <TouchableOpacity
-              style={[styles.cardItem, styles.cardItemDanger]}
+              style={[settingsStyles.cardItem, settingsStyles.cardItemDanger]}
               onPress={handleDeleteAccount}
             >
-              <View style={styles.cardItemLeft}>
+              <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons
                   name="delete-forever"
                   size={20}
                   color={COLORS.danger}
                 />
-                <Text style={styles.cardItemLabelDanger}>
+                <Text style={settingsStyles.cardItemLabelDanger}>
                   Supprimer le compte
                 </Text>
               </View>
@@ -666,16 +587,10 @@ export default function Settings() {
         </View>
 
         {/* Bouton de déconnexion */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity style={settingsStyles.logoutButton} onPress={handleLogout}>
           <MaterialIcons name="logout" size={20} color={COLORS.danger} />
-          <Text style={styles.logoutButtonText}>Déconnexion</Text>
+          <Text style={settingsStyles.logoutButtonText}>Déconnexion</Text>
         </TouchableOpacity>
-
-        {/* Version */}
-        <Text style={styles.versionText}>
-          {/* Version {appVersion} • Dernière mise à jour:{" "}
-          {new Date().toLocaleDateString("fr-FR")} */}
-        </Text>
       </ScrollView>
     </SafeAreaView>
   );

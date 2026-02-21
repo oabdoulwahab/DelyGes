@@ -3,13 +3,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
   ScrollView,
   StatusBar,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
@@ -301,19 +298,17 @@ export default function AddDelivery() {
       style={commonStyles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* En-tête */}
       <BlurView intensity={95} style={addDeliveryStyles.header}>
-        <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
-          <Text style={styles.cancelButtonText}>Annuler</Text>
+        <TouchableOpacity onPress={handleCancel} style={addDeliveryStyles.cancelButton}>
+          <Text style={addDeliveryStyles.cancelButtonText}>Annuler</Text>
         </TouchableOpacity>
 
         <Text style={addDeliveryStyles.headerTitle}>Ajouter une Livraison</Text>
 
-        <TouchableOpacity style={styles.saveButtonPlaceholder}>
-          <Text style={addDeliveryStyles.saveButtonText}>Enregistrer</Text>
-        </TouchableOpacity>
+        <View style={addDeliveryStyles.saveButtonPlaceholder} />
       </BlurView>
 
       <ScrollView
@@ -332,11 +327,11 @@ export default function AddDelivery() {
             <View
               style={[
                 addDeliveryStyles.inputGroup,
-                errors.recipientName && styles.inputError,
+                errors.recipientName && addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Destinataire <Text style={styles.required}>*</Text>
+                Destinataire <Text style={addDeliveryStyles.required}>*</Text>
               </Text>
               <TextInput
                 style={addDeliveryStyles.input}
@@ -360,11 +355,11 @@ export default function AddDelivery() {
             <View
               style={[
                 addDeliveryStyles.inputGroup,
-                errors.phone && styles.inputError,
+                errors.phone && addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Téléphone <Text style={styles.required}>*</Text>
+                Téléphone <Text style={addDeliveryStyles.required}>*</Text>
               </Text>
               <TextInput
                 style={addDeliveryStyles.input}
@@ -388,19 +383,19 @@ export default function AddDelivery() {
             <View
               style={[
                 addDeliveryStyles.inputGroup,
-                styles.inputGroupWithIcon,
-                errors.address && styles.inputError,
+                addDeliveryStyles.inputGroupWithIcon,
+                errors.address && addDeliveryStyles.inputError,
               ]}
             >
               <MaterialIcons
                 name="location-on"
                 size={20}
                 color={errors.address ? COLORS.danger : COLORS.primary}
-                style={styles.inputIcon}
+                style={addDeliveryStyles.inputIcon}
               />
-              <View style={styles.inputContent}>
+              <View style={addDeliveryStyles.inputContent}>
                 <Text style={addDeliveryStyles.inputLabel}>
-                  Adresse de livraison <Text style={styles.required}>*</Text>
+                  Adresse de livraison <Text style={addDeliveryStyles.required}>*</Text>
                 </Text>
                 <TextInput
                   style={addDeliveryStyles.input}
@@ -430,17 +425,17 @@ export default function AddDelivery() {
             <View
               style={[
                 addDeliveryStyles.inputGroup,
-                errors.merchantName && styles.inputError,
+                errors.merchantName && addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Nom du commerçant <Text style={styles.required}>*</Text>
+                Nom du commerçant <Text style={addDeliveryStyles.required}>*</Text>
               </Text>
-              <View style={styles.merchantInputContainer}>
+              <View style={addDeliveryStyles.merchantInputContainer}>
                 <TextInput
                   style={[
                     addDeliveryStyles.input,
-                    showSuggestions && styles.inputWithSuggestions,
+                    showSuggestions && addDeliveryStyles.inputWithSuggestions,
                   ]}
                   placeholder="ex: Boutique du Centre"
                   placeholderTextColor={COLORS.muted}
@@ -463,7 +458,7 @@ export default function AddDelivery() {
 
                 {merchantName.length > 0 && (
                   <TouchableOpacity
-                    style={styles.clearButton}
+                    style={addDeliveryStyles.clearButton}
                     onPress={() => {
                       setMerchantName("");
                       setMerchantId(null);
@@ -481,24 +476,24 @@ export default function AddDelivery() {
 
               {/* Liste des suggestions */}
               {showSuggestions && (
-                <View style={styles.suggestionsContainer}>
+                <View style={addDeliveryStyles.suggestionsContainer}>
                   {filteredMerchants.map((item) => (
                     <TouchableOpacity
                       key={item.id}
-                      style={styles.suggestionItem}
+                      style={addDeliveryStyles.suggestionItem}
                       onPress={() => selectMerchant(item)}
                     >
                       <MaterialIcons
                         name="store"
                         size={18}
                         color={COLORS.primary}
-                        style={styles.suggestionIcon}
+                        style={addDeliveryStyles.suggestionIcon}
                       />
 
-                      <View style={styles.suggestionContent}>
-                        <Text style={styles.suggestionName}>{item.name}</Text>
+                      <View style={addDeliveryStyles.suggestionContent}>
+                        <Text style={addDeliveryStyles.suggestionName}>{item.name}</Text>
                         {item.phone && (
-                          <Text style={styles.suggestionPhone}>
+                          <Text style={addDeliveryStyles.suggestionPhone}>
                             {item.phone}
                           </Text>
                         )}
@@ -508,7 +503,7 @@ export default function AddDelivery() {
                         name="check-circle"
                         size={18}
                         color={COLORS.primary}
-                        style={styles.suggestionCheck}
+                        style={addDeliveryStyles.suggestionCheck}
                       />
                     </TouchableOpacity>
                   ))}
@@ -522,13 +517,13 @@ export default function AddDelivery() {
               )}
 
               {merchantId && (
-                <View style={styles.selectedMerchantInfo}>
+                <View style={addDeliveryStyles.selectedMerchantInfo}>
                   <MaterialIcons
                     name="check-circle"
                     size={16}
                     color={COLORS.success}
                   />
-                  <Text style={styles.selectedMerchantText}>
+                  <Text style={addDeliveryStyles.selectedMerchantText}>
                     Commerçant existant sélectionné
                   </Text>
                 </View>
@@ -541,21 +536,21 @@ export default function AddDelivery() {
         <View style={commonStyles.section}>
           <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
 
-          <View style={styles.financialGrid}>
+          <View style={addDeliveryStyles.financialGrid}>
             {/* Valeur du colis */}
             <View
               style={[
-                styles.financialCard,
-                errors.parcelValue && styles.inputError,
+                addDeliveryStyles.financialCard,
+                errors.parcelValue && addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Valeur du colis <Text style={styles.required}>*</Text>
+                Valeur du colis <Text style={addDeliveryStyles.required}>*</Text>
               </Text>
-              <View style={styles.currencyInput}>
+              <View style={addDeliveryStyles.currencyInput}>
                 <Text
                   style={[
-                    styles.currencySymbol,
+                    addDeliveryStyles.currencySymbol,
                     errors.parcelValue && { color: COLORS.danger },
                   ]}
                 >
@@ -563,7 +558,7 @@ export default function AddDelivery() {
                 </Text>
                 <TextInput
                   style={[
-                    styles.financialInput,
+                    addDeliveryStyles.financialInput,
                     errors.parcelValue && { color: COLORS.danger },
                   ]}
                   placeholder="0,00"
@@ -588,17 +583,17 @@ export default function AddDelivery() {
             {/* Frais de livraison */}
             <View
               style={[
-                styles.financialCard,
-                errors.deliveryFee && styles.inputError,
+                addDeliveryStyles.financialCard,
+                errors.deliveryFee && addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Frais de livraison <Text style={styles.required}>*</Text>
+                Frais de livraison <Text style={addDeliveryStyles.required}>*</Text>
               </Text>
-              <View style={styles.currencyInput}>
+              <View style={addDeliveryStyles.currencyInput}>
                 <Text
                   style={[
-                    styles.currencySymbol,
+                    addDeliveryStyles.currencySymbol,
                     errors.deliveryFee && { color: COLORS.danger },
                   ]}
                 >
@@ -606,7 +601,7 @@ export default function AddDelivery() {
                 </Text>
                 <TextInput
                   style={[
-                    styles.financialInput,
+                    addDeliveryStyles.financialInput,
                     errors.deliveryFee && { color: COLORS.danger },
                   ]}
                   placeholder="0,00"
@@ -647,24 +642,24 @@ export default function AddDelivery() {
                 <TouchableOpacity
                   key={item.key}
                   style={[
-                    styles.paymentOption,
-                    paymentType === item.key && styles.paymentSelected,
+                    addDeliveryStyles.paymentOption,
+                    paymentType === item.key && addDeliveryStyles.paymentSelected,
                   ]}
                   onPress={() => setPaymentType(item.key as any)}
                 >
-                  <Text style={styles.paymentText}>{item.label}</Text>
+                  <Text style={addDeliveryStyles.paymentText}>{item.label}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           {/* Total */}
-          <View style={styles.netIncomeCard}>
-            <View style={styles.netIncomeContent}>
-              <Text style={styles.netIncomeLabel}>TOTAL</Text>
-              <Text style={styles.netIncomeSubtitle}>Valeur + Frais</Text>
+          <View style={addDeliveryStyles.netIncomeCard}>
+            <View style={addDeliveryStyles.netIncomeContent}>
+              <Text style={addDeliveryStyles.netIncomeLabel}>TOTAL</Text>
+              <Text style={addDeliveryStyles.netIncomeSubtitle}>Valeur + Frais</Text>
             </View>
-            <Text style={styles.netIncomeAmount}>
+            <Text style={addDeliveryStyles.netIncomeAmount}>
               {(
                 Number(parcelValue.replace(",", ".") || 0) +
                 Number(deliveryFee.replace(",", ".") || 0)
@@ -678,11 +673,11 @@ export default function AddDelivery() {
         </View>
 
         {/* Espace pour le bouton flottant */}
-        <View style={styles.bottomSpacer} />
+        <View style={addDeliveryStyles.bottomSpacer} />
       </ScrollView>
 
       {/* Boutons d'action */}
-      <BlurView intensity={95}  style={styles.actionButtons}>
+      <BlurView intensity={95} style={addDeliveryStyles.actionButtons}>
         <TouchableOpacity
           style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.7 }]}
           onPress={handleSave}
@@ -692,251 +687,7 @@ export default function AddDelivery() {
             {isSaving ? "Enregistrement..." : "Enregistrer la livraison"}
           </Text>
         </TouchableOpacity>
-
-        {/* <TouchableOpacity
-          style={styles.templateButton}
-          onPress={() => {
-            showAlert(
-              "Info",
-              "Cette fonctionnalité sera disponible prochainement",
-            );
-          }}
-        >
-          <Text style={styles.templateButtonText}>
-            Enregistrer comme modèle
-          </Text>
-        </TouchableOpacity> */}
       </BlurView>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  cancelButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  cancelButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-  },
-  saveButtonPlaceholder: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    opacity: 0,
-  },
-  inputError: {
-    borderLeftWidth: 3,
-    borderLeftColor: COLORS.danger,
-    backgroundColor: COLORS.dangerSoft,
-  },
-  inputGroupWithIcon: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  inputIcon: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  inputContent: {
-    flex: 1,
-  },
-  required: {
-    color: COLORS.danger,
-  },
-  financialGrid: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
-  },
-  financialCard: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  currencyInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  currencySymbol: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: COLORS.white,
-    marginRight: 8,
-  },
-  financialInput: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: COLORS.white,
-    flex: 1,
-    padding: 0,
-    margin: 0,
-  },
-  netIncomeCard: {
-    backgroundColor: COLORS.primarySoft,
-    borderColor: "rgba(19, 236, 19, 0.3)",
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  netIncomeContent: {
-    flex: 1,
-  },
-  netIncomeLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.primary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  netIncomeSubtitle: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginTop: 2,
-  },
-  netIncomeAmount: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: COLORS.white,
-  },
-  bottomSpacer: {
-    height: 20,
-  },
-  actionButtons: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: COLORS.background,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  templateButton: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  templateButtonText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: COLORS.white,
-  },
-  userInfo: {
-    backgroundColor: COLORS.primarySoft,
-    padding: 8,
-    borderRadius: 8,
-    marginBottom: 12,
-    alignItems: "center",
-  },
-  userInfoText: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  merchantItem: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    marginBottom: 8,
-  },
-  merchantSelected: {
-    backgroundColor: COLORS.primarySoft,
-    borderColor: COLORS.primary,
-  },
-  merchantName: {
-    color: COLORS.white,
-    fontSize: 16,
-  },
-  paymentOption: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    marginBottom: 8,
-  },
-  paymentSelected: {
-    backgroundColor: COLORS.primarySoft,
-    borderColor: COLORS.primary,
-  },
-  paymentText: {
-    color: COLORS.white,
-    fontSize: 15,
-  },
-
-  // Nouveaux styles pour le champ commerçant avec suggestions
-  merchantInputContainer: {
-    position: "relative",
-    width: "100%",
-  },
-  inputWithSuggestions: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  clearButton: {
-    position: "absolute",
-    right: 12,
-    top: "50%",
-    transform: [{ translateY: -10 }],
-  },
-  suggestionsContainer: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderColor: COLORS.borderLight,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    maxHeight: 200,
-    overflow: "hidden",
-  },
-  suggestionsList: {
-    width: "100%",
-  },
-  suggestionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  suggestionIcon: {
-    marginRight: 12,
-  },
-  suggestionContent: {
-    flex: 1,
-  },
-  suggestionName: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  suggestionPhone: {
-    color: COLORS.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  suggestionCheck: {
-    marginLeft: 8,
-  },
-  selectedMerchantInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    gap: 6,
-  },
-  selectedMerchantText: {
-    color: COLORS.success,
-    fontSize: 12,
-  },
-});

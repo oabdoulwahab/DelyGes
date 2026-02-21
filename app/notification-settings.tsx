@@ -3,7 +3,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Switch,
 } from "react-native";
 import { useState, useEffect } from "react";
@@ -13,6 +12,7 @@ import { db } from "../src/database/db";
 import { BlurView } from "expo-blur";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
+import { notificationSettingsStyles } from "../styles/notificationSettingsStyles";
 import { useAuth } from "../src/hooks/useAuth";
 import { useAutoSave } from "../src/hooks/useAutoSave";
 
@@ -80,7 +80,7 @@ export default function NotificationSettings() {
   if (isLoading) {
     return (
       <View style={commonStyles.container}>
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={notificationSettingsStyles.loadingText}>Chargement...</Text>
       </View>
     );
   }
@@ -88,26 +88,26 @@ export default function NotificationSettings() {
   return (
     <View style={commonStyles.container}>
       {/* En-tête */}
-      <BlurView intensity={95}  style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack}>
+      <BlurView intensity={95} style={notificationSettingsStyles.header}>
+        <TouchableOpacity style={notificationSettingsStyles.backButton} onPress={handleBack}>
           <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
+        <Text style={notificationSettingsStyles.headerTitle}>Notifications</Text>
         <View style={{ width: 40 }} />
       </BlurView>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={notificationSettingsStyles.content}>
         {/* Section Rappels */}
         <View style={commonStyles.section}>
-          <Text style={styles.sectionTitle}>RAPPELS</Text>
+          <Text style={notificationSettingsStyles.sectionTitle}>RAPPELS</Text>
           
           <View style={commonStyles.card}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
+            <View style={notificationSettingsStyles.settingItem}>
+              <View style={notificationSettingsStyles.settingInfo}>
                 <MaterialIcons name="notifications" size={20} color={COLORS.primary} />
-                <View style={styles.settingTexts}>
-                  <Text style={styles.settingLabel}>Rappels de saisie</Text>
-                  <Text style={styles.settingDescription}>
+                <View style={notificationSettingsStyles.settingTexts}>
+                  <Text style={notificationSettingsStyles.settingLabel}>Rappels de saisie</Text>
+                  <Text style={notificationSettingsStyles.settingDescription}>
                     Vous rappelle de saisir vos livraisons si inactif 24h
                   </Text>
                 </View>
@@ -117,17 +117,17 @@ export default function NotificationSettings() {
                 onValueChange={(value) =>
                   updateSetting('reminder_notifications', value ? 1 : 0)
                 }
-                trackColor={{ false: "#374151", true: COLORS.primary }}
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
             </View>
 
-            <View style={[styles.settingItem, styles.noBorder]}>
-              <View style={styles.settingInfo}>
+            <View style={[notificationSettingsStyles.settingItem, notificationSettingsStyles.noBorder]}>
+              <View style={notificationSettingsStyles.settingInfo}>
                 <MaterialIcons name="summarize" size={20} color={COLORS.primary} />
-                <View style={styles.settingTexts}>
-                  <Text style={styles.settingLabel}>Résumé quotidien</Text>
-                  <Text style={styles.settingDescription}>
+                <View style={notificationSettingsStyles.settingTexts}>
+                  <Text style={notificationSettingsStyles.settingLabel}>Résumé quotidien</Text>
+                  <Text style={notificationSettingsStyles.settingDescription}>
                     Reçu chaque jour à 20h
                   </Text>
                 </View>
@@ -137,7 +137,7 @@ export default function NotificationSettings() {
                 onValueChange={(value) =>
                   updateSetting('daily_summary_notifications', value ? 1 : 0)
                 }
-                trackColor={{ false: "#374151", true: COLORS.primary }}
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
             </View>
@@ -146,15 +146,15 @@ export default function NotificationSettings() {
 
         {/* Section Activités */}
         <View style={commonStyles.section}>
-          <Text style={styles.sectionTitle}>ACTIVITÉS</Text>
+          <Text style={notificationSettingsStyles.sectionTitle}>ACTIVITÉS</Text>
           
           <View style={commonStyles.card}>
-            <View style={styles.settingItem}>
-              <View style={styles.settingInfo}>
+            <View style={notificationSettingsStyles.settingItem}>
+              <View style={notificationSettingsStyles.settingInfo}>
                 <MaterialIcons name="add-task" size={20} color={COLORS.primary} />
-                <View style={styles.settingTexts}>
-                  <Text style={styles.settingLabel}>Nouvelles livraisons</Text>
-                  <Text style={styles.settingDescription}>
+                <View style={notificationSettingsStyles.settingTexts}>
+                  <Text style={notificationSettingsStyles.settingLabel}>Nouvelles livraisons</Text>
+                  <Text style={notificationSettingsStyles.settingDescription}>
                     Notification quand vous créez une livraison
                   </Text>
                 </View>
@@ -164,17 +164,17 @@ export default function NotificationSettings() {
                 onValueChange={(value) =>
                   updateSetting('delivery_created_notifications', value ? 1 : 0)
                 }
-                trackColor={{ false: "#374151", true: COLORS.primary }}
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
             </View>
 
-            <View style={[styles.settingItem, styles.noBorder]}>
-              <View style={styles.settingInfo}>
+            <View style={[notificationSettingsStyles.settingItem, notificationSettingsStyles.noBorder]}>
+              <View style={notificationSettingsStyles.settingInfo}>
                 <MaterialIcons name="payments" size={20} color={COLORS.primary} />
-                <View style={styles.settingTexts}>
-                  <Text style={styles.settingLabel}>Livraisons terminées</Text>
-                  <Text style={styles.settingDescription}>
+                <View style={notificationSettingsStyles.settingTexts}>
+                  <Text style={notificationSettingsStyles.settingLabel}>Livraisons terminées</Text>
+                  <Text style={notificationSettingsStyles.settingDescription}>
                     Notification quand vous marquez une livraison comme terminée
                   </Text>
                 </View>
@@ -184,7 +184,7 @@ export default function NotificationSettings() {
                 onValueChange={(value) =>
                   updateSetting('payment_notifications', value ? 1 : 0)
                 }
-                trackColor={{ false: "#374151", true: COLORS.primary }}
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
             </View>
@@ -192,9 +192,9 @@ export default function NotificationSettings() {
         </View>
 
         {/* Information */}
-        <View style={styles.infoBox}>
+        <View style={notificationSettingsStyles.infoBox}>
           <MaterialIcons name="info" size={20} color={COLORS.muted} />
-          <Text style={styles.infoText}>
+          <Text style={notificationSettingsStyles.infoText}>
             Les notifications en arrière-plan nécessitent que l'application reste installée. 
             Les rappels fonctionnent même quand l'app est fermée.
           </Text>
@@ -203,90 +203,3 @@ export default function NotificationSettings() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    paddingTop: 48,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 20,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: COLORS.white,
-  },
-  content: {
-    flex: 1,
-    paddingTop: 16,
-  },
-  loadingText: {
-    color: COLORS.muted,
-    textAlign: 'center',
-    marginTop: 20,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 8,
-    marginLeft: 16,
-  },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  noBorder: {
-    borderBottomWidth: 0,
-  },
-  settingInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  settingTexts: {
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: COLORS.white,
-  },
-  settingDescription: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginTop: 2,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: COLORS.card,
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    gap: 12,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: COLORS.muted,
-    lineHeight: 18,
-  },
-});

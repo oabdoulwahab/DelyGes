@@ -1,10 +1,8 @@
 import {
   View,
   Text,
-  StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
   ScrollView,
   StatusBar,
   Linking,
@@ -52,7 +50,6 @@ export default function DeliveryDetail() {
 
   useEffect(() => {
     const loadDelivery = async () => {
-      // Charger la livraison
       const deliveryResult = await db.getFirstAsync<Delivery>(
         "SELECT * FROM deliveries WHERE id = ?",
         [Number(id)],
@@ -60,7 +57,6 @@ export default function DeliveryDetail() {
 
       setDelivery(deliveryResult ?? null);
 
-      // Charger le commerçant si merchant_id existe
       if (deliveryResult?.merchant_id) {
         const merchantResult = await db.getFirstAsync<Merchant>(
           "SELECT * FROM merchants WHERE id = ?",
@@ -88,11 +84,9 @@ export default function DeliveryDetail() {
     );
   };
 
-  // Fonction pour formater un numéro de téléphone pour l'appel (sans indicatif)
   const formatPhoneForCall = (phone: string): string => {
     let number = phone.replace(/[^\d+]/g, "");
 
-    // Si le numéro commence sans indicatif, on ajoute +225
     if (!number.startsWith("+")) {
       if (number.startsWith("0")) {
         number = number.substring(1);
@@ -103,7 +97,6 @@ export default function DeliveryDetail() {
     return number;
   };
 
-  // Fonction pour lancer l'appel
   const handleCall = () => {
     if (!delivery?.phone) {
       showError("Erreur", "Aucun numéro de téléphone disponible");
@@ -120,10 +113,8 @@ export default function DeliveryDetail() {
           const url = `tel:${phoneNumber}`;
 
           if (Platform.OS === "android") {
-            // Android : on lance directement
             await Linking.openURL(url);
           } else {
-            // iOS : canOpenURL est fiable
             const supported = await Linking.canOpenURL(url);
             if (supported) {
               await Linking.openURL(url);
@@ -139,7 +130,6 @@ export default function DeliveryDetail() {
     );
   };
 
-  // Fonction pour appeler le commerçant
   const handleCallMerchant = () => {
     if (!merchant?.phone) {
       showError("Erreur", "Aucun numéro de téléphone disponible pour ce commerçant");
@@ -225,20 +215,20 @@ export default function DeliveryDetail() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={deliveryDetailStyles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={styles.loadingText}>Chargement...</Text>
+        <Text style={deliveryDetailStyles.loadingText}>Chargement...</Text>
       </View>
     );
   }
 
   if (!delivery) {
     return (
-      <View style={styles.errorContainer}>
+      <View style={deliveryDetailStyles.errorContainer}>
         <MaterialIcons name="error-outline" size={48} color={COLORS.danger} />
-        <Text style={styles.errorText}>Livraison introuvable</Text>
-        <TouchableOpacity style={styles.backButton} onPress={goBack}>
-          <Text style={styles.backButtonText}>Retour</Text>
+        <Text style={deliveryDetailStyles.errorText}>Livraison introuvable</Text>
+        <TouchableOpacity style={deliveryDetailStyles.backButton} onPress={goBack}>
+          <Text style={deliveryDetailStyles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       </View>
     );
@@ -264,7 +254,7 @@ export default function DeliveryDetail() {
 
   return (
     <View style={commonStyles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* En-tête */}
       <BlurView intensity={95} style={deliveryDetailStyles.header}>
@@ -467,12 +457,12 @@ export default function DeliveryDetail() {
             </View>
 
             {/* Type de paiement */}
-            <View style={styles.paymentTypeContainer}>
-              <Text style={styles.paymentTypeLabel}>
+            <View style={deliveryDetailStyles.paymentTypeContainer}>
+              <Text style={deliveryDetailStyles.paymentTypeLabel}>
                 Type de paiement
               </Text>
-              <View style={styles.paymentTypeBadge}>
-                <Text style={styles.paymentTypeText}>
+              <View style={deliveryDetailStyles.paymentTypeBadge}>
+                <Text style={deliveryDetailStyles.paymentTypeText}>
                   {isClientPaysTout && "Client paie colis + livraison"}
                   {isClientPaysLivraison && "Client paie livraison seulement"}
                   {isColisDejaPaye && "Colis déjà payé"}
@@ -481,32 +471,32 @@ export default function DeliveryDetail() {
             </View>
 
             {/* Résumé financier */}
-            <View style={styles.financialSummary}>
-              <View style={styles.financialSummaryItem}>
-                <Text style={styles.financialSummaryLabel}>
+            <View style={deliveryDetailStyles.financialSummary}>
+              <View style={deliveryDetailStyles.financialSummaryItem}>
+                <Text style={deliveryDetailStyles.financialSummaryLabel}>
                   Montant encaissé
                 </Text>
-                <Text style={[styles.financialSummaryValue, { color: COLORS.primary }]}>
+                <Text style={[deliveryDetailStyles.financialSummaryValue, { color: COLORS.primary }]}>
                   {montantEncaisse.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
               {montantAReverser > 0 && (
-                <View style={styles.financialSummaryItem}>
-                  <Text style={[styles.financialSummaryLabel, { color: COLORS.warning }]}>
+                <View style={deliveryDetailStyles.financialSummaryItem}>
+                  <Text style={[deliveryDetailStyles.financialSummaryLabel, { color: COLORS.warning }]}>
                     À reverser au commerçant
                   </Text>
-                  <Text style={[styles.financialSummaryValue, { color: COLORS.warning }]}>
+                  <Text style={[deliveryDetailStyles.financialSummaryValue, { color: COLORS.warning }]}>
                     {montantAReverser.toLocaleString("fr-FR")} FCFA
                   </Text>
                 </View>
               )}
 
-              <View style={styles.financialSummaryItem}>
-                <Text style={[styles.financialSummaryLabel, { color: COLORS.success }]}>
+              <View style={deliveryDetailStyles.financialSummaryItem}>
+                <Text style={[deliveryDetailStyles.financialSummaryLabel, { color: COLORS.success }]}>
                   Votre profit
                 </Text>
-                <Text style={[styles.financialSummaryValue, { color: COLORS.success }]}>
+                <Text style={[deliveryDetailStyles.financialSummaryValue, { color: COLORS.success }]}>
                   {profit.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
@@ -574,16 +564,12 @@ export default function DeliveryDetail() {
       </ScrollView>
 
       {/* Actions */}
-      <BlurView
-        intensity={95}
-        
-        style={deliveryDetailStyles.actionBar}
-      >
+      <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
         <TouchableOpacity
           style={deliveryDetailStyles.primaryButton}
           onPress={handleCall}
         >
-          <MaterialIcons name="phone" size={20} color="#000" />
+          <MaterialIcons name="phone" size={20} color="#FFFFFF" />
           <Text style={deliveryDetailStyles.primaryButtonText}>
             Appeler le client
           </Text>
@@ -612,85 +598,3 @@ export default function DeliveryDetail() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
-  },
-  loadingText: {
-    marginTop: 16,
-    color: COLORS.muted,
-    fontSize: 16,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: COLORS.background,
-    padding: 20,
-  },
-  errorText: {
-    marginTop: 16,
-    color: COLORS.danger,
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  backButton: {
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: COLORS.card,
-    borderRadius: 8,
-  },
-  backButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  // Styles ajoutés pour les détails financiers
-  paymentTypeContainer: {
-    marginTop: 16,
-  },
-  paymentTypeLabel: {
-    color: COLORS.muted,
-    fontSize: 14,
-    marginBottom: 6,
-  },
-  paymentTypeBadge: {
-    backgroundColor: COLORS.card,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  paymentTypeText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  financialSummary: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  financialSummaryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  financialSummaryLabel: {
-    color: COLORS.muted,
-    fontSize: 14,
-  },
-  financialSummaryValue: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-});

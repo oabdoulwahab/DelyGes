@@ -2,49 +2,42 @@ import { StyleSheet } from "react-native";
 import { COLORS } from "./colors";
 import { SPACING } from "./spacing";
 
-export const deliveriesStyles = StyleSheet.create({
+export const merchantAccountingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+
   // Header
   header: {
     paddingTop: 48,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingBottom: SPACING.sm,
+    paddingHorizontal: SPACING.md,
   },
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: "bold",
     color: COLORS.white,
   },
-  doneButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  doneButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-
-  // Scroll
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
 
   // Search
   searchContainer: {
     flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    gap: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.md,
   },
   searchInputContainer: {
     flex: 1,
@@ -52,12 +45,12 @@ export const deliveriesStyles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: COLORS.card,
     borderRadius: 12,
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.sm,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: SPACING.xs,
   },
   searchInput: {
     flex: 1,
@@ -91,15 +84,15 @@ export const deliveriesStyles = StyleSheet.create({
 
   // Date filter
   dateFilterContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingHorizontal: SPACING.md,
+    paddingBottom: SPACING.sm,
   },
   dateFilterContent: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: SPACING.sm,
     backgroundColor: COLORS.card,
-    padding: 12,
+    padding: SPACING.sm,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.primary + "30",
@@ -115,15 +108,15 @@ export const deliveriesStyles = StyleSheet.create({
   tabsContainer: {
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderLight,
-    paddingBottom: 8,
+    paddingBottom: SPACING.xs,
   },
   tabsScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.md,
   },
   tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 24,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    marginRight: SPACING.lg,
     alignItems: "center",
   },
   activeTab: {},
@@ -131,7 +124,7 @@ export const deliveriesStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     color: COLORS.muted,
-    marginBottom: 6,
+    marginBottom: SPACING.xs,
   },
   activeTabText: {
     color: COLORS.primary,
@@ -147,150 +140,230 @@ export const deliveriesStyles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
 
-  // Deliveries list
-  deliveriesList: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
+  // Global summary
+  globalSummary: {
+    flexDirection: "row",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    gap: SPACING.xs,
   },
-  sectionTitle: {
+  globalCard: {
+    flex: 1,
+    backgroundColor: COLORS.card,
+    padding: SPACING.xs,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  globalLabel: {
+    fontSize: 10,
+    color: COLORS.muted,
+    marginBottom: 2,
+  },
+  globalValue: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: COLORS.white,
+  },
+
+  // Scroll
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: SPACING.md,
+    paddingBottom: 120,
+  },
+
+  // Merchant card
+  merchantCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    overflow: "hidden",
+  },
+  merchantCardClosed: {
+    borderColor: COLORS.success + "30",
+    opacity: 0.8,
+  },
+  merchantHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: SPACING.md,
+  },
+  merchantAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: SPACING.sm,
+  },
+  merchantInitial: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.primary,
+  },
+  merchantInfo: {
+    flex: 1,
+  },
+  merchantNameContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+    marginBottom: SPACING.xs,
+  },
+  merchantName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: COLORS.white,
+  },
+  closedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+    backgroundColor: COLORS.success + "20",
+    paddingHorizontal: SPACING.xs,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  closedBadgeText: {
+    fontSize: 10,
+    color: COLORS.success,
+    fontWeight: "600",
+  },
+  merchantContact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.xs,
+    marginBottom: 2,
+  },
+  merchantContactText: {
+    fontSize: 12,
+    color: COLORS.muted,
+    flex: 1,
+  },
+  deliveryCount: {
+    alignItems: "flex-end",
+    marginRight: SPACING.xs,
+  },
+  deliveryCountNumber: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.primary,
+  },
+  deliveryCountLabel: {
+    fontSize: 10,
+    color: COLORS.muted,
+  },
+
+  // Expanded content
+  expandedContent: {
+    padding: SPACING.md,
+    paddingTop: 0,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  financialSection: {
+    backgroundColor: COLORS.card,
+    padding: SPACING.sm,
+    borderRadius: 12,
+    marginBottom: SPACING.md,
+  },
+  financialRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: SPACING.xs,
+  },
+  financialLabel: {
+    fontSize: 13,
+    color: COLORS.muted,
+  },
+  financialValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.white,
+  },
+
+  // Recent deliveries
+  recentDeliveries: {
+    marginBottom: SPACING.md,
+  },
+  recentDeliveriesTitle: {
     fontSize: 12,
     fontWeight: "600",
     color: COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 12,
-    marginLeft: 4,
+    marginBottom: SPACING.xs,
   },
-
-  // Delivery card
-  deliveryCard: {
-    flexDirection: "row",
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 12,
-    alignItems: "flex-start",
+  deliveryPreview: {
+    backgroundColor: COLORS.card,
+    padding: SPACING.sm,
+    borderRadius: 12,
+    marginBottom: SPACING.xs,
   },
-  checkboxContainer: {
-    paddingRight: 12,
-    paddingTop: 2,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.muted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkboxSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  checkboxDisabled: {
-    borderColor: COLORS.muted + "60",
-    backgroundColor: "transparent",
-  },
-  deliveryContent: {
-    flex: 1,
-  },
-  deliveryHeader: {
+  deliveryPreviewHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
+    marginBottom: SPACING.xs,
   },
-  statusTimeContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  deliveryPreviewName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.white,
   },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  timeText: {
-    fontSize: 12,
+  deliveryPreviewDate: {
+    fontSize: 11,
     color: COLORS.muted,
   },
-  feeText: {
-    fontSize: 16,
-    fontWeight: "700",
+  deliveryPreviewAddress: {
+    fontSize: 12,
+    color: COLORS.muted,
+    marginBottom: SPACING.xs,
+  },
+  deliveryPreviewFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  deliveryPreviewFee: {
+    fontSize: 13,
+    fontWeight: "bold",
     color: COLORS.primary,
   },
-
-  // Address
-  addressContainer: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  addressLine: {
+  reversedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: SPACING.xs,
   },
-  addressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  reversedBadgeText: {
+    fontSize: 11,
+    color: COLORS.success,
   },
-  addressText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.white,
-  },
-
-  // Delivery details
-  deliveryDetails: {
-    marginBottom: 8,
-  },
-  paymentTypeText: {
+  moreDeliveries: {
+    fontSize: 11,
     color: COLORS.muted,
-    fontSize: 12,
-    marginBottom: 2,
-  },
-  encaisseText: {
-    color: COLORS.white,
-    fontSize: 12,
-  },
-  reverserText: {
-    color: COLORS.warning,
-    fontSize: 12,
+    textAlign: "center",
+    marginTop: SPACING.xs,
   },
 
-  // Actions
-  actionsContainer: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: "row",
+  // Close button
+  closeButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.sm,
+    borderRadius: 12,
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: SPACING.xs,
   },
-  actionButtonDanger: {
-    backgroundColor: COLORS.dangerSoft,
-    borderColor: COLORS.danger,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
+  closeButtonText: {
+    fontSize: 14,
+    fontWeight: "bold",
     color: "#FFFFFF",
   },
 
@@ -300,69 +373,18 @@ export const deliveriesStyles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 60,
   },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.white,
+    marginTop: SPACING.md,
+  },
   emptyStateText: {
-    marginTop: 12,
-    fontSize: 16,
+    fontSize: 14,
     color: COLORS.muted,
     textAlign: "center",
-  },
-
-  // Selection bar
-  selectionBar: {
-    position: "absolute",
-    bottom: 80,
-    left: 16,
-    right: 16,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  selectionInfo: {
-    flex: 1,
-  },
-  selectionCount: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.white,
-  },
-  selectionAmount: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginTop: 2,
-  },
-  selectionActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  pdfButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: COLORS.borderLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  markPaidButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-  },
-  markPaidButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    marginTop: SPACING.xs,
+    paddingHorizontal: 32,
   },
 
   // Modal
@@ -383,7 +405,7 @@ export const deliveriesStyles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   modalCloseButton: {
     width: 40,
@@ -418,14 +440,14 @@ export const deliveriesStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     color: COLORS.white,
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
 
   // Period buttons
   periodButtonsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: SPACING.sm,
     marginBottom: 20,
   },
   periodButton: {
@@ -442,7 +464,7 @@ export const deliveriesStyles = StyleSheet.create({
   periodButtonCustom: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.xs,
     backgroundColor: "transparent",
     borderWidth: 1,
     borderColor: COLORS.primary,
@@ -470,7 +492,7 @@ export const deliveriesStyles = StyleSheet.create({
   calendarContainer: {
     backgroundColor: COLORS.card,
     borderRadius: 16,
-    padding: 16,
+    padding: SPACING.md,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
@@ -478,7 +500,7 @@ export const deliveriesStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   calendarTitle: {
     fontSize: 14,
@@ -488,7 +510,7 @@ export const deliveriesStyles = StyleSheet.create({
   weekDaysContainer: {
     flexDirection: "row",
     justifyContent: "space-around",
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   weekDayText: {
     fontSize: 10,
@@ -554,8 +576,8 @@ export const deliveriesStyles = StyleSheet.create({
     backgroundColor: COLORS.primary,
   },
   selectedDateInfo: {
-    marginTop: 16,
-    paddingTop: 12,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
     borderTopWidth: 1,
     borderTopColor: COLORS.borderVeryLight,
   },
@@ -569,7 +591,7 @@ export const deliveriesStyles = StyleSheet.create({
   // Modal actions
   modalActions: {
     flexDirection: "row",
-    gap: 12,
+    gap: SPACING.sm,
     padding: 20,
     paddingTop: 0,
     marginTop: 20,

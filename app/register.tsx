@@ -8,16 +8,16 @@ import {
   Alert,
   SafeAreaView,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { db } from "../src/database/db";
 import { User } from "../src/types";
 import { COLORS } from "../styles/colors";
-import { registerStyles as styles } from "../styles/registerStyles";
+import { registerStyles } from "../styles/registerStyles";
 
 export default function Register() {
   const [fullName, setFullName] = useState("");
@@ -27,6 +27,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptCGU, setAcceptCGU] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleRegister = async () => {
     if (!fullName.trim()) {
@@ -112,153 +114,146 @@ export default function Register() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <BlurView intensity={80}  style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <MaterialIcons name="arrow-back-ios" size={24} color={COLORS.white} />
+    <SafeAreaView style={registerStyles.container}>
+      <BlurView intensity={95} style={registerStyles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={registerStyles.backButton}>
+          <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Inscription</Text>
-        <View style={{ width: 24 }} />
+        <Text style={registerStyles.headerTitle}>Inscription</Text>
+        <View style={{ width: 40 }} />
       </BlurView>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>Créer un compte</Text>
+      <ScrollView 
+        contentContainerStyle={registerStyles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={registerStyles.title}>Créer un compte</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Nom complet"
-          placeholderTextColor="#92c992"
-          value={fullName}
-          onChangeText={setFullName}
-        />
+        {/* Nom complet */}
+        <View style={registerStyles.inputGroup}>
+          <Text style={registerStyles.label}>Nom complet</Text>
+          <TextInput
+            style={registerStyles.input}
+            placeholder="Jean Dupont"
+            placeholderTextColor={COLORS.inputPlaceholder}
+            value={fullName}
+            onChangeText={setFullName}
+          />
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#92c992"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-        />
+        {/* Email */}
+        <View style={registerStyles.inputGroup}>
+          <Text style={registerStyles.label}>Email</Text>
+          <TextInput
+            style={registerStyles.input}
+            placeholder="email@exemple.com"
+            placeholderTextColor={COLORS.inputPlaceholder}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Téléphone"
-          placeholderTextColor="#92c992"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-        />
+        {/* Téléphone */}
+        <View style={registerStyles.inputGroup}>
+          <Text style={registerStyles.label}>Téléphone</Text>
+          <TextInput
+            style={registerStyles.input}
+            placeholder="06 12 34 56 78"
+            placeholderTextColor={COLORS.inputPlaceholder}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+          />
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Mot de passe"
-          placeholderTextColor="#92c992"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        {/* Mot de passe */}
+        <View style={registerStyles.inputGroup}>
+          <Text style={registerStyles.label}>Mot de passe</Text>
+          <View style={registerStyles.passwordContainer}>
+            <TextInput
+              style={[registerStyles.input, registerStyles.passwordInput]}
+              placeholder="••••••••"
+              placeholderTextColor={COLORS.inputPlaceholder}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={registerStyles.eyeButton}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <MaterialIcons
+                name={showPassword ? "visibility-off" : "visibility"}
+                size={22}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Confirmer mot de passe"
-          placeholderTextColor="#92c992"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
+        {/* Confirmer mot de passe */}
+        <View style={registerStyles.inputGroup}>
+          <Text style={registerStyles.label}>Confirmer le mot de passe</Text>
+          <View style={registerStyles.passwordContainer}>
+            <TextInput
+              style={[registerStyles.input, registerStyles.passwordInput]}
+              placeholder="••••••••"
+              placeholderTextColor={COLORS.inputPlaceholder}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirmPassword}
+            />
+            <TouchableOpacity
+              style={registerStyles.eyeButton}
+              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              <MaterialIcons
+                name={showConfirmPassword ? "visibility-off" : "visibility"}
+                size={22}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        <View style={styles.checkboxContainer}>
+        {/* CGU */}
+        <View style={registerStyles.checkboxContainer}>
           <Checkbox
             value={acceptCGU}
             onValueChange={setAcceptCGU}
-            color={acceptCGU ? COLORS.primary : undefined}
+            color={acceptCGU ? COLORS.primary : COLORS.borderLight}
+            style={registerStyles.checkbox}
           />
-          <Text style={styles.checkboxText}>
-            J'accepte les Conditions Générales
+          <Text style={registerStyles.checkboxText}>
+            J'accepte les Conditions Générales d'Utilisation
           </Text>
         </View>
 
+        {/* Bouton d'inscription */}
         <TouchableOpacity
-          style={[styles.button, (!acceptCGU || isLoading) && { opacity: 0.6 }]}
+          style={[
+            registerStyles.button,
+            (!acceptCGU || isLoading) && registerStyles.buttonDisabled,
+          ]}
           disabled={!acceptCGU || isLoading}
           onPress={handleRegister}
         >
-          <Text style={styles.buttonText}>
-            {isLoading ? "Inscription..." : "S'inscrire"}
-          </Text>
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={registerStyles.buttonText}>S'inscrire</Text>
+          )}
         </TouchableOpacity>
 
+        {/* Lien vers connexion */}
         <TouchableOpacity onPress={() => router.push("/login")}>
-          <Text style={styles.loginLink}>Déjà un compte ? Se connecter</Text>
+          <Text style={registerStyles.loginLink}>
+            Déjà un compte ? Se connecter
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: COLORS.background,
-//   },
-//   header: {
-//     paddingTop: 60,
-//     paddingBottom: 16,
-//     paddingHorizontal: 16,
-//     flexDirection: "row",
-//     justifyContent: "space-between",
-//     alignItems: "center",
-//   },
-//   headerTitle: {
-//     color: COLORS.white,
-//     fontSize: 18,
-//     fontWeight: "bold",
-//   },
-//   content: {
-//     padding: 20,
-//   },
-//   title: {
-//     fontSize: 28,
-//     color: COLORS.white,
-//     fontWeight: "bold",
-//     marginBottom: 24,
-//   },
-//   input: {
-//     backgroundColor: "#193319",
-//     borderColor: "#326732",
-//     borderWidth: 1,
-//     borderRadius: 12,
-//     height: 56,
-//     paddingHorizontal: 16,
-//     color: COLORS.white,
-//     marginBottom: 16,
-//   },
-//   checkboxContainer: {
-//     flexDirection: "row",
-//     alignItems: "center",
-//     marginBottom: 24,
-//   },
-//   checkboxText: {
-//     color: COLORS.muted,
-//     marginLeft: 8,
-//   },
-//   button: {
-//     backgroundColor: COLORS.primary,
-//     height: 56,
-//     borderRadius: 12,
-//     justifyContent: "center",
-//     alignItems: "center",
-//     marginBottom: 24,
-//   },
-//   buttonText: {
-//     color: "#000",
-//     fontSize: 18,
-//     fontWeight: "bold",
-//   },
-//   loginLink: {
-//     color: COLORS.primary,
-//     textAlign: "center",
-//     fontWeight: "bold",
-//   },
-// });

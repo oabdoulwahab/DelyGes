@@ -2,7 +2,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Alert,
   TextInput,
   ScrollView,
@@ -25,6 +24,7 @@ import {
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { commonStyles } from "../styles/common";
+import { deliveriesStyles } from "../styles/deliveriesStyles";
 import { COLORS } from "../styles/colors";
 import { useModal } from "../providers/ModalProvider";
 import { sendDeliveryCompletedNotification } from "../src/services/notification.service";
@@ -273,7 +273,7 @@ export default function Deliveries() {
           "ANNULEE",
           id,
         ]);
-        showSuccess("Succès", "Livraison annulée"); // REMPLACER
+        showSuccess("Succès", "Livraison annulée");
         loadDeliveries();
       },
       "Oui, annuler",
@@ -286,15 +286,15 @@ export default function Deliveries() {
       case "LIVREE":
         return {
           backgroundColor: COLORS.successSoft,
-          borderColor: "#10b98130",
+          borderColor: COLORS.success + "30",
           textColor: COLORS.success,
           text: "Terminée",
           icon: "check-circle",
         };
       case "A_LIVRER":
         return {
-          backgroundColor: isSelected ? "#fbbf2410" : "#fbbf2400",
-          borderColor: isSelected ? "#fbbf2430" : "#e5e7eb",
+          backgroundColor: isSelected ? COLORS.warningSoft : "transparent",
+          borderColor: isSelected ? COLORS.warning + "30" : COLORS.borderLight,
           textColor: COLORS.warning,
           text: "En attente",
           icon: "schedule",
@@ -302,7 +302,7 @@ export default function Deliveries() {
       case "ANNULEE":
         return {
           backgroundColor: COLORS.dangerSoft,
-          borderColor: "#ef444430",
+          borderColor: COLORS.danger + "30",
           textColor: COLORS.danger,
           text: "Annulée",
           icon: "cancel",
@@ -311,7 +311,7 @@ export default function Deliveries() {
         return {
           backgroundColor: "#6b728010",
           borderColor: "#6b728030",
-          textColor: "#6b7280",
+          textColor: COLORS.muted,
           text: "Prévu",
           icon: "pending",
         };
@@ -437,8 +437,8 @@ export default function Deliveries() {
     for (let i = 0; i < startDay; i++) {
       const date = new Date(year, month, -i);
       days.push(
-        <View key={`prev-${i}`} style={styles.calendarDayInactive}>
-          <Text style={styles.calendarDayTextInactive}>{date.getDate()}</Text>
+        <View key={`prev-${i}`} style={deliveriesStyles.calendarDayInactive}>
+          <Text style={deliveriesStyles.calendarDayTextInactive}>{date.getDate()}</Text>
         </View>,
       );
     }
@@ -453,10 +453,10 @@ export default function Deliveries() {
         <TouchableOpacity
           key={`day-${i}`}
           style={[
-            styles.calendarDay,
-            isToday && styles.calendarDayToday,
-            isSelected && styles.calendarDaySelected,
-            hasDeliveries && styles.calendarDayHasDeliveries,
+            deliveriesStyles.calendarDay,
+            isToday && deliveriesStyles.calendarDayToday,
+            isSelected && deliveriesStyles.calendarDaySelected,
+            hasDeliveries && deliveriesStyles.calendarDayHasDeliveries,
           ]}
           onPress={() => {
             setSelectedDate(date);
@@ -466,14 +466,14 @@ export default function Deliveries() {
         >
           <Text
             style={[
-              styles.calendarDayText,
-              isToday && styles.calendarDayTextToday,
-              isSelected && styles.calendarDayTextSelected,
+              deliveriesStyles.calendarDayText,
+              isToday && deliveriesStyles.calendarDayTextToday,
+              isSelected && deliveriesStyles.calendarDayTextSelected,
             ]}
           >
             {i}
           </Text>
-          {hasDeliveries && <View style={styles.deliveryIndicator} />}
+          {hasDeliveries && <View style={deliveriesStyles.deliveryIndicator} />}
         </TouchableOpacity>,
       );
     }
@@ -483,8 +483,8 @@ export default function Deliveries() {
 
     for (let i = 1; i <= remainingCells; i++) {
       days.push(
-        <View key={`next-${i}`} style={styles.calendarDayInactive}>
-          <Text style={styles.calendarDayTextInactive}>{i}</Text>
+        <View key={`next-${i}`} style={deliveriesStyles.calendarDayInactive}>
+          <Text style={deliveriesStyles.calendarDayTextInactive}>{i}</Text>
         </View>,
       );
     }
@@ -515,7 +515,7 @@ export default function Deliveries() {
     return (
       <TouchableOpacity
         style={[
-          styles.deliveryCard,
+          deliveriesStyles.deliveryCard,
           {
             backgroundColor: statusConfig.backgroundColor,
             borderColor: statusConfig.borderColor,
@@ -529,7 +529,7 @@ export default function Deliveries() {
         activeOpacity={0.7}
       >
         <TouchableOpacity
-          style={styles.checkboxContainer}
+          style={deliveriesStyles.checkboxContainer}
           onPress={() =>
             !isCheckboxDisabled && toggleDeliverySelection(delivery.id)
           }
@@ -538,29 +538,29 @@ export default function Deliveries() {
         >
           <View
             style={[
-              styles.checkbox,
-              isSelected && styles.checkboxSelected,
-              isCheckboxDisabled && styles.checkboxDisabled,
+              deliveriesStyles.checkbox,
+              isSelected && deliveriesStyles.checkboxSelected,
+              isCheckboxDisabled && deliveriesStyles.checkboxDisabled,
             ]}
           >
             {isSelected && !isCheckboxDisabled && (
-              <MaterialIcons name="check" size={14} color="#102210" />
+              <MaterialIcons name="check" size={14} color="#FFFFFF" />
             )}
             {isCheckboxDisabled && delivery.status === "LIVREE" && (
-              <MaterialIcons name="check" size={14} color="#10b981" />
+              <MaterialIcons name="check" size={14} color={COLORS.success} />
             )}
             {isCheckboxDisabled && delivery.status === "ANNULEE" && (
-              <MaterialIcons name="close" size={14} color="#ef4444" />
+              <MaterialIcons name="close" size={14} color={COLORS.danger} />
             )}
           </View>
         </TouchableOpacity>
 
-        <View style={styles.deliveryContent}>
-          <View style={styles.deliveryHeader}>
-            <View style={styles.statusTimeContainer}>
+        <View style={deliveriesStyles.deliveryContent}>
+          <View style={deliveriesStyles.deliveryHeader}>
+            <View style={deliveriesStyles.statusTimeContainer}>
               <View
                 style={[
-                  styles.statusBadge,
+                  deliveriesStyles.statusBadge,
                   { backgroundColor: `${statusConfig.textColor}20` },
                 ]}
               >
@@ -570,13 +570,13 @@ export default function Deliveries() {
                   color={statusConfig.textColor}
                 />
                 <Text
-                  style={[styles.statusText, { color: statusConfig.textColor }]}
+                  style={[deliveriesStyles.statusText, { color: statusConfig.textColor }]}
                 >
                   {statusConfig.text}
                 </Text>
               </View>
 
-              <Text style={styles.timeText}>
+              <Text style={deliveriesStyles.timeText}>
                 {new Date(delivery.created_at).toLocaleTimeString("fr-FR", {
                   hour: "2-digit",
                   minute: "2-digit",
@@ -585,75 +585,73 @@ export default function Deliveries() {
               </Text>
             </View>
 
-            <Text style={styles.feeText}>
+            <Text style={deliveriesStyles.feeText}>
               +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
             </Text>
           </View>
 
-          <View style={styles.addressContainer}>
-            <View style={styles.addressLine}>
+          <View style={deliveriesStyles.addressContainer}>
+            <View style={deliveriesStyles.addressLine}>
               <View
-                style={[styles.addressDot, { backgroundColor: "#6b7280" }]}
+                style={[deliveriesStyles.addressDot, { backgroundColor: COLORS.muted }]}
               />
-              <Text style={styles.addressText} numberOfLines={1}>
+              <Text style={deliveriesStyles.addressText} numberOfLines={1}>
                 {delivery.address || "Adresse non spécifiée"}
               </Text>
             </View>
 
-            <View style={styles.addressLine}>
+            <View style={deliveriesStyles.addressLine}>
               <View
-                style={[styles.addressDot, { backgroundColor: COLORS.primary }]}
+                style={[deliveriesStyles.addressDot, { backgroundColor: COLORS.primary }]}
               />
-              <Text style={styles.addressText} numberOfLines={1}>
+              <Text style={deliveriesStyles.addressText} numberOfLines={1}>
                 {delivery.recipient_name}
                 {delivery.phone ? ` • ${delivery.phone}` : ""}
               </Text>
             </View>
           </View>
-          <View style={{ marginBottom: 8 }}>
-            <Text style={{ color: COLORS.muted, fontSize: 12 }}>
+          
+          <View style={deliveriesStyles.deliveryDetails}>
+            <Text style={deliveriesStyles.paymentTypeText}>
               {isClientPaysTout && "💰 Client paie colis + livraison"}
               {isClientPaysLivraison && "🚚 Client paie livraison seulement"}
               {isColisDejaPaye && "📦 Colis déjà payé"}
             </Text>
 
-            <Text style={{ color: COLORS.white, fontSize: 12 }}>
+            <Text style={deliveriesStyles.encaisseText}>
               Encaissé : {montantEncaisse.toLocaleString("fr-FR")} FCFA
             </Text>
 
             {montantAReverser > 0 && (
-              <Text style={{ color: COLORS.warning, fontSize: 12 }}>
+              <Text style={deliveriesStyles.reverserText}>
                 À reverser : {montantAReverser.toLocaleString("fr-FR")} FCFA
               </Text>
             )}
           </View>
 
           {delivery.status === "A_LIVRER" && (
-            <View style={styles.actionsContainer}>
+            <View style={deliveriesStyles.actionsContainer}>
               <TouchableOpacity
                 style={[
-                  styles.actionButton,
+                  deliveriesStyles.actionButton,
                   { backgroundColor: COLORS.primary },
                 ]}
                 onPress={() => markAsDelivered(delivery.id)}
               >
-                <MaterialIcons name="check" size={16} color="#000" />
-                <Text style={styles.actionButtonText}>Marquer livrée</Text>
+                <MaterialIcons name="check" size={16} color="#FFFFFF" />
+                <Text style={deliveriesStyles.actionButtonText}>Marquer livrée</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[
-                  styles.actionButton,
-                  {
-                    backgroundColor: COLORS.dangerSoft,
-                    borderColor: COLORS.danger,
-                  },
+                  deliveriesStyles.actionButton,
+                  deliveriesStyles.actionButtonDanger,
                 ]}
                 onPress={() => markAsCancelled(delivery.id)}
               >
                 <MaterialIcons name="close" size={16} color={COLORS.danger} />
                 <Text
-                  style={[styles.actionButtonText, { color: COLORS.danger }]}
+                  style={[deliveriesStyles.actionButtonText, { color: COLORS.danger }]}
                 >
                   Annuler
                 </Text>
@@ -673,32 +671,32 @@ export default function Deliveries() {
 
   return (
     <View style={commonStyles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
-      <BlurView intensity={95} style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Historique et Planning</Text>
-          <TouchableOpacity style={styles.doneButton}>
-            <Text style={styles.doneButtonText}>Terminé</Text>
+      <BlurView intensity={95} style={deliveriesStyles.header}>
+        <View style={deliveriesStyles.headerContent}>
+          <Text style={deliveriesStyles.headerTitle}>Historique et Planning</Text>
+          <TouchableOpacity style={deliveriesStyles.doneButton}>
+            <Text style={deliveriesStyles.doneButtonText}>Terminé</Text>
           </TouchableOpacity>
         </View>
       </BlurView>
 
       <ScrollView
-        style={styles.scrollView}
+        style={deliveriesStyles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={deliveriesStyles.scrollContent}
       >
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
+        <View style={deliveriesStyles.searchContainer}>
+          <View style={deliveriesStyles.searchInputContainer}>
             <MaterialIcons
               name="search"
               size={20}
               color={COLORS.muted}
-              style={styles.searchIcon}
+              style={deliveriesStyles.searchIcon}
             />
             <TextInput
-              style={styles.searchInput}
+              style={deliveriesStyles.searchInput}
               placeholder="Rechercher un client..."
               placeholderTextColor={COLORS.muted}
               value={searchQuery}
@@ -708,8 +706,8 @@ export default function Deliveries() {
 
           <TouchableOpacity
             style={[
-              styles.filterButton,
-              dateFilterEnabled && styles.filterButtonActive,
+              deliveriesStyles.filterButton,
+              dateFilterEnabled && deliveriesStyles.filterButtonActive,
             ]}
             onPress={() => setShowFilterModal(true)}
           >
@@ -718,19 +716,19 @@ export default function Deliveries() {
               size={20}
               color={dateFilterEnabled ? COLORS.primary : COLORS.muted}
             />
-            {dateFilterEnabled && <View style={styles.filterIndicator} />}
+            {dateFilterEnabled && <View style={deliveriesStyles.filterIndicator} />}
           </TouchableOpacity>
         </View>
 
         {dateFilterEnabled && (
-          <View style={styles.dateFilterContainer}>
-            <View style={styles.dateFilterContent}>
+          <View style={deliveriesStyles.dateFilterContainer}>
+            <View style={deliveriesStyles.dateFilterContent}>
               <MaterialIcons
                 name="calendar-today"
                 size={16}
                 color={COLORS.primary}
               />
-              <Text style={styles.dateFilterText}>
+              <Text style={deliveriesStyles.dateFilterText}>
                 {formatDateForDisplay()}
               </Text>
               <TouchableOpacity onPress={clearDateFilter}>
@@ -740,23 +738,23 @@ export default function Deliveries() {
           </View>
         )}
 
-        <View style={styles.tabsContainer}>
+        <View style={deliveriesStyles.tabsContainer}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.tabsScroll}
+            style={deliveriesStyles.tabsScroll}
           >
             {(["A_LIVRER", "AUJOURDHUI", "LIVREE", "ANNULEE"] as TabType[]).map(
               (tab) => (
                 <TouchableOpacity
                   key={tab}
-                  style={[styles.tab, activeTab === tab && styles.activeTab]}
+                  style={[deliveriesStyles.tab, activeTab === tab && deliveriesStyles.activeTab]}
                   onPress={() => setActiveTab(tab)}
                 >
                   <Text
                     style={[
-                      styles.tabText,
-                      activeTab === tab && styles.activeTabText,
+                      deliveriesStyles.tabText,
+                      activeTab === tab && deliveriesStyles.activeTabText,
                     ]}
                   >
                     {tab === "A_LIVRER" && "En cours"}
@@ -766,8 +764,8 @@ export default function Deliveries() {
                   </Text>
                   <View
                     style={[
-                      styles.tabIndicator,
-                      activeTab === tab && styles.activeTabIndicator,
+                      deliveriesStyles.tabIndicator,
+                      activeTab === tab && deliveriesStyles.activeTabIndicator,
                     ]}
                   />
                 </TouchableOpacity>
@@ -777,10 +775,10 @@ export default function Deliveries() {
         </View>
 
         {activeTab === "AUJOURDHUI" ? (
-          <View style={styles.deliveriesList}>
+          <View style={deliveriesStyles.deliveriesList}>
             {morning.length > 0 && (
               <View style={commonStyles.section}>
-                <Text style={styles.sectionTitle}>Tournées du matin</Text>
+                <Text style={deliveriesStyles.sectionTitle}>Tournées du matin</Text>
                 {morning.map((delivery) => (
                   <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
@@ -789,7 +787,7 @@ export default function Deliveries() {
 
             {afternoon.length > 0 && (
               <View style={commonStyles.section}>
-                <Text style={styles.sectionTitle}>Bloc après-midi</Text>
+                <Text style={deliveriesStyles.sectionTitle}>Bloc après-midi</Text>
                 {afternoon.map((delivery) => (
                   <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
@@ -798,7 +796,7 @@ export default function Deliveries() {
 
             {evening.length > 0 && (
               <View style={commonStyles.section}>
-                <Text style={styles.sectionTitle}>Soirée</Text>
+                <Text style={deliveriesStyles.sectionTitle}>Soirée</Text>
                 {evening.map((delivery) => (
                   <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
@@ -806,13 +804,13 @@ export default function Deliveries() {
             )}
 
             {deliveries.length === 0 && (
-              <View style={styles.emptyState}>
+              <View style={deliveriesStyles.emptyState}>
                 <MaterialIcons
                   name="local-shipping"
                   size={48}
                   color={COLORS.muted}
                 />
-                <Text style={styles.emptyStateText}>
+                <Text style={deliveriesStyles.emptyStateText}>
                   {searchQuery
                     ? "Aucune livraison trouvée"
                     : dateFilterEnabled
@@ -823,13 +821,13 @@ export default function Deliveries() {
             )}
           </View>
         ) : (
-          <View style={styles.deliveriesList}>
+          <View style={deliveriesStyles.deliveriesList}>
             {deliveries.map((delivery) => (
               <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
             ))}
 
             {deliveries.length === 0 && (
-              <View style={styles.emptyState}>
+              <View style={deliveriesStyles.emptyState}>
                 <MaterialIcons
                   name={
                     activeTab === "A_LIVRER"
@@ -841,7 +839,7 @@ export default function Deliveries() {
                   size={48}
                   color={COLORS.muted}
                 />
-                <Text style={styles.emptyStateText}>
+                <Text style={deliveriesStyles.emptyStateText}>
                   {activeTab === "A_LIVRER" && "Aucune livraison à venir"}
                   {activeTab === "LIVREE" && "Aucune livraison terminée"}
                   {activeTab === "ANNULEE" && "Aucune livraison annulée"}
@@ -853,20 +851,20 @@ export default function Deliveries() {
       </ScrollView>
 
       {selectedDeliveries.length > 0 && (
-        <View style={styles.selectionBar}>
-          <View style={styles.selectionInfo}>
-            <Text style={styles.selectionCount}>
+        <View style={deliveriesStyles.selectionBar}>
+          <View style={deliveriesStyles.selectionInfo}>
+            <Text style={deliveriesStyles.selectionCount}>
               {selectedDeliveries.length} élément
               {selectedDeliveries.length > 1 ? "s" : ""} sélectionné
               {selectedDeliveries.length > 1 ? "s" : ""}
             </Text>
-            <Text style={styles.selectionAmount}>
+            <Text style={deliveriesStyles.selectionAmount}>
               +{totalSelectedAmount.toLocaleString("fr-FR")} FCFA total
             </Text>
           </View>
 
-          <View style={styles.selectionActions}>
-            <TouchableOpacity style={styles.pdfButton}>
+          <View style={deliveriesStyles.selectionActions}>
+            <TouchableOpacity style={deliveriesStyles.pdfButton}>
               <MaterialIcons
                 name="picture-as-pdf"
                 size={20}
@@ -875,10 +873,10 @@ export default function Deliveries() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.markPaidButton}
+              style={deliveriesStyles.markPaidButton}
               onPress={markSelectedAsPaid}
             >
-              <Text style={styles.markPaidButtonText}>Marquer comme payé</Text>
+              <Text style={deliveriesStyles.markPaidButtonText}>Marquer comme payé</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -890,46 +888,46 @@ export default function Deliveries() {
         animationType="slide"
         onRequestClose={() => setShowFilterModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={95}  style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+        <View style={deliveriesStyles.modalOverlay}>
+          <BlurView intensity={95} style={deliveriesStyles.modalContent}>
+            <View style={deliveriesStyles.modalHeader}>
               <TouchableOpacity
                 onPress={() => setShowFilterModal(false)}
-                style={styles.modalCloseButton}
+                style={deliveriesStyles.modalCloseButton}
               >
                 <MaterialIcons name="close" size={24} color={COLORS.muted} />
               </TouchableOpacity>
 
-              <Text style={styles.modalTitle}>Filtres</Text>
+              <Text style={deliveriesStyles.modalTitle}>Filtres</Text>
 
               <TouchableOpacity
                 onPress={clearDateFilter}
-                style={styles.modalResetButton}
+                style={deliveriesStyles.modalResetButton}
               >
-                <Text style={styles.modalResetText}>Réinitialiser</Text>
+                <Text style={deliveriesStyles.modalResetText}>Réinitialiser</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView
-              style={styles.modalScrollView}
+              style={deliveriesStyles.modalScrollView}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>Période</Text>
+              <View style={deliveriesStyles.modalSection}>
+                <Text style={deliveriesStyles.modalSectionTitle}>Période</Text>
 
-                <View style={styles.periodButtonsContainer}>
+                <View style={deliveriesStyles.periodButtonsContainer}>
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      activePeriod === "today" && styles.periodButtonActive,
+                      deliveriesStyles.periodButton,
+                      activePeriod === "today" && deliveriesStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("today")}
                   >
                     <Text
                       style={[
-                        styles.periodButtonText,
+                        deliveriesStyles.periodButtonText,
                         activePeriod === "today" &&
-                          styles.periodButtonTextActive,
+                          deliveriesStyles.periodButtonTextActive,
                       ]}
                     >
                       Aujourd'hui
@@ -938,16 +936,16 @@ export default function Deliveries() {
 
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      activePeriod === "week" && styles.periodButtonActive,
+                      deliveriesStyles.periodButton,
+                      activePeriod === "week" && deliveriesStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("week")}
                   >
                     <Text
                       style={[
-                        styles.periodButtonText,
+                        deliveriesStyles.periodButtonText,
                         activePeriod === "week" &&
-                          styles.periodButtonTextActive,
+                          deliveriesStyles.periodButtonTextActive,
                       ]}
                     >
                       Cette semaine
@@ -956,16 +954,16 @@ export default function Deliveries() {
 
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      activePeriod === "month" && styles.periodButtonActive,
+                      deliveriesStyles.periodButton,
+                      activePeriod === "month" && deliveriesStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("month")}
                   >
                     <Text
                       style={[
-                        styles.periodButtonText,
+                        deliveriesStyles.periodButtonText,
                         activePeriod === "month" &&
-                          styles.periodButtonTextActive,
+                          deliveriesStyles.periodButtonTextActive,
                       ]}
                     >
                       Ce mois
@@ -974,10 +972,10 @@ export default function Deliveries() {
 
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      styles.periodButtonCustom,
+                      deliveriesStyles.periodButton,
+                      deliveriesStyles.periodButtonCustom,
                       activePeriod === "custom" &&
-                        styles.periodButtonCustomActive,
+                        deliveriesStyles.periodButtonCustomActive,
                     ]}
                     onPress={() => selectPeriod("custom")}
                   >
@@ -986,15 +984,15 @@ export default function Deliveries() {
                       size={16}
                       color={COLORS.primary}
                     />
-                    <Text style={styles.periodButtonCustomText}>
+                    <Text style={deliveriesStyles.periodButtonCustomText}>
                       Personnalisé
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 {activePeriod === "custom" && (
-                  <View style={styles.calendarContainer}>
-                    <View style={styles.calendarHeader}>
+                  <View style={deliveriesStyles.calendarContainer}>
+                    <View style={deliveriesStyles.calendarHeader}>
                       <TouchableOpacity
                         onPress={() => {
                           const prevMonth = new Date(calendarDate);
@@ -1009,7 +1007,7 @@ export default function Deliveries() {
                         />
                       </TouchableOpacity>
 
-                      <Text style={styles.calendarTitle}>
+                      <Text style={deliveriesStyles.calendarTitle}>
                         {format(calendarDate, "MMMM yyyy", { locale: fr })}
                       </Text>
 
@@ -1028,21 +1026,21 @@ export default function Deliveries() {
                       </TouchableOpacity>
                     </View>
 
-                    <View style={styles.weekDaysContainer}>
+                    <View style={deliveriesStyles.weekDaysContainer}>
                       {["L", "M", "M", "J", "V", "S", "D"].map((day, index) => (
-                        <Text key={index} style={styles.weekDayText}>
+                        <Text key={index} style={deliveriesStyles.weekDayText}>
                           {day}
                         </Text>
                       ))}
                     </View>
 
-                    <View style={styles.datesContainer}>
+                    <View style={deliveriesStyles.datesContainer}>
                       {generateCalendarDays()}
                     </View>
 
                     {selectedDate && (
-                      <View style={styles.selectedDateInfo}>
-                        <Text style={styles.selectedDateText}>
+                      <View style={deliveriesStyles.selectedDateInfo}>
+                        <Text style={deliveriesStyles.selectedDateText}>
                           Date sélectionnée :{" "}
                           {format(selectedDate, "dd MMMM yyyy", { locale: fr })}
                         </Text>
@@ -1053,19 +1051,19 @@ export default function Deliveries() {
               </View>
             </ScrollView>
 
-            <View style={styles.modalActions}>
+            <View style={deliveriesStyles.modalActions}>
               <TouchableOpacity
-                style={styles.resetButton}
+                style={deliveriesStyles.resetButton}
                 onPress={clearDateFilter}
               >
-                <Text style={styles.resetButtonText}>Réinitialiser</Text>
+                <Text style={deliveriesStyles.resetButtonText}>Réinitialiser</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.applyButton}
+                style={deliveriesStyles.applyButton}
                 onPress={handleApplyFilters}
               >
-                <Text style={styles.applyButtonText}>
+                <Text style={deliveriesStyles.applyButtonText}>
                   Appliquer les filtres
                 </Text>
               </TouchableOpacity>
@@ -1076,563 +1074,3 @@ export default function Deliveries() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingTop: 48,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-  },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  doneButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  doneButtonText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 120,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    color: COLORS.white,
-    fontSize: 16,
-  },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    position: "relative",
-  },
-  filterButtonActive: {
-    borderColor: COLORS.primary,
-  },
-  filterIndicator: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.primary,
-  },
-  dateFilterContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  dateFilterContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: COLORS.card,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#13ec1330",
-  },
-  dateFilterText: {
-    flex: 1,
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  tabsContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    paddingBottom: 8,
-  },
-  tabsScroll: {
-    paddingHorizontal: 16,
-  },
-  tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 24,
-    alignItems: "center",
-  },
-  activeTab: {},
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.muted,
-    marginBottom: 6,
-  },
-  activeTabText: {
-    color: COLORS.primary,
-    fontWeight: "700",
-  },
-  tabIndicator: {
-    height: 3,
-    width: "100%",
-    backgroundColor: "transparent",
-    borderRadius: 1.5,
-  },
-  activeTabIndicator: {
-    backgroundColor: COLORS.primary,
-  },
-  deliveriesList: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  deliveryCard: {
-    flexDirection: "row",
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 12,
-    alignItems: "flex-start",
-  },
-  checkboxContainer: {
-    paddingRight: 12,
-    paddingTop: 2,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#6b7280",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkboxSelected: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  checkboxDisabled: {
-    borderColor: "#6b728060",
-    backgroundColor: "transparent",
-  },
-  deliveryContent: {
-    flex: 1,
-  },
-  deliveryHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  statusTimeContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  timeText: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
-  feeText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: COLORS.primary,
-  },
-  addressContainer: {
-    gap: 8,
-    marginBottom: 12,
-  },
-  addressLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  addressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  addressText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.white,
-  },
-  actionsContainer: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#000",
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyStateText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: COLORS.muted,
-    textAlign: "center",
-  },
-  selectionBar: {
-    position: "absolute",
-    bottom: 80,
-    left: 16,
-    right: 16,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  selectionInfo: {
-    flex: 1,
-  },
-  selectionCount: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: COLORS.white,
-  },
-  selectionAmount: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginTop: 2,
-  },
-  selectionActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  pdfButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: COLORS.borderLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  markPaidButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary,
-  },
-  markPaidButtonText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#000",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    maxHeight: "90%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.white,
-    textAlign: "center",
-    flex: 1,
-  },
-  modalResetButton: {
-    width: 40,
-    alignItems: "flex-end",
-  },
-  modalResetText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalScrollView: {
-    paddingHorizontal: 20,
-    maxHeight: 500,
-  },
-  modalSection: {
-    marginBottom: 32,
-  },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginBottom: 16,
-  },
-  periodButtonsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 20,
-  },
-  periodButton: {
-    height: 40,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: "#2d3d2d",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  periodButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  periodButtonCustom: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  periodButtonCustomActive: {
-    backgroundColor: COLORS.primarySoft,
-    borderWidth: 2,
-  },
-  periodButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.muted,
-  },
-  periodButtonTextActive: {
-    color: COLORS.background,
-    fontWeight: "bold",
-  },
-  periodButtonCustomText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.primary,
-  },
-  calendarContainer: {
-    backgroundColor: "#2d3d2d",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#3d4d3d",
-  },
-  calendarHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  calendarTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  weekDaysContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 12,
-  },
-  weekDayText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: COLORS.muted,
-    width: 32,
-    textAlign: "center",
-  },
-  datesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-  },
-  calendarDay: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 2,
-    borderRadius: 16,
-    position: "relative",
-  },
-  calendarDayToday: {
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  calendarDaySelected: {
-    backgroundColor: COLORS.primary,
-  },
-  calendarDayHasDeliveries: {
-    backgroundColor: COLORS.primarySoft,
-  },
-  calendarDayInactive: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 2,
-  },
-  calendarDayText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: COLORS.white,
-  },
-  calendarDayTextToday: {
-    color: COLORS.primary,
-    fontWeight: "bold",
-  },
-  calendarDayTextSelected: {
-    color: COLORS.background,
-    fontWeight: "bold",
-  },
-  calendarDayTextInactive: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
-  deliveryIndicator: {
-    position: "absolute",
-    bottom: 2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.primary,
-  },
-  selectedDateInfo: {
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderVeryLight,
-  },
-  selectedDateText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 20,
-    paddingTop: 0,
-    marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  resetButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "#2d3d2d",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  applyButton: {
-    flex: 2,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.background,
-  },
-});

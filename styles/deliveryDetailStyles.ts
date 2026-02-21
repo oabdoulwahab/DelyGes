@@ -3,6 +3,45 @@ import { COLORS } from "./colors";
 import { SPACING } from "./spacing";
 
 export const deliveryDetailStyles = StyleSheet.create({
+  // Loading & Error states
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: 16,
+    color: COLORS.muted,
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 16,
+    color: COLORS.danger,
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  backButton: {
+    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+
+  // Header
   header: {
     paddingTop: 48,
     paddingBottom: SPACING.sm,
@@ -23,7 +62,7 @@ export const deliveryDetailStyles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: COLORS.white,                // Texte foncé
+    color: COLORS.white,
   },
   statusBadgeHeader: {
     paddingHorizontal: 12,
@@ -36,12 +75,16 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontWeight: "bold",
     textTransform: "uppercase",
   },
+
+  // Scroll
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     paddingBottom: 160,
   },
+
+  // Date section
   dateSection: {
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.lg,
@@ -64,6 +107,8 @@ export const deliveryDetailStyles = StyleSheet.create({
     color: COLORS.muted,
     marginTop: 4,
   },
+
+  // Client info
   clientInfo: {
     flexDirection: "row",
     alignItems: "center",
@@ -75,7 +120,7 @@ export const deliveryDetailStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: COLORS.primary,    // Vert
+    backgroundColor: COLORS.primary,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
@@ -85,7 +130,7 @@ export const deliveryDetailStyles = StyleSheet.create({
   clientInitial: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#FFFFFF",                   // Blanc sur fond vert
+    color: "#FFFFFF",
   },
   clientDetails: {
     flex: 1,
@@ -105,6 +150,8 @@ export const deliveryDetailStyles = StyleSheet.create({
     alignItems: "center",
     marginTop: 4,
   },
+
+  // Address
   addressContainer: {
     padding: SPACING.md,
   },
@@ -136,8 +183,10 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontWeight: "500",
     color: COLORS.white,
   },
+
+  // Financial
   financialCard: {
-    backgroundColor: COLORS.card,       // Gris clair
+    backgroundColor: COLORS.card,
     borderRadius: 16,
     padding: 20,
     borderWidth: 1,
@@ -179,8 +228,56 @@ export const deliveryDetailStyles = StyleSheet.create({
   totalValue: {
     fontSize: 28,
     fontWeight: "900",
-    color: COLORS.primary,              // Vert
+    color: COLORS.primary,
   },
+
+  // Payment type
+  paymentTypeContainer: {
+    marginTop: 16,
+  },
+  paymentTypeLabel: {
+    color: COLORS.muted,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  paymentTypeBadge: {
+    backgroundColor: COLORS.card,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  paymentTypeText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // Financial summary
+  financialSummary: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  financialSummaryItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  financialSummaryLabel: {
+    color: COLORS.muted,
+    fontSize: 14,
+  },
+  financialSummaryValue: {
+    color: COLORS.white,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+
+  // Tracking
   trackingRow: {
     gap: 16,
   },
@@ -223,13 +320,15 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontWeight: "600",
     textTransform: "uppercase",
   },
+
+  // Action bar
   actionBar: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     padding: SPACING.md,
-    backgroundColor: COLORS.background, // Blanc
+    backgroundColor: COLORS.background,
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
   },
@@ -246,7 +345,7 @@ export const deliveryDetailStyles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#FFFFFF",                   // Blanc sur vert
+    color: "#FFFFFF",
   },
   actionButtonsRow: {
     flexDirection: "row",

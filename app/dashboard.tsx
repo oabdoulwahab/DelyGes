@@ -3,7 +3,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  StyleSheet,
 } from "react-native";
 import { useEffect, useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
@@ -234,32 +233,18 @@ export default function Dashboard() {
 
   return (
     <View style={commonStyles.container}>
-      <BlurView intensity={95}  style={dashboardStyles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.profileSection}>
-            <View style={styles.profileImage} />
+      <BlurView intensity={95} style={dashboardStyles.header}>
+        <View style={dashboardStyles.headerContent}>
+          <View style={dashboardStyles.profileSection}>
+            <View style={dashboardStyles.profileImage} />
             <View>
               <Text style={dashboardStyles.greeting}>Bonjour,</Text>
               <Text style={dashboardStyles.name}>{userName}</Text>
             </View>
           </View>
 
-          <View style={styles.headerActions}>
-            {/* <TouchableOpacity
-              style={[styles.availabilityButton, available && styles.available]}
-              onPress={() => setAvailable(!available)}
-            >
-              <MaterialIcons
-                name={available ? "toggle-on" : "toggle-off"}
-                size={18}
-                color={available ? COLORS.primary : "#ccc"}
-              />
-              <Text style={styles.availabilityText}>
-                {available ? "Disponible" : "Indisponible"}
-              </Text>
-            </TouchableOpacity> */}
-
-            <TouchableOpacity style={styles.notificationButton}>
+          <View style={dashboardStyles.headerActions}>
+            <TouchableOpacity style={dashboardStyles.notificationButton}>
               <MaterialIcons
                 name="notifications"
                 size={20}
@@ -270,18 +255,18 @@ export default function Dashboard() {
         </View>
       </BlurView>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={dashboardStyles.content} showsVerticalScrollIndicator={false}>
         {/* En-tête avec date */}
-        <View style={styles.dateHeader}>
+        <View style={dashboardStyles.dateHeader}>
           <View>
-            <Text style={styles.sectionTitle}>APERÇU DU JOUR</Text>
-            <Text style={styles.dateText}>{formattedDate}</Text>
+            <Text style={dashboardStyles.sectionTitle}>APERÇU DU JOUR</Text>
+            <Text style={dashboardStyles.dateText}>{formattedDate}</Text>
           </View>
           <TouchableOpacity
-            style={styles.historyButton}
+            style={dashboardStyles.historyButton}
             onPress={() => router.push("/deliveries")}
           >
-            <Text style={styles.historyText}>Voir l'historique</Text>
+            <Text style={dashboardStyles.historyText}>Voir l'historique</Text>
             <MaterialIcons
               name="chevron-right"
               size={16}
@@ -291,11 +276,11 @@ export default function Dashboard() {
         </View>
 
         {/* Cartes de revenus */}
-        <View style={styles.statsGrid}>
-          <View style={styles.mainCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardLabel}>Revenus du jour</Text>
-              <View style={styles.iconContainer}>
+        <View style={dashboardStyles.statsGrid}>
+          <View style={dashboardStyles.mainCard}>
+            <View style={dashboardStyles.cardHeader}>
+              <Text style={dashboardStyles.cardLabel}>Revenus du jour</Text>
+              <View style={dashboardStyles.iconContainer}>
                 <MaterialIcons
                   name="account-balance-wallet"
                   size={20}
@@ -303,68 +288,71 @@ export default function Dashboard() {
                 />
               </View>
             </View>
+            
             <TouchableOpacity
-              style={styles.accountingButton}
+              style={dashboardStyles.accountingButton}
               onPress={() => router.push("/merchant-accounting")}
             >
               <MaterialIcons
                 name="account-balance"
                 size={20}
-                color={COLORS.white}
+                color="#FFFFFF"
               />
-              <Text style={styles.accountingText}>
+              <Text style={dashboardStyles.accountingText}>
                 Comptabilité des commerçants
               </Text>
             </TouchableOpacity>
-            <View style={styles.financeCard}>
-              <Text style={styles.financeTitle}>Résumé Financier</Text>
+            
+            <View style={dashboardStyles.financeCard}>
+              <Text style={dashboardStyles.financeTitle}>Résumé Financier</Text>
 
-              <View style={styles.financeRow}>
-                <Text style={styles.financeLabel}>Total encaissé</Text>
-                <Text style={styles.financeValue}>
+              <View style={dashboardStyles.financeRow}>
+                <Text style={dashboardStyles.financeLabel}>Total encaissé</Text>
+                <Text style={dashboardStyles.financeValue}>
                   {todayEncaisse.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
-              <View style={styles.financeRow}>
-                <Text style={styles.financeLabel}>À reverser</Text>
-                <Text style={[styles.financeValue, { color: COLORS.warning }]}>
+              <View style={dashboardStyles.financeRow}>
+                <Text style={dashboardStyles.financeLabel}>À reverser</Text>
+                <Text style={[dashboardStyles.financeValue, { color: COLORS.warning }]}>
                   {todayAReverser.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
-              <View style={styles.financeRow}>
-                <Text style={styles.financeLabel}>Profit réel</Text>
-                <Text style={[styles.financeValue, { color: COLORS.success }]}>
+              <View style={dashboardStyles.financeRow}>
+                <Text style={dashboardStyles.financeLabel}>Profit réel</Text>
+                <Text style={[dashboardStyles.financeValue, { color: COLORS.success }]}>
                   {todayProfit.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
-              <View style={styles.financeRow}>
-                <Text style={styles.financeLabel}>
+              <View style={dashboardStyles.financeRow}>
+                <Text style={dashboardStyles.financeLabel}>
                   En attente de reversement
                 </Text>
-                <Text style={[styles.financeValue, { color: COLORS.primary }]}>
+                <Text style={[dashboardStyles.financeValue, { color: COLORS.primary }]}>
                   {pendingReversal.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
-              <View style={styles.financeRow}>
-                <Text style={styles.financeLabel}>Livraisons aujourd’hui</Text>
-                <Text style={styles.financeValue}>{todayCount}</Text>
+              <View style={dashboardStyles.financeRow}>
+                <Text style={dashboardStyles.financeLabel}>Livraisons aujourd’hui</Text>
+                <Text style={dashboardStyles.financeValue}>{todayCount}</Text>
               </View>
             </View>
 
-            <Text style={styles.mainAmount}>
+            <Text style={dashboardStyles.mainAmount}>
               {(todayEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
-            <View style={styles.trendContainer}>
+            
+            <View style={dashboardStyles.trendContainer}>
               <View
                 style={[
-                  styles.trendBadge,
+                  dashboardStyles.trendBadge,
                   {
                     backgroundColor:
-                      trendPercent >= 0 ? "#13ec1330" : "#ef444430",
+                      trendPercent >= 0 ? dashboardStyles.trendBadgeUp.backgroundColor : dashboardStyles.trendBadgeDown.backgroundColor,
                   },
                 ]}
               >
@@ -375,7 +363,7 @@ export default function Dashboard() {
                 />
                 <Text
                   style={[
-                    styles.trendText,
+                    dashboardStyles.trendText,
                     {
                       color: trendPercent >= 0 ? COLORS.success : COLORS.danger,
                     },
@@ -384,74 +372,30 @@ export default function Dashboard() {
                   {trendPercent >= 0 ? `+${trendPercent}%` : `${trendPercent}%`}
                 </Text>
               </View>
-              <Text style={styles.trendLabel}>vs hier</Text>
+              <Text style={dashboardStyles.trendLabel}>vs hier</Text>
             </View>
           </View>
 
-          <View style={styles.secondaryCard}>
-            <Text style={styles.secondaryLabel}>Semaine</Text>
-            <Text style={styles.secondaryAmount}>
+          <View style={dashboardStyles.secondaryCard}>
+            <Text style={dashboardStyles.secondaryLabel}>Semaine</Text>
+            <Text style={dashboardStyles.secondaryAmount}>
               {(weekEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
           </View>
 
-          <View style={styles.secondaryCard}>
-            <Text style={styles.secondaryLabel}>Mois</Text>
-            <Text style={styles.secondaryAmount}>
+          <View style={dashboardStyles.secondaryCard}>
+            <Text style={dashboardStyles.secondaryLabel}>Mois</Text>
+            <Text style={dashboardStyles.secondaryAmount}>
               {(monthEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
           </View>
         </View>
 
-        {/* Objectif mensuel */}
-        {/* <View style={styles.goalCard}>
-          <View style={styles.goalHeader}>
-            <View>
-              <Text style={styles.goalTitle}>Objectif mensuel</Text>
-              <Text style={styles.goalSubtitle}>
-                Continuez comme ça ! Vous y êtes presque.
-              </Text>
-            </View>
-            <View style={styles.goalStats}>
-              <Text style={styles.goalPercentage}>
-                {Math.round(monthProgress)}%
-              </Text>
-              <Text style={styles.goalNumbers}>
-                {(monthEarnings || 0).toLocaleString("fr-FR")} /{" "}
-                {monthGoal.toLocaleString("fr-FR")}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.progressBar}>
-            <View
-              style={[styles.progressFill, { width: `${monthProgress}%` }]}
-            />
-          </View>
-        </View> */}
-
-        {/* Statistiques */}
-        {/* <View style={styles.statsSection}>
-          <View style={styles.statsHeader}>
-            <Text style={styles.statsTitle}>Statistiques</Text>
-            <Text style={styles.deliveryCount}>
-              {todayDeliveries.length} Livraison
-              {todayDeliveries.length > 1 ? "s" : ""}
-            </Text>
-          </View> */}
-
-        {/* Graphique simplifié */}
-        {/* <View style={styles.graphPlaceholder}>
-            <Text style={styles.graphText}>
-              Graphique hebdomadaire à implémenter
-            </Text>
-          </View>
-        </View> */}
-
         {/* Planning du jour */}
-        <View style={styles.scheduleSection}>
-          <View style={styles.scheduleHeader}>
-            <Text style={styles.scheduleTitle}>Planning du jour</Text>
-            <TouchableOpacity style={styles.calendarButton}>
+        <View style={dashboardStyles.scheduleSection}>
+          <View style={dashboardStyles.scheduleHeader}>
+            <Text style={dashboardStyles.scheduleTitle}>Planning du jour</Text>
+            <TouchableOpacity style={dashboardStyles.calendarButton}>
               <MaterialIcons
                 name="calendar-today"
                 size={20}
@@ -468,11 +412,11 @@ export default function Dashboard() {
               return (
                 <TouchableOpacity
                   key={delivery.id}
-                  style={styles.deliveryCard}
+                  style={dashboardStyles.deliveryCard}
                   onPress={() => router.push(`/delivery/${delivery.id}`)}
                 >
-                  <View style={styles.timeContainer}>
-                    <Text style={styles.timeText}>
+                  <View style={dashboardStyles.timeContainer}>
+                    <Text style={dashboardStyles.timeText}>
                       {new Date(delivery.created_at).toLocaleTimeString(
                         "fr-FR",
                         {
@@ -482,27 +426,27 @@ export default function Dashboard() {
                       )}
                     </Text>
                   </View>
-                  <View style={styles.deliveryInfo}>
-                    <Text style={styles.deliveryName}>
+                  <View style={dashboardStyles.deliveryInfo}>
+                    <Text style={dashboardStyles.deliveryName}>
                       {delivery.recipient_name}
                     </Text>
-                    <Text style={styles.deliveryAddress}>
+                    <Text style={dashboardStyles.deliveryAddress}>
                       {delivery.address}
                     </Text>
                   </View>
-                  <View style={styles.deliveryRight}>
-                    <Text style={styles.deliveryFee}>
+                  <View style={dashboardStyles.deliveryRight}>
+                    <Text style={dashboardStyles.deliveryFee}>
                       {delivery.delivery_fee} FCFA
                     </Text>
                     <View
                       style={[
-                        styles.statusBadge,
+                        dashboardStyles.statusBadge,
                         { backgroundColor: statusColor.backgroundColor },
                       ]}
                     >
                       <Text
                         style={[
-                          styles.statusText,
+                          dashboardStyles.statusText,
                           { color: statusColor.color },
                         ]}
                       >
@@ -514,7 +458,7 @@ export default function Dashboard() {
               );
             })
           ) : (
-            <Text style={styles.noDeliveries}>
+            <Text style={dashboardStyles.noDeliveries}>
               Aucune livraison planifiée aujourd'hui
             </Text>
           )}
@@ -522,374 +466,15 @@ export default function Dashboard() {
       </ScrollView>
 
       {/* Bouton flottant */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={dashboardStyles.floatingButton}
         onPress={() => router.push("/add-delivery")}
       >
-        <MaterialIcons name="add" size={24} color="#000" />
+        <MaterialIcons name="add" size={24} color="#FFFFFF" />
         <Text style={dashboardStyles.floatingButtonText}>
           Ajouter une livraison
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  profileSection: {
-    flexDirection: "row",
-    gap: 12,
-    alignItems: "center",
-  },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.card,
-  },
-  headerActions: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-  },
-  availabilityButton: {
-    flexDirection: "row",
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  available: {
-    backgroundColor: COLORS.primarySoft,
-  },
-  availabilityText: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "bold",
-    textTransform: "uppercase",
-  },
-  notificationButton: {
-    padding: 8,
-    borderRadius: 20,
-  },
-  content: {
-    padding: 16,
-    marginTop: 20,
-  },
-  dateHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  dateText: {
-    color: COLORS.white,
-    fontSize: 24,
-    fontWeight: "bold",
-    marginTop: 4,
-  },
-  historyButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-  },
-  historyText: {
-    color: COLORS.muted,
-    fontSize: 12,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
-  },
-  mainCard: {
-    backgroundColor: COLORS.card,
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-    width: "100%",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  cardLabel: {
-    color: COLORS.muted,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  iconContainer: {
-    padding: 8,
-    backgroundColor: COLORS.primarySoft,
-    borderRadius: 8,
-  },
-  mainAmount: {
-    color: COLORS.white,
-    fontSize: 36,
-    fontWeight: "800",
-    marginTop: 8,
-  },
-  trendContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 12,
-  },
-  trendBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(19, 236, 19, 0.2)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  trendText: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  trendLabel: {
-    color: COLORS.muted,
-    fontSize: 12,
-  },
-  secondaryCard: {
-    backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-    flex: 1,
-    minWidth: "45%",
-  },
-  secondaryLabel: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  secondaryAmount: {
-    color: COLORS.white,
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 4,
-  },
-  goalCard: {
-    backgroundColor: COLORS.card,
-    padding: 20,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-    marginBottom: 20,
-  },
-  goalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 16,
-  },
-  goalTitle: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  goalSubtitle: {
-    color: COLORS.muted,
-    fontSize: 12,
-    marginTop: 4,
-  },
-  goalStats: {
-    alignItems: "flex-end",
-  },
-  goalPercentage: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  goalNumbers: {
-    color: COLORS.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  progressBar: {
-    height: 10,
-    backgroundColor: "#374151",
-    borderRadius: 5,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: COLORS.primary,
-    borderRadius: 5,
-  },
-  statsSection: {
-    marginBottom: 20,
-  },
-  statsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  statsTitle: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  deliveryCount: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  graphPlaceholder: {
-    backgroundColor: COLORS.card,
-    padding: 40,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  graphText: {
-    color: COLORS.muted,
-    fontSize: 14,
-  },
-  scheduleSection: {
-    marginBottom: 100,
-  },
-  scheduleHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  scheduleTitle: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  calendarButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
-  },
-  deliveryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    padding: 16,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-    marginBottom: 12,
-  },
-  timeContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#374151",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timeText: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  deliveryInfo: {
-    flex: 1,
-  },
-  deliveryName: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  deliveryAddress: {
-    color: COLORS.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  deliveryRight: {
-    alignItems: "flex-end",
-  },
-  deliveryFee: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: "500",
-  },
-  noDeliveries: {
-    color: COLORS.muted,
-    textAlign: "center",
-    padding: 20,
-  },
-  financeCard: {
-    backgroundColor: COLORS.card,
-    padding: 20,
-    borderRadius: 20,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.05)",
-  },
-  financeTitle: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  financeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  financeLabel: {
-    color: COLORS.muted,
-    fontSize: 13,
-  },
-  financeValue: {
-    color: COLORS.white,
-    fontWeight: "bold",
-  },
-  accountingButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    padding: 14,
-    borderRadius: 14,
-    marginTop: 16,
-  },
-  accountingText: {
-    color: "#000",
-    fontWeight: "bold",
-  },
-});

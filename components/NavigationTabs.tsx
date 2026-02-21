@@ -1,128 +1,117 @@
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { router, usePathname } from "expo-router";
-import { useModal } from "../providers/ModalProvider"; 
+import { navigationTabsStyles } from "../styles/navigationTabsStyles";
+import { COLORS } from "../styles/colors";
 
 export default function NavigationTabs() {
   const pathname = usePathname();
-  const { showAlert } = useModal();
 
-  // Masquer les tabs sur certains écrans
   const hideTabsOnScreens = ["/delivery/", "/login", "/add-delivery", "/register"];
+  const shouldHideTabs = hideTabsOnScreens.some((path) => pathname.includes(path));
 
-  const shouldHideTabs = hideTabsOnScreens.some((path) =>
-    pathname.includes(path)
-  );
+  if (shouldHideTabs) return null;
 
-  if (shouldHideTabs) {
-    return null; // Ne pas afficher les tabs
-  }
+  const isActive = (path: string) => pathname === path;
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.tabItem}
-        onPress={() => router.push("/dashboard")}
-      >
-        <MaterialIcons
-          name="dashboard"
-          size={24}
-          color={pathname === "/dashboard" ? "#13ec13" : "#94A3B8"}
-        />
-        <Text
-          style={[
-            styles.tabText,
-            { color: pathname === "/dashboard" ? "#13ec13" : "#94A3B8" },
-          ]}
+    <View style={navigationTabsStyles.wrapper}>
+      <View style={navigationTabsStyles.container}>
+        
+        {/* DASHBOARD */}
+        <TouchableOpacity 
+          style={navigationTabsStyles.tabItem} 
+          onPress={() => router.push("/dashboard")}
         >
-          Tableau de bord
-        </Text>
-      </TouchableOpacity>
+          <View style={[
+            navigationTabsStyles.iconWrapper, 
+            isActive("/dashboard") && navigationTabsStyles.activeIconWrapper
+          ]}>
+            <MaterialIcons 
+              name="dashboard" 
+              size={24} 
+              color={isActive("/dashboard") ? COLORS.primary : COLORS.muted} 
+            />
+          </View>
+          <Text style={[
+            navigationTabsStyles.tabText, 
+            { color: isActive("/dashboard") ? COLORS.primary : COLORS.muted }
+          ]}>
+            Bord
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.tabItem}
-        onPress={() => router.push("/deliveries")}
-      >
-        <MaterialIcons
-          name="local-shipping"
-          size={24}
-          color={pathname === "/deliveries" ? "#13ec13" : "#94A3B8"}
-        />
-        <Text
-          style={[
-            styles.tabText,
-            { color: pathname === "/deliveries" ? "#13ec13" : "#94A3B8" },
-          ]}
+        {/* DELIVERIES */}
+        <TouchableOpacity 
+          style={navigationTabsStyles.tabItem} 
+          onPress={() => router.push("/deliveries")}
         >
-          Livraisons
-        </Text>
-      </TouchableOpacity>
+          <View style={[
+            navigationTabsStyles.iconWrapper, 
+            isActive("/deliveries") && navigationTabsStyles.activeIconWrapper
+          ]}>
+            <MaterialIcons 
+              name="local-shipping" 
+              size={24} 
+              color={isActive("/deliveries") ? COLORS.primary : COLORS.muted} 
+            />
+          </View>
+          <Text style={[
+            navigationTabsStyles.tabText, 
+            { color: isActive("/deliveries") ? COLORS.primary : COLORS.muted }
+          ]}>
+            Livraisons
+          </Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.tabItem}
-        onPress={() => router.push("/add-delivery")}
-      >
-        <MaterialIcons name="add-circle" size={28} color="#94A3B8" />
-        <Text style={styles.tabText}>Ajouter</Text>
-      </TouchableOpacity>
+        {/* AJOUTER (BOUTON CENTRAL) */}
+        <TouchableOpacity 
+          style={navigationTabsStyles.centralTabItem} 
+          onPress={() => router.push("/add-delivery")}
+        >
+          <View style={navigationTabsStyles.centralCircle}>
+            <MaterialIcons name="add" size={32} color="#FFFFFF" />
+          </View>
+          <Text style={navigationTabsStyles.tabText}>Ajouter</Text>
+        </TouchableOpacity>
 
-      {/* <TouchableOpacity style={styles.tabItem}>
-        <MaterialIcons
-          name="bar-chart"
-          size={24}
-          color="#94A3B8"
+        {/* STATS */}
+        <TouchableOpacity 
+          style={navigationTabsStyles.tabItem}
           onPress={() => {
-            showAlert("Info", "Stats - fonctionnalité à venir"); 
+            // À implémenter plus tard
           }}
-        />
-        <Text style={styles.tabText}>Stats</Text>
-      </TouchableOpacity> */}
-
-      <TouchableOpacity
-        style={styles.tabItem}
-        onPress={() => router.push("/settings")}
-      >
-        <MaterialIcons
-          name="settings"
-          size={24}
-          color={pathname === "/settings" ? "#13ec13" : "#94A3B8"}
-        />
-        <Text
-          style={[
-            styles.tabText,
-            { color: pathname === "/settings" ? "#13ec13" : "#94A3B8" },
-          ]}
         >
-          Paramètres
-        </Text>
-      </TouchableOpacity>
+          <View style={navigationTabsStyles.iconWrapper}>
+            <MaterialIcons name="bar-chart" size={24} color={COLORS.muted} />
+          </View>
+          <Text style={navigationTabsStyles.tabText}>Stats</Text>
+        </TouchableOpacity>
+
+        {/* SETTINGS */}
+        <TouchableOpacity 
+          style={navigationTabsStyles.tabItem} 
+          onPress={() => router.push("/settings")}
+        >
+          <View style={[
+            navigationTabsStyles.iconWrapper, 
+            isActive("/settings") && navigationTabsStyles.activeIconWrapper
+          ]}>
+            <MaterialIcons 
+              name="settings" 
+              size={24} 
+              color={isActive("/settings") ? COLORS.primary : COLORS.muted} 
+            />
+          </View>
+          <Text style={[
+            navigationTabsStyles.tabText, 
+            { color: isActive("/settings") ? COLORS.primary : COLORS.muted }
+          ]}>
+            Profil
+          </Text>
+        </TouchableOpacity>
+
+      </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    alignItems: "center",
-    paddingTop: 0,
-    paddingBottom: 50,
-    backgroundColor: "#1E293B",
-    borderTopWidth: 1,
-    borderTopColor: "#334155",
-    zIndex: 1000, // Assure que les tabs sont au-dessus
-  },
-  tabItem: {
-    alignItems: "center",
-    gap: 4,
-  },
-  tabText: {
-    color: "#94A3B8",
-    fontSize: 10,
-    fontWeight: "500",
-  },
-});

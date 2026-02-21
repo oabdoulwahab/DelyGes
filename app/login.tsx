@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   SafeAreaView,
   ActivityIndicator,
 } from "react-native";
@@ -20,7 +19,7 @@ import { Image } from "react-native";
 import { useAuth } from "../src/hooks/useAuth";
 import * as yup from "yup";
 import { COLORS } from "../styles/colors";
-import { loginStyles as styles } from "../styles/loginStyles";
+import { loginStyles } from "../styles/loginStyles";
 import { useModal } from "../providers/ModalProvider";
 
 /* ---------------- VALIDATION ---------------- */
@@ -73,51 +72,51 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={loginStyles.container}>
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={loginStyles.scrollContainer}
         keyboardShouldPersistTaps="handled"
       >
         {/* HEADER */}
-        <View style={styles.header}>
-          <View style={styles.logoBackground}>
+        <View style={loginStyles.header}>
+          <View style={loginStyles.logoBackground}>
             <Image
               source={require("../assets/images/splash-icon.png")}
-              style={styles.logo}
+              style={loginStyles.logo}
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.title}>Connexion</Text>
-          <Text style={styles.subtitle}>
+          <Text style={loginStyles.title}>Connexion</Text>
+          <Text style={loginStyles.subtitle}>
             Gérez vos livraisons et suivez vos revenus.
           </Text>
         </View>
 
         {/* ERREUR GLOBALE */}
         {error && (
-          <View style={styles.errorContainer}>
+          <View style={loginStyles.errorContainer}>
             <MaterialIcons
               name="error-outline"
               size={20}
               color={COLORS.danger}
             />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={loginStyles.errorText}>{error}</Text>
           </View>
         )}
 
         {/* FORM */}
-        <View style={styles.form}>
+        <View style={loginStyles.form}>
           {/* EMAIL / PHONE */}
           <Controller
             control={control}
             name="emailOrPhone"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email ou téléphone</Text>
+              <View style={loginStyles.inputGroup}>
+                <Text style={loginStyles.label}>Email ou téléphone</Text>
                 <TextInput
-                  style={styles.input}
+                  style={loginStyles.input}
                   placeholder="email@exemple.com"
-                  placeholderTextColor="#92c992"
+                  placeholderTextColor={COLORS.inputPlaceholder}
                   value={value}
                   onChangeText={(text) => {
                     onChange(text);
@@ -126,7 +125,7 @@ export default function Login() {
                   autoCapitalize="none"
                 />
                 {errors.emailOrPhone && (
-                  <Text style={styles.fieldError}>
+                  <Text style={loginStyles.fieldError}>
                     {errors.emailOrPhone.message}
                   </Text>
                 )}
@@ -139,13 +138,13 @@ export default function Login() {
             control={control}
             name="password"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Mot de passe</Text>
-                <View style={styles.passwordContainer}>
+              <View style={loginStyles.inputGroup}>
+                <Text style={loginStyles.label}>Mot de passe</Text>
+                <View style={loginStyles.passwordContainer}>
                   <TextInput
-                    style={[styles.input, styles.passwordInput]}
+                    style={[loginStyles.input, loginStyles.passwordInput]}
                     placeholder="••••••••"
-                    placeholderTextColor="#92c992"
+                    placeholderTextColor={COLORS.inputPlaceholder}
                     value={value}
                     onChangeText={(text) => {
                       onChange(text);
@@ -154,18 +153,18 @@ export default function Login() {
                     secureTextEntry={!showPassword}
                   />
                   <TouchableOpacity
-                    style={styles.eyeButton}
+                    style={loginStyles.eyeButton}
                     onPress={() => setShowPassword(!showPassword)}
                   >
                     <MaterialIcons
                       name={showPassword ? "visibility-off" : "visibility"}
                       size={22}
-                      color="#92c992"
+                      color={COLORS.muted}
                     />
                   </TouchableOpacity>
                 </View>
                 {errors.password && (
-                  <Text style={styles.fieldError}>
+                  <Text style={loginStyles.fieldError}>
                     {errors.password.message}
                   </Text>
                 )}
@@ -174,39 +173,43 @@ export default function Login() {
           />
 
           {/* OPTIONS */}
-          <View style={styles.options}>
-            <View style={styles.remember}>
-              <Checkbox disabled />
-              <Text style={styles.rememberText}>Rester connecté</Text>
+          <View style={loginStyles.options}>
+            <View style={loginStyles.remember}>
+              <Checkbox
+                value={false}
+                color={COLORS.primary}
+                style={loginStyles.checkbox}
+              />
+              <Text style={loginStyles.rememberText}>Rester connecté</Text>
             </View>
 
             <TouchableOpacity onPress={handleForgotPassword}>
-              <Text style={styles.forgot}>Mot de passe oublié ?</Text>
+              <Text style={loginStyles.forgot}>Mot de passe oublié ?</Text>
             </TouchableOpacity>
           </View>
 
           {/* BUTTON */}
           <TouchableOpacity
             style={[
-              styles.loginButton,
-              (!isValid || isLoading) && { opacity: 0.6 },
+              loginStyles.loginButton,
+              (!isValid || isLoading) && loginStyles.loginButtonDisabled,
             ]}
             disabled={!isValid || isLoading}
             onPress={handleSubmit(onSubmit)}
           >
             <LinearGradient
-              colors={[COLORS.primary, "#11d111"]}
-              style={styles.gradient}
+              colors={[COLORS.primary, COLORS.primary]}
+              style={loginStyles.gradient}
             >
               {isLoading ? (
-                <ActivityIndicator color={COLORS.background} />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
-                  <Text style={styles.loginText}>Se connecter</Text>
+                  <Text style={loginStyles.loginText}>Se connecter</Text>
                   <MaterialIcons
                     name="arrow-forward"
                     size={20}
-                    color={COLORS.background}
+                    color="#FFFFFF"
                   />
                 </>
               )}
@@ -215,10 +218,10 @@ export default function Login() {
         </View>
 
         {/* FOOTER */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>Pas de compte ?</Text>
+        <View style={loginStyles.footer}>
+          <Text style={loginStyles.footerText}>Pas de compte ?</Text>
           <TouchableOpacity onPress={() => router.push("/register")}>
-            <Text style={styles.footerLink}>Créer un compte</Text>
+            <Text style={loginStyles.footerLink}>Créer un compte</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

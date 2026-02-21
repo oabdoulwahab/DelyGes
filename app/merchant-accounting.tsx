@@ -1,7 +1,6 @@
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   StatusBar,
@@ -15,7 +14,6 @@ import { BlurView } from "expo-blur";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useModal } from "../providers/ModalProvider";
 import { router } from "expo-router";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   format,
   startOfWeek,
@@ -24,10 +22,9 @@ import {
   endOfMonth,
   isSameDay,
   isToday,
-  isThisWeek,
-  isThisMonth,
 } from "date-fns";
 import { fr } from "date-fns/locale";
+import { merchantAccountingStyles } from "../styles/merchantAccountingStyles";
 
 type Delivery = {
   id: number;
@@ -376,8 +373,8 @@ export default function MerchantAccounting() {
     for (let i = 0; i < startDay; i++) {
       const date = new Date(year, month, -i);
       days.push(
-        <View key={`prev-${i}`} style={styles.calendarDayInactive}>
-          <Text style={styles.calendarDayTextInactive}>{date.getDate()}</Text>
+        <View key={`prev-${i}`} style={merchantAccountingStyles.calendarDayInactive}>
+          <Text style={merchantAccountingStyles.calendarDayTextInactive}>{date.getDate()}</Text>
         </View>,
       );
     }
@@ -392,10 +389,10 @@ export default function MerchantAccounting() {
         <TouchableOpacity
           key={`day-${i}`}
           style={[
-            styles.calendarDay,
-            isToday && styles.calendarDayToday,
-            isSelected && styles.calendarDaySelected,
-            hasDeliveries && styles.calendarDayHasDeliveries,
+            merchantAccountingStyles.calendarDay,
+            isToday && merchantAccountingStyles.calendarDayToday,
+            isSelected && merchantAccountingStyles.calendarDaySelected,
+            hasDeliveries && merchantAccountingStyles.calendarDayHasDeliveries,
           ]}
           onPress={() => {
             setSelectedDate(date);
@@ -405,14 +402,14 @@ export default function MerchantAccounting() {
         >
           <Text
             style={[
-              styles.calendarDayText,
-              isToday && styles.calendarDayTextToday,
-              isSelected && styles.calendarDayTextSelected,
+              merchantAccountingStyles.calendarDayText,
+              isToday && merchantAccountingStyles.calendarDayTextToday,
+              isSelected && merchantAccountingStyles.calendarDayTextSelected,
             ]}
           >
             {i}
           </Text>
-          {hasDeliveries && <View style={styles.deliveryIndicator} />}
+          {hasDeliveries && <View style={merchantAccountingStyles.deliveryIndicator} />}
         </TouchableOpacity>,
       );
     }
@@ -422,8 +419,8 @@ export default function MerchantAccounting() {
 
     for (let i = 1; i <= remainingCells; i++) {
       days.push(
-        <View key={`next-${i}`} style={styles.calendarDayInactive}>
-          <Text style={styles.calendarDayTextInactive}>{i}</Text>
+        <View key={`next-${i}`} style={merchantAccountingStyles.calendarDayInactive}>
+          <Text style={merchantAccountingStyles.calendarDayTextInactive}>{i}</Text>
         </View>,
       );
     }
@@ -450,34 +447,34 @@ export default function MerchantAccounting() {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+    <View style={merchantAccountingStyles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* En-tête */}
-      <BlurView intensity={95} tint="dark" style={styles.header}>
-        <View style={styles.headerContent}>
+      <BlurView intensity={95} style={merchantAccountingStyles.header}>
+        <View style={merchantAccountingStyles.headerContent}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={merchantAccountingStyles.backButton}
             onPress={() => router.back()}
           >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Comptabilité Commerçants</Text>
+          <Text style={merchantAccountingStyles.headerTitle}>Comptabilité Commerçants</Text>
           <View style={{ width: 40 }} />
         </View>
       </BlurView>
 
       {/* Barre de recherche et filtre */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
+      <View style={merchantAccountingStyles.searchContainer}>
+        <View style={merchantAccountingStyles.searchInputContainer}>
           <MaterialIcons
             name="search"
             size={20}
             color={COLORS.muted}
-            style={styles.searchIcon}
+            style={merchantAccountingStyles.searchIcon}
           />
           <TextInput
-            style={styles.searchInput}
+            style={merchantAccountingStyles.searchInput}
             placeholder="Rechercher un commerçant..."
             placeholderTextColor={COLORS.muted}
             value={searchQuery}
@@ -487,8 +484,8 @@ export default function MerchantAccounting() {
 
         <TouchableOpacity
           style={[
-            styles.filterButton,
-            dateFilterEnabled && styles.filterButtonActive,
+            merchantAccountingStyles.filterButton,
+            dateFilterEnabled && merchantAccountingStyles.filterButtonActive,
           ]}
           onPress={() => setShowFilterModal(true)}
         >
@@ -497,20 +494,20 @@ export default function MerchantAccounting() {
             size={20}
             color={dateFilterEnabled ? COLORS.primary : COLORS.muted}
           />
-          {dateFilterEnabled && <View style={styles.filterIndicator} />}
+          {dateFilterEnabled && <View style={merchantAccountingStyles.filterIndicator} />}
         </TouchableOpacity>
       </View>
 
       {/* Indicateur de filtre actif */}
       {dateFilterEnabled && (
-        <View style={styles.dateFilterContainer}>
-          <View style={styles.dateFilterContent}>
+        <View style={merchantAccountingStyles.dateFilterContainer}>
+          <View style={merchantAccountingStyles.dateFilterContent}>
             <MaterialIcons
               name="calendar-today"
               size={16}
               color={COLORS.primary}
             />
-            <Text style={styles.dateFilterText}>
+            <Text style={merchantAccountingStyles.dateFilterText}>
               {formatDateForDisplay()}
             </Text>
             <TouchableOpacity onPress={clearDateFilter}>
@@ -521,22 +518,22 @@ export default function MerchantAccounting() {
       )}
 
       {/* Onglets */}
-      <View style={styles.tabsContainer}>
+      <View style={merchantAccountingStyles.tabsContainer}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.tabsScroll}
+          style={merchantAccountingStyles.tabsScroll}
         >
           {(["EN_COURS", "AUJOURDHUI", "CLOTUREES"] as TabType[]).map((tab) => (
             <TouchableOpacity
               key={tab}
-              style={[styles.tab, activeTab === tab && styles.activeTab]}
+              style={[merchantAccountingStyles.tab, activeTab === tab && merchantAccountingStyles.activeTab]}
               onPress={() => setActiveTab(tab)}
             >
               <Text
                 style={[
-                  styles.tabText,
-                  activeTab === tab && styles.activeTabText,
+                  merchantAccountingStyles.tabText,
+                  activeTab === tab && merchantAccountingStyles.activeTabText,
                 ]}
               >
                 {tab === "EN_COURS" && "En cours"}
@@ -545,8 +542,8 @@ export default function MerchantAccounting() {
               </Text>
               <View
                 style={[
-                  styles.tabIndicator,
-                  activeTab === tab && styles.activeTabIndicator,
+                  merchantAccountingStyles.tabIndicator,
+                  activeTab === tab && merchantAccountingStyles.activeTabIndicator,
                 ]}
               />
             </TouchableOpacity>
@@ -555,35 +552,35 @@ export default function MerchantAccounting() {
       </View>
 
       {/* Résumé global */}
-      <View style={styles.globalSummary}>
-        <View style={styles.globalCard}>
-          <Text style={styles.globalLabel}>Livraisons</Text>
-          <Text style={styles.globalValue}>{totalGlobalDeliveries}</Text>
+      <View style={merchantAccountingStyles.globalSummary}>
+        <View style={merchantAccountingStyles.globalCard}>
+          <Text style={merchantAccountingStyles.globalLabel}>Livraisons</Text>
+          <Text style={merchantAccountingStyles.globalValue}>{totalGlobalDeliveries}</Text>
         </View>
-        <View style={styles.globalCard}>
-          <Text style={styles.globalLabel}>Encaissé</Text>
-          <Text style={styles.globalValue}>
+        <View style={merchantAccountingStyles.globalCard}>
+          <Text style={merchantAccountingStyles.globalLabel}>Encaissé</Text>
+          <Text style={merchantAccountingStyles.globalValue}>
             {totalGlobalEncaisse.toLocaleString("fr-FR")} FCFA
           </Text>
         </View>
-        <View style={styles.globalCard}>
-          <Text style={styles.globalLabel}>À reverser</Text>
-          <Text style={[styles.globalValue, { color: COLORS.warning }]}>
+        <View style={merchantAccountingStyles.globalCard}>
+          <Text style={merchantAccountingStyles.globalLabel}>À reverser</Text>
+          <Text style={[merchantAccountingStyles.globalValue, { color: COLORS.warning }]}>
             {totalGlobalAReverser.toLocaleString("fr-FR")} FCFA
           </Text>
         </View>
-        <View style={styles.globalCard}>
-          <Text style={styles.globalLabel}>Profit</Text>
-          <Text style={[styles.globalValue, { color: COLORS.success }]}>
+        <View style={merchantAccountingStyles.globalCard}>
+          <Text style={merchantAccountingStyles.globalLabel}>Profit</Text>
+          <Text style={[merchantAccountingStyles.globalValue, { color: COLORS.success }]}>
             {totalGlobalProfit.toLocaleString("fr-FR")} FCFA
           </Text>
         </View>
       </View>
 
       <ScrollView
-        style={styles.scrollView}
+        style={merchantAccountingStyles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={merchantAccountingStyles.scrollContent}
       >
         {filteredSummaries.length > 0 ? (
           filteredSummaries.map((summary) => {
@@ -593,55 +590,55 @@ export default function MerchantAccounting() {
               <View 
                 key={summary.merchant_id} 
                 style={[
-                  styles.merchantCard,
-                  summary.isClosed && styles.merchantCardClosed
+                  merchantAccountingStyles.merchantCard,
+                  summary.isClosed && merchantAccountingStyles.merchantCardClosed
                 ]}
               >
                 {/* En-tête du commerçant - Toujours visible */}
                 <TouchableOpacity 
-                  style={styles.merchantHeader}
+                  style={merchantAccountingStyles.merchantHeader}
                   onPress={() => toggleCard(summary.merchant_id)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.merchantAvatar}>
-                    <Text style={styles.merchantInitial}>
+                  <View style={merchantAccountingStyles.merchantAvatar}>
+                    <Text style={merchantAccountingStyles.merchantInitial}>
                       {summary.merchant_name.charAt(0).toUpperCase()}
                     </Text>
                   </View>
-                  <View style={styles.merchantInfo}>
-                    <View style={styles.merchantNameContainer}>
-                      <Text style={styles.merchantName}>
+                  <View style={merchantAccountingStyles.merchantInfo}>
+                    <View style={merchantAccountingStyles.merchantNameContainer}>
+                      <Text style={merchantAccountingStyles.merchantName}>
                         {summary.merchant_name}
                       </Text>
                       {summary.isClosed && (
-                        <View style={styles.closedBadge}>
+                        <View style={merchantAccountingStyles.closedBadge}>
                           <MaterialIcons name="check-circle" size={14} color={COLORS.success} />
-                          <Text style={styles.closedBadgeText}>Clôturé</Text>
+                          <Text style={merchantAccountingStyles.closedBadgeText}>Clôturé</Text>
                         </View>
                       )}
                     </View>
                     {summary.merchant_phone && (
-                      <View style={styles.merchantContact}>
+                      <View style={merchantAccountingStyles.merchantContact}>
                         <MaterialIcons name="phone" size={12} color={COLORS.muted} />
-                        <Text style={styles.merchantContactText}>
+                        <Text style={merchantAccountingStyles.merchantContactText}>
                           {summary.merchant_phone}
                         </Text>
                       </View>
                     )}
                     {summary.merchant_address && (
-                      <View style={styles.merchantContact}>
+                      <View style={merchantAccountingStyles.merchantContact}>
                         <MaterialIcons name="location-on" size={12} color={COLORS.muted} />
-                        <Text style={styles.merchantContactText} numberOfLines={1}>
+                        <Text style={merchantAccountingStyles.merchantContactText} numberOfLines={1}>
                           {summary.merchant_address}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <View style={styles.deliveryCount}>
-                    <Text style={styles.deliveryCountNumber}>
+                  <View style={merchantAccountingStyles.deliveryCount}>
+                    <Text style={merchantAccountingStyles.deliveryCountNumber}>
                       {summary.totalDeliveries}
                     </Text>
-                    <Text style={styles.deliveryCountLabel}>
+                    <Text style={merchantAccountingStyles.deliveryCountLabel}>
                       livraison{summary.totalDeliveries > 1 ? "s" : ""}
                     </Text>
                   </View>
@@ -654,30 +651,30 @@ export default function MerchantAccounting() {
 
                 {/* Contenu pliable - Visible seulement si déplié */}
                 {isExpanded && (
-                  <View style={styles.expandedContent}>
+                  <View style={merchantAccountingStyles.expandedContent}>
                     {/* Détails financiers */}
-                    <View style={styles.financialSection}>
-                      <View style={styles.financialRow}>
-                        <Text style={styles.financialLabel}>Total encaissé</Text>
-                        <Text style={styles.financialValue}>
+                    <View style={merchantAccountingStyles.financialSection}>
+                      <View style={merchantAccountingStyles.financialRow}>
+                        <Text style={merchantAccountingStyles.financialLabel}>Total encaissé</Text>
+                        <Text style={merchantAccountingStyles.financialValue}>
                           {summary.totalEncaisse.toLocaleString("fr-FR")} FCFA
                         </Text>
                       </View>
 
-                      <View style={styles.financialRow}>
-                        <Text style={[styles.financialLabel, { color: COLORS.warning }]}>
+                      <View style={merchantAccountingStyles.financialRow}>
+                        <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.warning }]}>
                           À reverser
                         </Text>
-                        <Text style={[styles.financialValue, { color: COLORS.warning }]}>
+                        <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.warning }]}>
                           {summary.totalAReverser.toLocaleString("fr-FR")} FCFA
                         </Text>
                       </View>
 
-                      <View style={styles.financialRow}>
-                        <Text style={[styles.financialLabel, { color: COLORS.success }]}>
+                      <View style={merchantAccountingStyles.financialRow}>
+                        <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.success }]}>
                           Profit réalisé
                         </Text>
-                        <Text style={[styles.financialValue, { color: COLORS.success }]}>
+                        <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.success }]}>
                           {summary.totalProfit.toLocaleString("fr-FR")} FCFA
                         </Text>
                       </View>
@@ -685,42 +682,42 @@ export default function MerchantAccounting() {
 
                     {/* Aperçu des dernières livraisons */}
                     {summary.deliveries.length > 0 && (
-                      <View style={styles.recentDeliveries}>
-                        <Text style={styles.recentDeliveriesTitle}>
+                      <View style={merchantAccountingStyles.recentDeliveries}>
+                        <Text style={merchantAccountingStyles.recentDeliveriesTitle}>
                           Dernières livraisons
                         </Text>
                         {summary.deliveries.slice(0, 3).map((delivery) => (
                           <TouchableOpacity
                             key={delivery.id}
-                            style={styles.deliveryPreview}
+                            style={merchantAccountingStyles.deliveryPreview}
                             onPress={() => router.push(`/delivery/${delivery.id}`)}
                           >
-                            <View style={styles.deliveryPreviewHeader}>
-                              <Text style={styles.deliveryPreviewName}>
+                            <View style={merchantAccountingStyles.deliveryPreviewHeader}>
+                              <Text style={merchantAccountingStyles.deliveryPreviewName}>
                                 {delivery.recipient_name}
                               </Text>
-                              <Text style={styles.deliveryPreviewDate}>
+                              <Text style={merchantAccountingStyles.deliveryPreviewDate}>
                                 {format(new Date(delivery.delivered_at || delivery.created_at), "dd/MM/yyyy")}
                               </Text>
                             </View>
-                            <Text style={styles.deliveryPreviewAddress} numberOfLines={1}>
+                            <Text style={merchantAccountingStyles.deliveryPreviewAddress} numberOfLines={1}>
                               {delivery.address}
                             </Text>
-                            <View style={styles.deliveryPreviewFooter}>
-                              <Text style={styles.deliveryPreviewFee}>
+                            <View style={merchantAccountingStyles.deliveryPreviewFooter}>
+                              <Text style={merchantAccountingStyles.deliveryPreviewFee}>
                                 +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
                               </Text>
                               {delivery.reversed === 1 && (
-                                <View style={styles.reversedBadge}>
+                                <View style={merchantAccountingStyles.reversedBadge}>
                                   <MaterialIcons name="check-circle" size={12} color={COLORS.success} />
-                                  <Text style={styles.reversedBadgeText}>Reversé</Text>
+                                  <Text style={merchantAccountingStyles.reversedBadgeText}>Reversé</Text>
                                 </View>
                               )}
                             </View>
                           </TouchableOpacity>
                         ))}
                         {summary.deliveries.length > 3 && (
-                          <Text style={styles.moreDeliveries}>
+                          <Text style={merchantAccountingStyles.moreDeliveries}>
                             +{summary.deliveries.length - 3} autres livraisons
                           </Text>
                         )}
@@ -730,11 +727,11 @@ export default function MerchantAccounting() {
                     {/* Bouton de clôture - Visible seulement si non clôturé */}
                     {!summary.isClosed && (
                       <TouchableOpacity
-                        style={styles.closeButton}
+                        style={merchantAccountingStyles.closeButton}
                         onPress={() => handleCloseMerchant(summary.merchant_id, summary.merchant_name)}
                       >
-                        <MaterialIcons name="check-circle" size={18} color="#000" />
-                        <Text style={styles.closeButtonText}>
+                        <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
+                        <Text style={merchantAccountingStyles.closeButtonText}>
                           Clôturer la comptabilité
                         </Text>
                       </TouchableOpacity>
@@ -745,16 +742,16 @@ export default function MerchantAccounting() {
             );
           })
         ) : (
-          <View style={styles.emptyState}>
+          <View style={merchantAccountingStyles.emptyState}>
             <MaterialIcons
               name="store"
               size={48}
               color={COLORS.muted}
             />
-            <Text style={styles.emptyStateTitle}>
+            <Text style={merchantAccountingStyles.emptyStateTitle}>
               Aucune donnée disponible
             </Text>
-            <Text style={styles.emptyStateText}>
+            <Text style={merchantAccountingStyles.emptyStateText}>
               {searchQuery
                 ? "Aucun commerçant ne correspond à votre recherche"
                 : dateFilterEnabled
@@ -776,45 +773,45 @@ export default function MerchantAccounting() {
         animationType="slide"
         onRequestClose={() => setShowFilterModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <BlurView intensity={95} tint="dark" style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+        <View style={merchantAccountingStyles.modalOverlay}>
+          <BlurView intensity={95} style={merchantAccountingStyles.modalContent}>
+            <View style={merchantAccountingStyles.modalHeader}>
               <TouchableOpacity
                 onPress={() => setShowFilterModal(false)}
-                style={styles.modalCloseButton}
+                style={merchantAccountingStyles.modalCloseButton}
               >
                 <MaterialIcons name="close" size={24} color={COLORS.muted} />
               </TouchableOpacity>
 
-              <Text style={styles.modalTitle}>Filtres</Text>
+              <Text style={merchantAccountingStyles.modalTitle}>Filtres</Text>
 
               <TouchableOpacity
                 onPress={clearDateFilter}
-                style={styles.modalResetButton}
+                style={merchantAccountingStyles.modalResetButton}
               >
-                <Text style={styles.modalResetText}>Réinitialiser</Text>
+                <Text style={merchantAccountingStyles.modalResetText}>Réinitialiser</Text>
               </TouchableOpacity>
             </View>
 
             <ScrollView
-              style={styles.modalScrollView}
+              style={merchantAccountingStyles.modalScrollView}
               showsVerticalScrollIndicator={false}
             >
-              <View style={styles.modalSection}>
-                <Text style={styles.modalSectionTitle}>Période</Text>
+              <View style={merchantAccountingStyles.modalSection}>
+                <Text style={merchantAccountingStyles.modalSectionTitle}>Période</Text>
 
-                <View style={styles.periodButtonsContainer}>
+                <View style={merchantAccountingStyles.periodButtonsContainer}>
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      activePeriod === "today" && styles.periodButtonActive,
+                      merchantAccountingStyles.periodButton,
+                      activePeriod === "today" && merchantAccountingStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("today")}
                   >
                     <Text
                       style={[
-                        styles.periodButtonText,
-                        activePeriod === "today" && styles.periodButtonTextActive,
+                        merchantAccountingStyles.periodButtonText,
+                        activePeriod === "today" && merchantAccountingStyles.periodButtonTextActive,
                       ]}
                     >
                       Aujourd'hui
@@ -823,15 +820,15 @@ export default function MerchantAccounting() {
 
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      activePeriod === "week" && styles.periodButtonActive,
+                      merchantAccountingStyles.periodButton,
+                      activePeriod === "week" && merchantAccountingStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("week")}
                   >
                     <Text
                       style={[
-                        styles.periodButtonText,
-                        activePeriod === "week" && styles.periodButtonTextActive,
+                        merchantAccountingStyles.periodButtonText,
+                        activePeriod === "week" && merchantAccountingStyles.periodButtonTextActive,
                       ]}
                     >
                       Cette semaine
@@ -840,15 +837,15 @@ export default function MerchantAccounting() {
 
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      activePeriod === "month" && styles.periodButtonActive,
+                      merchantAccountingStyles.periodButton,
+                      activePeriod === "month" && merchantAccountingStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("month")}
                   >
                     <Text
                       style={[
-                        styles.periodButtonText,
-                        activePeriod === "month" && styles.periodButtonTextActive,
+                        merchantAccountingStyles.periodButtonText,
+                        activePeriod === "month" && merchantAccountingStyles.periodButtonTextActive,
                       ]}
                     >
                       Ce mois
@@ -857,9 +854,9 @@ export default function MerchantAccounting() {
 
                   <TouchableOpacity
                     style={[
-                      styles.periodButton,
-                      styles.periodButtonCustom,
-                      activePeriod === "custom" && styles.periodButtonCustomActive,
+                      merchantAccountingStyles.periodButton,
+                      merchantAccountingStyles.periodButtonCustom,
+                      activePeriod === "custom" && merchantAccountingStyles.periodButtonCustomActive,
                     ]}
                     onPress={() => selectPeriod("custom")}
                   >
@@ -868,15 +865,15 @@ export default function MerchantAccounting() {
                       size={16}
                       color={COLORS.primary}
                     />
-                    <Text style={styles.periodButtonCustomText}>
+                    <Text style={merchantAccountingStyles.periodButtonCustomText}>
                       Personnalisé
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 {activePeriod === "custom" && (
-                  <View style={styles.calendarContainer}>
-                    <View style={styles.calendarHeader}>
+                  <View style={merchantAccountingStyles.calendarContainer}>
+                    <View style={merchantAccountingStyles.calendarHeader}>
                       <TouchableOpacity
                         onPress={() => {
                           const prevMonth = new Date(calendarDate);
@@ -891,7 +888,7 @@ export default function MerchantAccounting() {
                         />
                       </TouchableOpacity>
 
-                      <Text style={styles.calendarTitle}>
+                      <Text style={merchantAccountingStyles.calendarTitle}>
                         {format(calendarDate, "MMMM yyyy", { locale: fr })}
                       </Text>
 
@@ -910,21 +907,21 @@ export default function MerchantAccounting() {
                       </TouchableOpacity>
                     </View>
 
-                    <View style={styles.weekDaysContainer}>
+                    <View style={merchantAccountingStyles.weekDaysContainer}>
                       {["L", "M", "M", "J", "V", "S", "D"].map((day, index) => (
-                        <Text key={index} style={styles.weekDayText}>
+                        <Text key={index} style={merchantAccountingStyles.weekDayText}>
                           {day}
                         </Text>
                       ))}
                     </View>
 
-                    <View style={styles.datesContainer}>
+                    <View style={merchantAccountingStyles.datesContainer}>
                       {generateCalendarDays()}
                     </View>
 
                     {selectedDate && (
-                      <View style={styles.selectedDateInfo}>
-                        <Text style={styles.selectedDateText}>
+                      <View style={merchantAccountingStyles.selectedDateInfo}>
+                        <Text style={merchantAccountingStyles.selectedDateText}>
                           Date sélectionnée :{" "}
                           {format(selectedDate, "dd MMMM yyyy", { locale: fr })}
                         </Text>
@@ -935,19 +932,19 @@ export default function MerchantAccounting() {
               </View>
             </ScrollView>
 
-            <View style={styles.modalActions}>
+            <View style={merchantAccountingStyles.modalActions}>
               <TouchableOpacity
-                style={styles.resetButton}
+                style={merchantAccountingStyles.resetButton}
                 onPress={clearDateFilter}
               >
-                <Text style={styles.resetButtonText}>Réinitialiser</Text>
+                <Text style={merchantAccountingStyles.resetButtonText}>Réinitialiser</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.applyButton}
+                style={merchantAccountingStyles.applyButton}
                 onPress={handleApplyFilters}
               >
-                <Text style={styles.applyButtonText}>
+                <Text style={merchantAccountingStyles.applyButtonText}>
                   Appliquer les filtres
                 </Text>
               </TouchableOpacity>
@@ -958,602 +955,3 @@ export default function MerchantAccounting() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  header: {
-    paddingTop: 48,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-  },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    color: COLORS.white,
-    fontSize: 16,
-  },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    position: "relative",
-  },
-  filterButtonActive: {
-    borderColor: COLORS.primary,
-  },
-  filterIndicator: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.primary,
-  },
-  dateFilterContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  dateFilterContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: COLORS.card,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#13ec1330",
-  },
-  dateFilterText: {
-    flex: 1,
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  tabsContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    paddingBottom: 8,
-  },
-  tabsScroll: {
-    paddingHorizontal: 16,
-  },
-  tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 24,
-    alignItems: "center",
-  },
-  activeTab: {},
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.muted,
-    marginBottom: 6,
-  },
-  activeTabText: {
-    color: COLORS.primary,
-    fontWeight: "700",
-  },
-  tabIndicator: {
-    height: 3,
-    width: "100%",
-    backgroundColor: "transparent",
-    borderRadius: 1.5,
-  },
-  activeTabIndicator: {
-    backgroundColor: COLORS.primary,
-  },
-  globalSummary: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  globalCard: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  globalLabel: {
-    fontSize: 10,
-    color: COLORS.muted,
-    marginBottom: 2,
-  },
-  globalValue: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 120,
-  },
-  merchantCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    overflow: "hidden",
-  },
-  merchantCardClosed: {
-    borderColor: COLORS.success + "30",
-    opacity: 0.8,
-  },
-  merchantHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-  },
-  merchantAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primarySoft,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
-  merchantInitial: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  merchantInfo: {
-    flex: 1,
-  },
-  merchantNameContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
-  },
-  merchantName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  closedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: COLORS.success + "20",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  closedBadgeText: {
-    fontSize: 10,
-    color: COLORS.success,
-    fontWeight: "600",
-  },
-  merchantContact: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 2,
-  },
-  merchantContactText: {
-    fontSize: 12,
-    color: COLORS.muted,
-    flex: 1,
-  },
-  deliveryCount: {
-    alignItems: "flex-end",
-    marginRight: 8,
-  },
-  deliveryCountNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  deliveryCountLabel: {
-    fontSize: 10,
-    color: COLORS.muted,
-  },
-  expandedContent: {
-    padding: 16,
-    paddingTop: 0,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  financialSection: {
-    backgroundColor: COLORS.card,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  financialRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  financialLabel: {
-    fontSize: 13,
-    color: COLORS.muted,
-  },
-  financialValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.white,
-  },
-  recentDeliveries: {
-    marginBottom: 16,
-  },
-  recentDeliveriesTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
-  },
-  deliveryPreview: {
-    backgroundColor: COLORS.card,
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  deliveryPreviewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  deliveryPreviewName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.white,
-  },
-  deliveryPreviewDate: {
-    fontSize: 11,
-    color: COLORS.muted,
-  },
-  deliveryPreviewAddress: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginBottom: 4,
-  },
-  deliveryPreviewFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  deliveryPreviewFee: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  reversedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  reversedBadgeText: {
-    fontSize: 11,
-    color: COLORS.success,
-  },
-  moreDeliveries: {
-    fontSize: 11,
-    color: COLORS.muted,
-    textAlign: "center",
-    marginTop: 4,
-  },
-  closeButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-  closeButtonText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginTop: 16,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: "center",
-    marginTop: 8,
-    paddingHorizontal: 32,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    maxHeight: "90%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.white,
-    textAlign: "center",
-    flex: 1,
-  },
-  modalResetButton: {
-    width: 40,
-    alignItems: "flex-end",
-  },
-  modalResetText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalScrollView: {
-    paddingHorizontal: 20,
-    maxHeight: 500,
-  },
-  modalSection: {
-    marginBottom: 32,
-  },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginBottom: 16,
-  },
-  periodButtonsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 20,
-  },
-  periodButton: {
-    height: 40,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: "#2d3d2d",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  periodButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  periodButtonCustom: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  periodButtonCustomActive: {
-    backgroundColor: COLORS.primarySoft,
-    borderWidth: 2,
-  },
-  periodButtonText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.muted,
-  },
-  periodButtonTextActive: {
-    color: COLORS.background,
-    fontWeight: "bold",
-  },
-  periodButtonCustomText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.primary,
-  },
-  calendarContainer: {
-    backgroundColor: "#2d3d2d",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#3d4d3d",
-  },
-  calendarHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  calendarTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  weekDaysContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 12,
-  },
-  weekDayText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: COLORS.muted,
-    width: 32,
-    textAlign: "center",
-  },
-  datesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-  },
-  calendarDay: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 2,
-    borderRadius: 16,
-    position: "relative",
-  },
-  calendarDayToday: {
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  calendarDaySelected: {
-    backgroundColor: COLORS.primary,
-  },
-  calendarDayHasDeliveries: {
-    backgroundColor: COLORS.primarySoft,
-  },
-  calendarDayInactive: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 2,
-  },
-  calendarDayText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: COLORS.white,
-  },
-  calendarDayTextToday: {
-    color: COLORS.primary,
-    fontWeight: "bold",
-  },
-  calendarDayTextSelected: {
-    color: COLORS.background,
-    fontWeight: "bold",
-  },
-  calendarDayTextInactive: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
-  deliveryIndicator: {
-    position: "absolute",
-    bottom: 2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.primary,
-  },
-  selectedDateInfo: {
-    marginTop: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderVeryLight,
-  },
-  selectedDateText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 20,
-    paddingTop: 0,
-    marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  resetButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: "#2d3d2d",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  applyButton: {
-    flex: 2,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.background,
-  },
-});

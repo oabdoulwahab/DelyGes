@@ -1,7 +1,9 @@
 import { StyleSheet } from "react-native";
 import { COLORS } from "./colors";
+import { SPACING } from "./spacing";
 
 export const settingsStyles = StyleSheet.create({
+  // Header
   header: {
     position: 'absolute',
     top: 0,
@@ -11,11 +13,12 @@ export const settingsStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 60,
-    paddingBottom: 16,
+    paddingHorizontal: SPACING.md,
+    paddingTop: 48,
+    paddingBottom: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderVeryLight,
+    backgroundColor: COLORS.background,
   },
   backButton: {
     width: 40,
@@ -30,39 +33,43 @@ export const settingsStyles = StyleSheet.create({
     color: COLORS.white,
   },
   saveButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
   },
   saveButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.primary,
   },
+
+  // Content
   content: {
     flex: 1,
-    marginTop: 124,
+    marginTop: 104, // Hauteur du header (48 + padding)
   },
   scrollContent: {
     paddingBottom: 100,
   },
+
+  // Profile section
   profileSection: {
     alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 20,
+    paddingVertical: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
   },
   profileImageContainer: {
     position: 'relative',
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   profileImage: {
     width: 112,
     height: 112,
     borderRadius: 56,
-    backgroundColor: '#1a331a',
+    backgroundColor: COLORS.primarySoft,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: '#1a331a',
+    borderColor: COLORS.primarySoft,
     overflow: 'hidden',
   },
   onlineIndicator: {
@@ -86,27 +93,31 @@ export const settingsStyles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: COLORS.white,
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   profileSubtitle: {
     fontSize: 14,
     color: COLORS.muted,
   },
+
+  // Section
   sectionTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.muted,
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 8,
-    marginLeft: 8,
+    marginBottom: SPACING.xs,
+    marginLeft: SPACING.xs,
   },
+
+  // Card items
   cardItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderVeryLight,
   },
@@ -116,7 +127,7 @@ export const settingsStyles = StyleSheet.create({
   cardItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: SPACING.sm,
     flex: 1,
   },
   cardItemLabel: {
@@ -133,18 +144,20 @@ export const settingsStyles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
     fontSize: 16,
-    color: COLORS.muted,
+    color: COLORS.white,
     padding: 0,
   },
   cardItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING.xs,
   },
   cardItemValue: {
     fontSize: 16,
-    color: COLORS.muted,
+    color: COLORS.white,
   },
+
+  // Goal input
   goalInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -152,7 +165,7 @@ export const settingsStyles = StyleSheet.create({
   goalInput: {
     fontSize: 16,
     fontWeight: '600',
-    color: COLORS.muted,
+    color: COLORS.white,
     textAlign: 'right',
     minWidth: 60,
     padding: 0,
@@ -160,8 +173,10 @@ export const settingsStyles = StyleSheet.create({
   currency: {
     fontSize: 16,
     color: COLORS.muted,
-    marginLeft: 4,
+    marginLeft: SPACING.xs,
   },
+
+  // Notification
   notificationContent: {
     flexDirection: 'column',
     gap: 2,
@@ -170,73 +185,83 @@ export const settingsStyles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.muted,
   },
+
+  // Danger item
   cardItemDanger: {
     backgroundColor: COLORS.dangerSoft,
   },
+
+  // Logout button
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: SPACING.xs,
     backgroundColor: COLORS.card,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
     borderRadius: 28,
-    paddingVertical: 16,
-    marginHorizontal: 20,
-    marginTop: 16,
+    paddingVertical: SPACING.md,
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.md,
   },
   logoutButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: COLORS.danger,
   },
+
+  // Version
   versionText: {
     textAlign: 'center',
     fontSize: 12,
     color: COLORS.muted,
-    marginTop: 24,
+    marginTop: SPACING.lg,
   },
 
-
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: COLORS.background,
   },
   loadingText: {
-    marginTop: 16,
+    marginTop: SPACING.md,
     fontSize: 16,
     color: COLORS.muted,
   },
+
+  // Auth error
   authErrorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: SPACING.lg,
+    backgroundColor: COLORS.background,
   },
   authErrorText: {
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.danger,
-    marginTop: 16,
+    marginTop: SPACING.md,
   },
   authErrorButton: {
-    marginTop: 24,
+    marginTop: SPACING.lg,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
     borderRadius: 12,
   },
   authErrorButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: "#FFFFFF",
   },
-   userIdText: {
+  userIdText: {
     fontSize: 12,
     color: COLORS.muted,
-    marginTop: 4,
+    marginTop: SPACING.xs,
     opacity: 0.7,
   },
 });
