@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { View, ActivityIndicator, Text } from "react-native";
 import { useAuth } from "../src/hooks/useAuth";
 
+
 export default function Index() {
   const { isAuthenticated, isLoading } = useAuth();
   const [isChecking, setIsChecking] = useState(true);

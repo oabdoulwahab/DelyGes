@@ -6,6 +6,7 @@ import {
   ScrollView,
   SafeAreaView,
   Switch,
+  ActivityIndicator,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
@@ -36,6 +37,18 @@ type UserSettings = {
 export default function Settings() {
   const { user, isAuthenticated, logout, authReady } = useAuth();
   const [appVersion, setAppVersion] = useState("");
+  const [passwordExpanded, setPasswordExpanded] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordErrors, setPasswordErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const { autoSave } = useAutoSave({
     userId: user?.id ?? 0,
@@ -211,6 +224,79 @@ export default function Settings() {
     }
   }, [authReady, isAuthenticated, user]);
 
+  const validatePassword = () => {
+    const errors = {
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    };
+    let isValid = true;
+
+    if (!passwordData.currentPassword) {
+      errors.currentPassword = "Mot de passe actuel requis";
+      isValid = false;
+    }
+
+    if (!passwordData.newPassword) {
+      errors.newPassword = "Nouveau mot de passe requis";
+      isValid = false;
+    } else if (passwordData.newPassword.length < 6) {
+      errors.newPassword = "Minimum 6 caractères";
+      isValid = false;
+    }
+
+    if (!passwordData.confirmPassword) {
+      errors.confirmPassword = "Confirmation requise";
+      isValid = false;
+    } else if (passwordData.newPassword !== passwordData.confirmPassword) {
+      errors.confirmPassword = "Les mots de passe ne correspondent pas";
+      isValid = false;
+    }
+
+    setPasswordErrors(errors);
+    return isValid;
+  };
+
+  const handleChangePassword = async () => {
+    if (!validatePassword()) return;
+
+    setIsChangingPassword(true);
+    try {
+      // Vérifier l'ancien mot de passe
+      const userData = await db.getFirstAsync<any>(
+        "SELECT password FROM user WHERE id = ?",
+        [user.id]
+      );
+
+      if (userData.password !== passwordData.currentPassword) {
+        showError("Erreur", "Mot de passe actuel incorrect");
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // Mettre à jour le mot de passe
+      await db.runAsync(
+        "UPDATE user SET password = ? WHERE id = ?",
+        [passwordData.newPassword, user.id]
+      );
+
+      showSuccess("Succès", "Mot de passe modifié avec succès");
+      
+      // Réinitialiser le formulaire et replier
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+      setPasswordExpanded(false);
+    } catch (error) {
+      console.error("❌ Erreur changement mot de passe:", error);
+      showError("Erreur", "Impossible de modifier le mot de passe");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   // Modifiez la condition de chargement
   if (isLoading || !authReady) {
     return (
@@ -245,13 +331,6 @@ export default function Settings() {
     showAlert(
       "Sauvegarde",
       "Les modifications sont enregistrées automatiquement ✅",
-    );
-  };
-
-  const handleChangePassword = () => {
-    showAlert(
-      "Changer le mot de passe",
-      "Cette fonctionnalité sera disponible prochainement.",
     );
   };
 
@@ -527,14 +606,14 @@ export default function Settings() {
           <Text style={settingsStyles.sectionTitle}>DONNÉES & SÉCURITÉ</Text>
 
           <View style={commonStyles.card}>
-            {/* Changer le mot de passe */}
+            {/* Changer le mot de passe - Menu déroulant */}
             <TouchableOpacity
               style={settingsStyles.cardItem}
-              onPress={handleChangePassword}
+              onPress={() => setPasswordExpanded(!passwordExpanded)}
             >
               <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons
-                  name="lock-reset"
+                  name={passwordExpanded ? "lock-open" : "lock"}
                   size={20}
                   color={COLORS.muted}
                 />
@@ -543,11 +622,106 @@ export default function Settings() {
                 </Text>
               </View>
               <MaterialIcons
-                name="arrow-forward-ios"
-                size={14}
+                name={passwordExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                size={24}
                 color={COLORS.muted}
               />
             </TouchableOpacity>
+
+            {/* Contenu déroulant du changement de mot de passe */}
+            {passwordExpanded && (
+              <View style={settingsStyles.passwordExpandedContent}>
+                {/* Mot de passe actuel */}
+                <View style={settingsStyles.passwordInputGroup}>
+                  <Text style={settingsStyles.passwordLabel}>Mot de passe actuel</Text>
+                  <TextInput
+                    style={[
+                      settingsStyles.passwordInput,
+                      passwordErrors.currentPassword && settingsStyles.passwordInputError
+                    ]}
+                    placeholder="••••••••"
+                    placeholderTextColor={COLORS.inputPlaceholder}
+                    secureTextEntry
+                    value={passwordData.currentPassword}
+                    onChangeText={(text) => {
+                      setPasswordData({ ...passwordData, currentPassword: text });
+                      setPasswordErrors({ ...passwordErrors, currentPassword: "" });
+                    }}
+                  />
+                  {passwordErrors.currentPassword ? (
+                    <Text style={settingsStyles.passwordErrorText}>
+                      {passwordErrors.currentPassword}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {/* Nouveau mot de passe */}
+                <View style={settingsStyles.passwordInputGroup}>
+                  <Text style={settingsStyles.passwordLabel}>Nouveau mot de passe</Text>
+                  <TextInput
+                    style={[
+                      settingsStyles.passwordInput,
+                      passwordErrors.newPassword && settingsStyles.passwordInputError
+                    ]}
+                    placeholder="••••••••"
+                    placeholderTextColor={COLORS.inputPlaceholder}
+                    secureTextEntry
+                    value={passwordData.newPassword}
+                    onChangeText={(text) => {
+                      setPasswordData({ ...passwordData, newPassword: text });
+                      setPasswordErrors({ ...passwordErrors, newPassword: "" });
+                    }}
+                  />
+                  {passwordErrors.newPassword ? (
+                    <Text style={settingsStyles.passwordErrorText}>
+                      {passwordErrors.newPassword}
+                    </Text>
+                  ) : null}
+                  <Text style={settingsStyles.passwordHint}>
+                    Minimum 6 caractères
+                  </Text>
+                </View>
+
+                {/* Confirmer nouveau mot de passe */}
+                <View style={settingsStyles.passwordInputGroup}>
+                  <Text style={settingsStyles.passwordLabel}>Confirmer le mot de passe</Text>
+                  <TextInput
+                    style={[
+                      settingsStyles.passwordInput,
+                      passwordErrors.confirmPassword && settingsStyles.passwordInputError
+                    ]}
+                    placeholder="••••••••"
+                    placeholderTextColor={COLORS.inputPlaceholder}
+                    secureTextEntry
+                    value={passwordData.confirmPassword}
+                    onChangeText={(text) => {
+                      setPasswordData({ ...passwordData, confirmPassword: text });
+                      setPasswordErrors({ ...passwordErrors, confirmPassword: "" });
+                    }}
+                  />
+                  {passwordErrors.confirmPassword ? (
+                    <Text style={settingsStyles.passwordErrorText}>
+                      {passwordErrors.confirmPassword}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {/* Bouton de confirmation */}
+                <TouchableOpacity
+                  style={settingsStyles.passwordConfirmButton}
+                  onPress={handleChangePassword}
+                  disabled={isChangingPassword}
+                >
+                  {isChangingPassword ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={settingsStyles.passwordConfirmButtonText}>
+                      Mettre à jour le mot de passe
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
 
             {/* Exporter les données */}
             <TouchableOpacity

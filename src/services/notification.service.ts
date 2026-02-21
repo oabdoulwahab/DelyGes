@@ -1,9 +1,9 @@
-// src/services/notification.service.ts
 import * as Notifications from 'expo-notifications';
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 import { db } from '../database/db';
+import { NotificationStore } from './notification.store';
 
 // Définition des tâches en arrière-plan
 const BACKGROUND_FETCH_TASK = 'check-delivery-reminder';
@@ -12,6 +12,9 @@ const ENCOURAGEMENT_TASK = 'send-encouragement-notifications';
 // Configurer les notifications
 export const setupNotifications = async () => {
   try {
+    // Initialiser la table des notifications
+    await NotificationStore.initTable();
+    
     // Demander les permissions
     const { status } = await Notifications.requestPermissionsAsync();
     
@@ -115,12 +118,22 @@ export const sendPendingReminderNotification = async (userId: number) => {
       return;
     }
 
+    // Stocker dans la base
+    const notificationId = await NotificationStore.add({
+      type: 'pending_reminder',
+      title,
+      body,
+      data: { pendingCount: pending.pendingCount, hours: pending.oldestPendingHours },
+      userId
+    });
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         data: { 
           type: 'pending_reminder', 
+          notificationId,
           userId,
           pendingCount: pending.pendingCount
         },
@@ -206,11 +219,27 @@ export const sendInactivityReminderNotification = async (userId: number) => {
     
     // Si pas d'activité récente, envoyer une notification
     if (!recent.hasRecent) {
+      const title = '📦 Rappel de livraison';
+      const body = `Bonjour ${user.name}, n'oubliez pas de saisir vos livraisons du jour !`;
+
+      // Stocker dans la base
+      const notificationId = await NotificationStore.add({
+        type: 'inactivity_reminder',
+        title,
+        body,
+        data: { hoursSinceLast: recent.hoursSinceLast },
+        userId
+      });
+
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '📦 Rappel de livraison',
-          body: `Bonjour ${user.name}, n'oubliez pas de saisir vos livraisons du jour !`,
-          data: { type: 'inactivity_reminder', userId },
+          title,
+          body,
+          data: { 
+            type: 'inactivity_reminder', 
+            notificationId,
+            userId 
+          },
           sound: true,
           badge: 1,
         },
@@ -223,11 +252,27 @@ export const sendInactivityReminderNotification = async (userId: number) => {
     
     // Si activité il y a plus de 12h
     if (recent.hoursSinceLast >= 12) {
+      const title = '⏰ Rappel de saisie';
+      const body = `Il est temps d'ajouter de nouvelles livraisons ! (${recent.hoursSinceLast}h)`;
+
+      // Stocker dans la base
+      const notificationId = await NotificationStore.add({
+        type: 'reminder_12h',
+        title,
+        body,
+        data: { hoursSinceLast: recent.hoursSinceLast },
+        userId
+      });
+
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '⏰ Rappel de saisie',
-          body: `Il est temps d'ajouter de nouvelles livraisons ! (${recent.hoursSinceLast}h)`,
-          data: { type: 'reminder_12h', userId },
+          title,
+          body,
+          data: { 
+            type: 'reminder_12h', 
+            notificationId,
+            userId 
+          },
           sound: true,
         },
         trigger: null,
@@ -321,8 +366,20 @@ export const sendEncouragementNotification = async (userId: number) => {
         body = `${activity.recentCompleted} livraison(s) terminée(s) aujourd'hui`;
       }
 
-      // CORRECTION ICI : trigger avec délai manuel au lieu de scheduleNotificationAsync
-      // Pour un délai de 30 secondes, on utilise setTimeout
+      // Stocker dans la base
+      const notificationId = await NotificationStore.add({
+        type: 'encouragement',
+        title,
+        body,
+        data: { 
+          recentCreated: activity.recentCreated, 
+          recentCompleted: activity.recentCompleted,
+          totalToday: activity.totalToday
+        },
+        userId
+      });
+
+      // Délai de 30 secondes
       setTimeout(async () => {
         try {
           await Notifications.scheduleNotificationAsync({
@@ -331,18 +388,19 @@ export const sendEncouragementNotification = async (userId: number) => {
               body,
               data: { 
                 type: 'encouragement', 
+                notificationId,
                 userId,
                 recentCreated: activity.recentCreated,
                 recentCompleted: activity.recentCompleted
               },
               sound: true,
             },
-            trigger: null, // Notification immédiate après le délai
+            trigger: null,
           });
         } catch (notificationError) {
           console.error('❌ Erreur notification encouragement retardée:', notificationError);
         }
-      }, 30000); // 30 secondes
+      }, 30000);
 
       console.log(`💪 Encouragement programmé dans 30s: ${activity.recentCreated} nouvelles, ${activity.recentCompleted} terminées`);
     }
@@ -403,12 +461,27 @@ export const sendDeliveryCompletedNotification = async (userId: number, amount: 
       body = `En attente : ${pendingCount} • Aujourd'hui : ${todayTotal.toLocaleString('fr-FR')} FCFA`;
     }
 
+    // Stocker dans la base
+    const notificationId = await NotificationStore.add({
+      type: 'delivery_progress',
+      title,
+      body,
+      data: { 
+        amount, 
+        todayTotal, 
+        todayCount, 
+        pendingCount 
+      },
+      userId
+    });
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
         body,
         data: { 
           type: 'delivery_progress', 
+          notificationId,
           userId,
           amount,
           todayTotal,
@@ -561,11 +634,28 @@ export const sendDeliveryCreatedNotification = async (userId: number, deliveryCo
       return;
     }
 
+    const title = '✅ Livraison enregistrée';
+    const body = `Vous avez ${deliveryCount} livraison(s) en attente de traitement.`;
+
+    // Stocker dans la base
+    const notificationId = await NotificationStore.add({
+      type: 'delivery_created',
+      title,
+      body,
+      data: { deliveryCount },
+      userId
+    });
+
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '✅ Livraison enregistrée',
-        body: `Vous avez ${deliveryCount} livraison(s) en attente de traitement.`,
-        data: { type: 'delivery_created', userId, deliveryCount },
+        title,
+        body,
+        data: { 
+          type: 'delivery_created', 
+          notificationId,
+          userId, 
+          deliveryCount 
+        },
         sound: true,
       },
       trigger: null,
@@ -592,11 +682,27 @@ export const sendAllDeliveriesCompletedNotification = async (userId: number) => 
       return;
     }
 
+    const title = '🏆 Bravo !';
+    const body = 'Toutes vos livraisons sont terminées !';
+
+    // Stocker dans la base
+    const notificationId = await NotificationStore.add({
+      type: 'all_completed',
+      title,
+      body,
+      data: {},
+      userId
+    });
+
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '🏆 Bravo !',
-        body: 'Toutes vos livraisons sont terminées !',
-        data: { type: 'all_completed', userId },
+        title,
+        body,
+        data: { 
+          type: 'all_completed', 
+          notificationId,
+          userId 
+        },
         sound: true,
         badge: 0,
       },

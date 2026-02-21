@@ -132,7 +132,10 @@ export default function DeliveryDetail() {
 
   const handleCallMerchant = () => {
     if (!merchant?.phone) {
-      showError("Erreur", "Aucun numéro de téléphone disponible pour ce commerçant");
+      showError(
+        "Erreur",
+        "Aucun numéro de téléphone disponible pour ce commerçant",
+      );
       return;
     }
 
@@ -226,8 +229,13 @@ export default function DeliveryDetail() {
     return (
       <View style={deliveryDetailStyles.errorContainer}>
         <MaterialIcons name="error-outline" size={48} color={COLORS.danger} />
-        <Text style={deliveryDetailStyles.errorText}>Livraison introuvable</Text>
-        <TouchableOpacity style={deliveryDetailStyles.backButton} onPress={goBack}>
+        <Text style={deliveryDetailStyles.errorText}>
+          Livraison introuvable
+        </Text>
+        <TouchableOpacity
+          style={deliveryDetailStyles.backButton}
+          onPress={goBack}
+        >
           <Text style={deliveryDetailStyles.backButtonText}>Retour</Text>
         </TouchableOpacity>
       </View>
@@ -236,6 +244,9 @@ export default function DeliveryDetail() {
 
   const statusConfig = getStatusConfig(delivery.status);
   const isDelivered = delivery.status === "LIVREE";
+  const isCancelled = delivery.status === "ANNULEE";
+  const isEditable = !isDelivered && !isCancelled;
+  
   const displayDate =
     isDelivered && delivery.delivered_at
       ? delivery.delivered_at
@@ -328,13 +339,19 @@ export default function DeliveryDetail() {
                     style={deliveryDetailStyles.clientPhoneContainer}
                     onPress={handleCall}
                     activeOpacity={0.7}
+                    disabled={!isEditable}
                   >
                     <MaterialIcons
                       name="phone"
                       size={14}
-                      color={COLORS.primary}
+                      color={isEditable ? COLORS.primary : COLORS.muted}
                     />
-                    <Text style={deliveryDetailStyles.clientPhone}>
+                    <Text
+                      style={[
+                        deliveryDetailStyles.clientPhone,
+                        { color: isEditable ? COLORS.primary : COLORS.muted },
+                      ]}
+                    >
                       {" "}
                       {delivery.phone}
                     </Text>
@@ -372,7 +389,12 @@ export default function DeliveryDetail() {
 
             <View style={commonStyles.card}>
               <View style={deliveryDetailStyles.clientInfo}>
-                <View style={[deliveryDetailStyles.clientAvatar, { backgroundColor: COLORS.primarySoft }]}>
+                <View
+                  style={[
+                    deliveryDetailStyles.clientAvatar,
+                    { backgroundColor: COLORS.primarySoft },
+                  ]}
+                >
                   <Text style={deliveryDetailStyles.clientInitial}>
                     {merchant.name.charAt(0).toUpperCase()}
                   </Text>
@@ -405,7 +427,12 @@ export default function DeliveryDetail() {
                         size={14}
                         color={COLORS.muted}
                       />
-                      <Text style={[deliveryDetailStyles.clientPhone, { color: COLORS.muted }]}>
+                      <Text
+                        style={[
+                          deliveryDetailStyles.clientPhone,
+                          { color: COLORS.muted },
+                        ]}
+                      >
                         {" "}
                         {merchant.address}
                       </Text>
@@ -476,27 +503,52 @@ export default function DeliveryDetail() {
                 <Text style={deliveryDetailStyles.financialSummaryLabel}>
                   Montant encaissé
                 </Text>
-                <Text style={[deliveryDetailStyles.financialSummaryValue, { color: COLORS.primary }]}>
+                <Text
+                  style={[
+                    deliveryDetailStyles.financialSummaryValue,
+                    { color: COLORS.primary },
+                  ]}
+                >
                   {montantEncaisse.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
               {montantAReverser > 0 && (
                 <View style={deliveryDetailStyles.financialSummaryItem}>
-                  <Text style={[deliveryDetailStyles.financialSummaryLabel, { color: COLORS.warning }]}>
+                  <Text
+                    style={[
+                      deliveryDetailStyles.financialSummaryLabel,
+                      { color: COLORS.warning },
+                    ]}
+                  >
                     À reverser au commerçant
                   </Text>
-                  <Text style={[deliveryDetailStyles.financialSummaryValue, { color: COLORS.warning }]}>
+                  <Text
+                    style={[
+                      deliveryDetailStyles.financialSummaryValue,
+                      { color: COLORS.warning },
+                    ]}
+                  >
                     {montantAReverser.toLocaleString("fr-FR")} FCFA
                   </Text>
                 </View>
               )}
 
               <View style={deliveryDetailStyles.financialSummaryItem}>
-                <Text style={[deliveryDetailStyles.financialSummaryLabel, { color: COLORS.success }]}>
+                <Text
+                  style={[
+                    deliveryDetailStyles.financialSummaryLabel,
+                    { color: COLORS.success },
+                  ]}
+                >
                   Votre profit
                 </Text>
-                <Text style={[deliveryDetailStyles.financialSummaryValue, { color: COLORS.success }]}>
+                <Text
+                  style={[
+                    deliveryDetailStyles.financialSummaryValue,
+                    { color: COLORS.success },
+                  ]}
+                >
                   {profit.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
@@ -563,38 +615,56 @@ export default function DeliveryDetail() {
         </View>
       </ScrollView>
 
-      {/* Actions */}
-      <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
-        <TouchableOpacity
-          style={deliveryDetailStyles.primaryButton}
-          onPress={handleCall}
-        >
-          <MaterialIcons name="phone" size={20} color="#FFFFFF" />
-          <Text style={deliveryDetailStyles.primaryButtonText}>
-            Appeler le client
-          </Text>
-        </TouchableOpacity>
-
-        <View style={deliveryDetailStyles.actionButtonsRow}>
+      {/* Actions - Affichage conditionnel selon le statut */}
+      {isEditable ? (
+        // Mode édition : Afficher tous les boutons
+        <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
           <TouchableOpacity
-            style={deliveryDetailStyles.editButton}
-            onPress={() => {
-              showAlert("Info", "Modification - fonctionnalité à venir");
-            }}
+            style={deliveryDetailStyles.primaryButton}
+            onPress={handleCall}
           >
-            <MaterialIcons name="edit" size={20} color={COLORS.white} />
-            <Text style={deliveryDetailStyles.editButtonText}>Modifier</Text>
+            <MaterialIcons name="phone" size={20} color="#FFFFFF" />
+            <Text style={deliveryDetailStyles.primaryButtonText}>
+              Appeler le client
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={deliveryDetailStyles.dangerButton}
-            onPress={handleDelete}
-          >
-            <MaterialIcons name="delete" size={20} color={COLORS.danger} />
-            <Text style={deliveryDetailStyles.dangerButtonText}>Supprimer</Text>
-          </TouchableOpacity>
-        </View>
-      </BlurView>
+          <View style={deliveryDetailStyles.actionButtonsRow}>
+            <TouchableOpacity
+              style={deliveryDetailStyles.editButton}
+              onPress={() => router.push(`/add-delivery?id=${delivery.id}`)}
+            >
+              <MaterialIcons name="edit" size={20} color={COLORS.white} />
+              <Text style={deliveryDetailStyles.editButtonText}>Modifier</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={deliveryDetailStyles.dangerButton}
+              onPress={handleDelete}
+            >
+              <MaterialIcons name="delete" size={20} color={COLORS.danger} />
+              <Text style={deliveryDetailStyles.dangerButtonText}>
+                Supprimer
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      ) : (
+        // Mode lecture seule : Afficher seulement le bouton supprimer
+        <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
+          <View style={deliveryDetailStyles.actionButtonsRow}>
+            <TouchableOpacity
+              style={deliveryDetailStyles.dangerButton}
+              onPress={handleDelete}
+            >
+              <MaterialIcons name="delete" size={20} color={COLORS.danger} />
+              <Text style={deliveryDetailStyles.dangerButtonText}>
+                Supprimer
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      )}
     </View>
   );
 }

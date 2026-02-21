@@ -3,6 +3,19 @@ import { COLORS } from "./colors";
 import { SPACING } from "./spacing";
 
 export const addDeliveryStyles = StyleSheet.create({
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: SPACING.md,
+    color: COLORS.muted,
+    fontSize: 16,
+  },
+
   // Header
   header: {
     paddingTop: 48,
@@ -25,9 +38,14 @@ export const addDeliveryStyles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 16,
   },
-  saveButtonPlaceholder: {
-    width: 60,
-    height: 30,
+  saveButtonHeader: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  saveButtonHeaderText: {
+    color: COLORS.primary,
+    fontSize: 16,
+    fontWeight: "600",
   },
 
   // Scroll

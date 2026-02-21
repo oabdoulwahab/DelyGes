@@ -1,6 +1,7 @@
 export const COLORS = {
   background: "#FFFFFF", // Fond blanc pur
   card: "#F8FAFC",       // Gris très clair pour les cartes
+  profilCard: "#F1F5F9",   // Gris clair pour les cartes de profil
 
   inputBackground: "#F1F5F9",
   inputBorder: "#E2E8F0",

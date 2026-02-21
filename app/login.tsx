@@ -41,7 +41,7 @@ type LoginFormData = {
 export default function Login() {
   const { login, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const { showAlert } = useModal(); 
+  const { showAlert } = useModal();
 
   const {
     control,
@@ -68,7 +68,7 @@ export default function Login() {
   };
 
   const handleForgotPassword = () => {
-    showAlert("Mot de passe oublié", "Veuillez contacter l'administrateur.");
+    router.push("/forgot-password");
   };
 
   return (

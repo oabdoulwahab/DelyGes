@@ -1,9 +1,4 @@
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-} from "react-native";
+import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useEffect, useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { db } from "../src/database/db";
@@ -13,6 +8,7 @@ import { commonStyles } from "../styles/common";
 import { dashboardStyles } from "../styles/dashboardStyles";
 import { COLORS } from "../styles/colors";
 import { useModal } from "../providers/ModalProvider";
+import NotificationBadge from "../components/NotificationBadge";
 
 // Définition des types
 type User = {
@@ -41,6 +37,7 @@ export default function Dashboard() {
   const [monthGoal, setMonthGoal] = useState(0);
   const [todayDeliveries, setTodayDeliveries] = useState<Delivery[]>([]);
   const [userName, setUserName] = useState("");
+  const [userInitial, setUserInitial] = useState("?");
   const { showAlert } = useModal();
   const [todayEncaisse, setTodayEncaisse] = useState(0);
   const [todayAReverser, setTodayAReverser] = useState(0);
@@ -61,10 +58,30 @@ export default function Dashboard() {
       const user = await db.getFirstAsync<User>(
         "SELECT name FROM user LIMIT 1",
       );
-      if (user) setUserName(user.name || "Livreur");
+      if (user) {
+        setUserName(user.name || "Livreur");
+        // Extraire la première lettre du prénom ou du nom
+        const initial = user.name?.trim().charAt(0).toUpperCase() || "?";
+        setUserInitial(initial);
+      }
     };
     loadUser();
   }, []);
+
+  // Fonction pour obtenir une couleur basée sur l'initiale
+  const getAvatarColor = (initial: string) => {
+    const colors = [
+      COLORS.primary,
+      "#00CCBC",
+      "#2D6DF6",
+      "#F59E0B",
+      "#EF4444",
+      "#8B5CF6",
+      "#EC4899",
+    ];
+    const index = initial.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
 
   const loadStats = async () => {
     const today = new Date().toISOString().split("T")[0];
@@ -236,7 +253,15 @@ export default function Dashboard() {
       <BlurView intensity={95} style={dashboardStyles.header}>
         <View style={dashboardStyles.headerContent}>
           <View style={dashboardStyles.profileSection}>
-            <View style={dashboardStyles.profileImage} />
+            {/* Avatar avec initiale */}
+            <View
+              style={[
+                dashboardStyles.profileImage,
+                { backgroundColor: getAvatarColor(userInitial) },
+              ]}
+            >
+              <Text style={dashboardStyles.profileInitial}>{userInitial}</Text>
+            </View>
             <View>
               <Text style={dashboardStyles.greeting}>Bonjour,</Text>
               <Text style={dashboardStyles.name}>{userName}</Text>
@@ -244,18 +269,17 @@ export default function Dashboard() {
           </View>
 
           <View style={dashboardStyles.headerActions}>
-            <TouchableOpacity style={dashboardStyles.notificationButton}>
-              <MaterialIcons
-                name="notifications"
-                size={20}
-                color={COLORS.muted}
-              />
-            </TouchableOpacity>
+            <View style={dashboardStyles.headerActions}>
+              <NotificationBadge />
+            </View>
           </View>
         </View>
       </BlurView>
 
-      <ScrollView style={dashboardStyles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={dashboardStyles.content}
+        showsVerticalScrollIndicator={false}
+      >
         {/* En-tête avec date */}
         <View style={dashboardStyles.dateHeader}>
           <View>
@@ -288,21 +312,17 @@ export default function Dashboard() {
                 />
               </View>
             </View>
-            
+
             <TouchableOpacity
               style={dashboardStyles.accountingButton}
               onPress={() => router.push("/merchant-accounting")}
             >
-              <MaterialIcons
-                name="account-balance"
-                size={20}
-                color="#FFFFFF"
-              />
+              <MaterialIcons name="account-balance" size={20} color="#FFFFFF" />
               <Text style={dashboardStyles.accountingText}>
                 Comptabilité des commerçants
               </Text>
             </TouchableOpacity>
-            
+
             <View style={dashboardStyles.financeCard}>
               <Text style={dashboardStyles.financeTitle}>Résumé Financier</Text>
 
@@ -315,14 +335,24 @@ export default function Dashboard() {
 
               <View style={dashboardStyles.financeRow}>
                 <Text style={dashboardStyles.financeLabel}>À reverser</Text>
-                <Text style={[dashboardStyles.financeValue, { color: COLORS.warning }]}>
+                <Text
+                  style={[
+                    dashboardStyles.financeValue,
+                    { color: COLORS.warning },
+                  ]}
+                >
                   {todayAReverser.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
               <View style={dashboardStyles.financeRow}>
                 <Text style={dashboardStyles.financeLabel}>Profit réel</Text>
-                <Text style={[dashboardStyles.financeValue, { color: COLORS.success }]}>
+                <Text
+                  style={[
+                    dashboardStyles.financeValue,
+                    { color: COLORS.success },
+                  ]}
+                >
                   {todayProfit.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
@@ -331,13 +361,20 @@ export default function Dashboard() {
                 <Text style={dashboardStyles.financeLabel}>
                   En attente de reversement
                 </Text>
-                <Text style={[dashboardStyles.financeValue, { color: COLORS.primary }]}>
+                <Text
+                  style={[
+                    dashboardStyles.financeValue,
+                    { color: COLORS.primary },
+                  ]}
+                >
                   {pendingReversal.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
               <View style={dashboardStyles.financeRow}>
-                <Text style={dashboardStyles.financeLabel}>Livraisons aujourd’hui</Text>
+                <Text style={dashboardStyles.financeLabel}>
+                  Livraisons aujourd’hui
+                </Text>
                 <Text style={dashboardStyles.financeValue}>{todayCount}</Text>
               </View>
             </View>
@@ -345,14 +382,16 @@ export default function Dashboard() {
             <Text style={dashboardStyles.mainAmount}>
               {(todayEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
-            
+
             <View style={dashboardStyles.trendContainer}>
               <View
                 style={[
                   dashboardStyles.trendBadge,
                   {
                     backgroundColor:
-                      trendPercent >= 0 ? dashboardStyles.trendBadgeUp.backgroundColor : dashboardStyles.trendBadgeDown.backgroundColor,
+                      trendPercent >= 0
+                        ? dashboardStyles.trendBadgeUp.backgroundColor
+                        : dashboardStyles.trendBadgeDown.backgroundColor,
                   },
                 ]}
               >

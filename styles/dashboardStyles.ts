@@ -19,12 +19,24 @@ export const dashboardStyles = StyleSheet.create({
     gap: 12,
     alignItems: "center",
   },
+  
+  // Avatar avec initiale
   profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.card,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: COLORS.primarySoft,
   },
+  profileInitial: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+
   greeting: {
     color: COLORS.muted,
     fontSize: 12,

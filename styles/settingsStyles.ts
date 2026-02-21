@@ -264,4 +264,62 @@ export const settingsStyles = StyleSheet.create({
     marginTop: SPACING.xs,
     opacity: 0.7,
   },
+
+  // Styles pour le menu déroulant de changement de mot de passe
+  passwordExpandedContent: {
+    padding: SPACING.md,
+    backgroundColor: COLORS.card,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderVeryLight,
+  },
+  passwordInputGroup: {
+    marginBottom: SPACING.md,
+  },
+  passwordLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: COLORS.muted,
+    marginBottom: SPACING.xs,
+    marginLeft: 4,
+  },
+  passwordInput: {
+    backgroundColor: COLORS.inputBackground,
+    borderWidth: 1,
+    borderColor: COLORS.inputBorder,
+    borderRadius: 8,
+    height: 44,
+    paddingHorizontal: SPACING.sm,
+    fontSize: 14,
+    color: COLORS.white,
+  },
+  passwordInputError: {
+    borderColor: COLORS.danger,
+    backgroundColor: COLORS.dangerSoft,
+  },
+  passwordErrorText: {
+    fontSize: 11,
+    color: COLORS.danger,
+    marginTop: 2,
+    marginLeft: 4,
+  },
+  passwordHint: {
+    fontSize: 11,
+    color: COLORS.muted,
+    marginTop: 2,
+    marginLeft: 4,
+    fontStyle: "italic",
+  },
+  passwordConfirmButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: SPACING.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: SPACING.xs,
+  },
+  passwordConfirmButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
 });

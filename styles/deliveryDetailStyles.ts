@@ -245,14 +245,14 @@ export const deliveryDetailStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    alignSelf: 'flex-start',
+    alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
   paymentTypeText: {
     color: COLORS.white,
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   // Financial summary
@@ -263,8 +263,8 @@ export const deliveryDetailStyles = StyleSheet.create({
     borderTopColor: COLORS.borderLight,
   },
   financialSummaryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   financialSummaryLabel: {
@@ -274,7 +274,7 @@ export const deliveryDetailStyles = StyleSheet.create({
   financialSummaryValue: {
     color: COLORS.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 
   // Tracking
@@ -324,13 +324,16 @@ export const deliveryDetailStyles = StyleSheet.create({
   // Action bar
   actionBar: {
     position: "absolute",
-    bottom: 0,
+    bottom: 35,
     left: 0,
     right: 0,
     padding: SPACING.md,
     backgroundColor: COLORS.background,
     borderTopWidth: 1,
     borderTopColor: COLORS.borderLight,
+  },
+  dangerButtonFull: {
+    flex: 2, // Prend toute la largeur quand le bouton modifier est caché
   },
   primaryButton: {
     backgroundColor: COLORS.primary,
@@ -384,5 +387,23 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: COLORS.danger,
+  },
+  // Mode lecture seule
+  actionBarReadOnly: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: SPACING.md,
+    backgroundColor: COLORS.background,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    alignItems: "center",
+  },
+  readOnlyMessage: {
+    fontSize: 14,
+    color: COLORS.muted,
+    fontStyle: "italic",
+    marginBottom: SPACING.sm,
   },
 });
