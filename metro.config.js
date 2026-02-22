@@ -1,17 +1,16 @@
-// metro.config.js
 const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Exclure les assets .wasm du bundling
+// Ajout du support WASM (si vous en avez besoin)
 config.resolver.assetExts.push('wasm');
-config.resolver.sourceExts = config.resolver.sourceExts.filter(ext => ext !== 'wasm');
 
-// Exclure les fichiers web spécifiques
+// Correction de la blockList : 
+// On ne bloque QUE les fichiers .wasm si nécessaire, 
+// mais on laisse Reanimated accéder à ses dossiers internes.
 config.resolver.blockList = [
-  ...(config.resolver.blockList || []),
-  /\/web\/.*/, // Exclure tous les fichiers dans les dossiers web
   /\.wasm$/,
+  // Ne mettez PAS de règle sur "/web/" ici
 ];
 
 module.exports = config;

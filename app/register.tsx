@@ -18,6 +18,7 @@ import { db } from "../src/database/db";
 import { User } from "../src/types";
 import { COLORS } from "../styles/colors";
 import { registerStyles } from "../styles/registerStyles";
+import { useAuth } from "../src/context/AuthContext";
 
 export default function Register() {
   const [fullName, setFullName] = useState("");
@@ -29,6 +30,7 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const { checkAuth } = useAuth(); // Récupère checkAuth depuis le context
 
   const handleRegister = async () => {
     if (!fullName.trim()) {
@@ -103,6 +105,8 @@ export default function Register() {
 
       // ✅ Sauvegarder la session
       await SecureStore.setItemAsync("AUTH_USER_ID", String(user.id));
+
+      await checkAuth(); // Met à jour le context global
 
       router.replace("/dashboard");
     } catch (error) {

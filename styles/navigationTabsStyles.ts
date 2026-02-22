@@ -6,7 +6,7 @@ const { width } = Dimensions.get("window");
 export const navigationTabsStyles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    bottom: 30,
+    bottom: 55,
     width: width,
     alignItems: "center",
     justifyContent: "center",
