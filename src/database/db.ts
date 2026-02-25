@@ -26,6 +26,20 @@ export const initDB = async (): Promise<void> => {
       )
     `);
 
+    // ===== TABLE NOTIFICATIONS  =====
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        data TEXT,
+        read INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        user_id INTEGER NOT NULL
+      )
+    `);
+
     // ===== TABLE MERCHANTS =====
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS merchants (

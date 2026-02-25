@@ -1,35 +1,83 @@
 import { Slot } from "expo-router";
 import { View, ActivityIndicator, Text } from "react-native";
 import { useEffect, useState } from "react";
+// IMPORT IMPORTANT :
+import { GestureHandlerRootView } from 'react-native-gesture-handler'; 
+
 import NavigationTabs from "../components/NavigationTabs";
-import { AuthProvider, useAuth } from "../src/context/AuthContext"; // Import du nouveau context
+import { initializeDatabase } from "../src/database/db";
+import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { ModalProvider } from "../providers/ModalProvider";
+import { setupNotifications, setupBackgroundTask } from "../src/services/notification.service";
 
 function RootLayoutNav() {
   const { isAuthenticated, authReady } = useAuth();
-  const [dbReady, setDbReady] = useState(false);
+  const [servicesReady, setServicesReady] = useState(false);
 
   useEffect(() => {
-    // Ton code d'initialisation DB actuel...
-    setDbReady(true);
-  }, []);
+    const initServices = async () => {
+      try {
+        await setupNotifications();
+        if (isAuthenticated) {
+          await setupBackgroundTask();
+        }
+      } catch (e) {
+        console.error("Erreur services:", e);
+      } finally {
+        setServicesReady(true);
+      }
+    };
 
-  if (!dbReady || !authReady) {
-    return <View style={{flex:1, justifyContent:'center'}}><ActivityIndicator size="large" /></View>;
+    if (authReady) {
+      initServices();
+    }
+  }, [authReady, isAuthenticated]);
+
+  if (!authReady || !servicesReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Slot />
-      {/* Grâce au Context, isAuthenticated changera partout dès le login */}
-      {isAuthenticated && <NavigationTabs />}
-    </View>
+    // On enveloppe TOUT le contenu ici pour que le Swipe fonctionne partout
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
+        <Slot />
+        {isAuthenticated && <NavigationTabs />}
+      </View>
+    </GestureHandlerRootView>
   );
 }
 
 export default function Layout() {
+  const [dbReady, setDbReady] = useState(false);
+
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        await initializeDatabase();
+        setDbReady(true);
+      } catch (error) {
+        console.error('❌ Erreur critique DB:', error);
+      }
+    };
+    initApp();
+  }, []);
+
+  if (!dbReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={{ marginTop: 10 }}>Initialisation...</Text>
+      </View>
+    );
+  }
+
   return (
-    <AuthProvider>
+    <AuthProvider isDbReady={dbReady}>
       <ModalProvider>
         <RootLayoutNav />
       </ModalProvider>

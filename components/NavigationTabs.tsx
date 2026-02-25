@@ -3,9 +3,13 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { router, usePathname } from "expo-router";
 import { navigationTabsStyles } from "../styles/navigationTabsStyles";
 import { COLORS } from "../styles/colors";
+// 1. Importer le hook useModal
+import { useModal } from "../providers/ModalProvider";
 
 export default function NavigationTabs() {
   const pathname = usePathname();
+  // 2. Initialiser les fonctions de la modal
+  const { showAlert } = useModal();
 
   const hideTabsOnScreens = [
     "/delivery/",
@@ -20,6 +24,8 @@ export default function NavigationTabs() {
   if (shouldHideTabs) return null;
 
   const isActive = (path: string) => pathname === path;
+
+  // 3. Supprimer l'ancienne fonction "showAlert" qui générait l'erreur
 
   return (
     <View style={navigationTabsStyles.wrapper}>
@@ -91,10 +97,44 @@ export default function NavigationTabs() {
           <Text style={navigationTabsStyles.tabText}>Ajouter</Text>
         </TouchableOpacity>
 
-        {/* STATS */}
+        {/* STATS - Utilisation de la Modal */}
+        {/* 
+              <TouchableOpacity
+                  style={navigationTabsStyles.tabItem}
+                  onPress={() => router.push("/stats")}
+                >
+                  <View
+                    style={[
+                      navigationTabsStyles.iconWrapper,
+                      isActive("/stats") && navigationTabsStyles.activeIconWrapper,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="bar-chart"
+                      size={24}
+                      color={isActive("/stats") ? COLORS.primary : COLORS.muted}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      navigationTabsStyles.tabText,
+                      { color: isActive("/stats") ? COLORS.primary : COLORS.muted },
+                    ]}
+                  >
+                    Stats
+                  </Text>
+            </TouchableOpacity> 
+        */}
+
         <TouchableOpacity
           style={navigationTabsStyles.tabItem}
-          onPress={() => router.push("/stats")}
+          onPress={() => {
+            // 4. Appel de la modal ici
+            showAlert(
+              "Bientôt disponible",
+              "La fonctionnalité des statistiques sera disponible dans une prochaine mise à jour.",
+            );
+          }}
         >
           <View
             style={[

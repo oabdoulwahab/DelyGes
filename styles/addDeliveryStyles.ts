@@ -272,7 +272,7 @@ export const addDeliveryStyles = StyleSheet.create({
   },
   actionButtons: {
     position: "absolute",
-    bottom: 0,
+    bottom: 30,
     left: 0,
     right: 0,
     padding: 16,

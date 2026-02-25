@@ -224,7 +224,7 @@ export const dashboardStyles = StyleSheet.create({
 
   // Schedule section
   scheduleSection: {
-    marginBottom: 100,
+    marginBottom: 80,
   },
   scheduleHeader: {
     flexDirection: "row",
@@ -327,5 +327,8 @@ export const dashboardStyles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 14,
     color: "#FFFFFF",
+  },
+   bottomSpacer: {
+    height: 70, // Ajustez cette valeur selon la hauteur de votre tab bar
   },
 });

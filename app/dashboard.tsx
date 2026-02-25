@@ -502,6 +502,7 @@ export default function Dashboard() {
             </Text>
           )}
         </View>
+        <View style={dashboardStyles.bottomSpacer} />
       </ScrollView>
 
       {/* Bouton flottant */}

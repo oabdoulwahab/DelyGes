@@ -741,7 +741,7 @@ export default function AddDelivery() {
       </ScrollView>
 
       {/* Bouton d'action */}
-      <BlurView intensity={95} style={addDeliveryStyles.actionButtons}>
+      <BlurView  style={addDeliveryStyles.actionButtons}>
         <TouchableOpacity
           style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.7 }]}
           onPress={handleSave}

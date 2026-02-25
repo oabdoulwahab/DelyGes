@@ -15,12 +15,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+// On ajoute isDbReady aux props
+export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNode; isDbReady: boolean }) => {
   const [user, setUser] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
 
   const checkAuth = async () => {
+    // Sécurité supplémentaire : si la db n'est pas prête, on ne fait rien
+    if (!isDbReady) return;
+
     try {
       const userId = await SecureStore.getItemAsync(USER_KEY);
       if (userId) {
@@ -28,27 +32,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (dbUser) {
           setUser(dbUser);
           setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
         }
       }
     } catch (e) {
-      console.error(e);
+      console.error("Erreur checkAuth:", e);
     } finally {
       setAuthReady(true);
     }
   };
 
-  useEffect(() => { checkAuth(); }, []);
+  // On surveille isDbReady : dès qu'il passe à true, on vérifie l'auth
+  useEffect(() => {
+    if (isDbReady) {
+      checkAuth();
+    }
+  }, [isDbReady]);
 
   const login = async (emailOrPhone: string, password: string) => {
     const dbUser = await db.getFirstAsync<any>(
       "SELECT * FROM user WHERE email = ? OR phone = ?",
       [emailOrPhone.trim(), emailOrPhone.trim()]
     );
+    
     if (!dbUser || dbUser.password !== password) throw new Error("Identifiants incorrects");
     
     await SecureStore.setItemAsync(USER_KEY, String(dbUser.id));
     setUser(dbUser);
     setIsAuthenticated(true);
+    setAuthReady(true);
   };
 
   const logout = async () => {

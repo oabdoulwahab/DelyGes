@@ -7,6 +7,7 @@ import {
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -14,10 +15,10 @@ import Checkbox from "expo-checkbox";
 import { LinearGradient } from "expo-linear-gradient";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { Image } from "react-native";
-
-import { useAuth } from "../src/hooks/useAuth";
 import * as yup from "yup";
+
+// Import unique du nouveau Context
+import { useAuth } from "../src/context/AuthContext"; 
 import { COLORS } from "../styles/colors";
 import { loginStyles } from "../styles/loginStyles";
 import { useModal } from "../providers/ModalProvider";
@@ -39,7 +40,11 @@ type LoginFormData = {
 /* ---------------- SCREEN ---------------- */
 
 export default function Login() {
-  const { login, isLoading, error, clearError } = useAuth();
+  // isLoading et error doivent être gérés soit par le context soit localement
+  // Ici, on ajoute une gestion locale simple pour la réactivité du bouton
+  const { login } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const { showAlert } = useModal();
 
@@ -59,11 +64,16 @@ export default function Login() {
 
   const onSubmit = async (data: LoginFormData): Promise<void> => {
     try {
-      clearError();
+      setLoading(true);
+      setLoginError(null);
       await login(data.emailOrPhone, data.password);
+      
+      // Une fois connecté, le Layout détectera le changement d'état via le Context
       router.replace("/dashboard");
-    } catch (e) {
-      // erreur déjà gérée dans useAuth
+    } catch (e: any) {
+      setLoginError(e.message || "Identifiants incorrects");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,14 +103,14 @@ export default function Login() {
         </View>
 
         {/* ERREUR GLOBALE */}
-        {error && (
+        {loginError && (
           <View style={loginStyles.errorContainer}>
             <MaterialIcons
               name="error-outline"
               size={20}
               color={COLORS.danger}
             />
-            <Text style={loginStyles.errorText}>{error}</Text>
+            <Text style={loginStyles.errorText}>{loginError}</Text>
           </View>
         )}
 
@@ -120,7 +130,7 @@ export default function Login() {
                   value={value}
                   onChangeText={(text) => {
                     onChange(text);
-                    clearError();
+                    setLoginError(null);
                   }}
                   autoCapitalize="none"
                 />
@@ -148,7 +158,7 @@ export default function Login() {
                     value={value}
                     onChangeText={(text) => {
                       onChange(text);
-                      clearError();
+                      setLoginError(null);
                     }}
                     secureTextEntry={!showPassword}
                   />
@@ -192,16 +202,16 @@ export default function Login() {
           <TouchableOpacity
             style={[
               loginStyles.loginButton,
-              (!isValid || isLoading) && loginStyles.loginButtonDisabled,
+              (!isValid || loading) && loginStyles.loginButtonDisabled,
             ]}
-            disabled={!isValid || isLoading}
+            disabled={!isValid || loading}
             onPress={handleSubmit(onSubmit)}
           >
             <LinearGradient
               colors={[COLORS.primary, COLORS.primary]}
               style={loginStyles.gradient}
             >
-              {isLoading ? (
+              {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <>
