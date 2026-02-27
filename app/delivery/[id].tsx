@@ -85,16 +85,7 @@ export default function DeliveryDetail() {
   };
 
   const formatPhoneForCall = (phone: string): string => {
-    let number = phone.replace(/[^\d+]/g, "");
-
-    if (!number.startsWith("+")) {
-      if (number.startsWith("0")) {
-        number = number.substring(1);
-      }
-      number = `+225${number}`;
-    }
-
-    return number;
+    return phone;
   };
 
   const handleCall = () => {

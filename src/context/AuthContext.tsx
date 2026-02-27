@@ -22,24 +22,34 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
   const [authReady, setAuthReady] = useState(false);
 
   const checkAuth = async () => {
-    // Sécurité supplémentaire : si la db n'est pas prête, on ne fait rien
     if (!isDbReady) return;
 
     try {
       const userId = await SecureStore.getItemAsync(USER_KEY);
+      console.log("🔍 Vérification session ID:", userId);
+
       if (userId) {
+        // Important: Utiliser getFirstAsync et vérifier le résultat
         const dbUser = await db.getFirstAsync<any>("SELECT * FROM user WHERE id = ?", [Number(userId)]);
+        
         if (dbUser) {
           setUser(dbUser);
           setIsAuthenticated(true);
+          console.log("✅ Session restaurée pour:", dbUser.name);
         } else {
+          // Si l'ID est dans SecureStore mais plus dans la DB (rare mais possible)
+          await SecureStore.deleteItemAsync(USER_KEY);
           setIsAuthenticated(false);
         }
+      } else {
+        setIsAuthenticated(false);
       }
     } catch (e) {
-      console.error("Erreur checkAuth:", e);
+      console.error("❌ Erreur checkAuth:", e);
+      setIsAuthenticated(false);
     } finally {
-      setAuthReady(true);
+      // On ne libère l'accès à l'app qu'ici
+      setAuthReady(true); 
     }
   };
 

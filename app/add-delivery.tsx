@@ -28,7 +28,10 @@ type Delivery = {
   address: string;
   parcel_value: number;
   delivery_fee: number;
-  payment_type: "COLIS_DEJA_PAYE" | "CLIENT_PAYE_LIVRAISON" | "CLIENT_PAYE_TOUT";
+  payment_type:
+    | "COLIS_DEJA_PAYE"
+    | "CLIENT_PAYE_LIVRAISON"
+    | "CLIENT_PAYE_TOUT";
   merchant_id?: number;
   status: string;
 };
@@ -44,7 +47,7 @@ export default function AddDelivery() {
   const isEditing = !!id;
   const { user, isAuthenticated } = useAuth();
   const { showConfirm, showSuccess, showError, showAlert } = useModal();
-  
+
   // États du formulaire
   const [recipientName, setRecipientName] = useState("");
   const [phone, setPhone] = useState("");
@@ -56,7 +59,7 @@ export default function AddDelivery() {
   const [paymentType, setPaymentType] = useState<
     "COLIS_DEJA_PAYE" | "CLIENT_PAYE_LIVRAISON" | "CLIENT_PAYE_TOUT"
   >("CLIENT_PAYE_TOUT");
-  
+
   // États UI
   const [loading, setLoading] = useState(isEditing);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,7 +89,7 @@ export default function AddDelivery() {
     try {
       const delivery = await db.getFirstAsync<Delivery>(
         "SELECT * FROM deliveries WHERE id = ?",
-        [Number(id)]
+        [Number(id)],
       );
 
       if (delivery) {
@@ -94,7 +97,7 @@ export default function AddDelivery() {
         if (delivery.status === "LIVREE" || delivery.status === "ANNULEE") {
           showError(
             "Modification impossible",
-            "Cette livraison ne peut plus être modifiée car elle est déjà terminée ou annulée."
+            "Cette livraison ne peut plus être modifiée car elle est déjà terminée ou annulée.",
           );
           router.back();
           return;
@@ -111,7 +114,7 @@ export default function AddDelivery() {
         if (delivery.merchant_id) {
           const merchant = await db.getFirstAsync<Merchant>(
             "SELECT * FROM merchants WHERE id = ?",
-            [delivery.merchant_id]
+            [delivery.merchant_id],
           );
           if (merchant) {
             setMerchantName(merchant.name);
@@ -134,30 +137,65 @@ export default function AddDelivery() {
     setMerchants(result);
   };
 
-  // Filtrer les commerçants
+  // Filtrer les commerçants en fonction de la saisie du nom
   useEffect(() => {
+    // On n'affiche les suggestions que si l'utilisateur a saisi au moins 1 caractère
+    // ET qu'on n'est pas en train d'afficher un commerçant déjà sélectionné (facultatif)
     if (merchantName.trim().length > 0) {
       const filtered = merchants.filter((merchant) =>
         merchant.name.toLowerCase().includes(merchantName.toLowerCase()),
       );
       setFilteredMerchants(filtered);
+
+      // N'afficher que s'il y a des résultats
       setShowSuggestions(filtered.length > 0);
     } else {
       setFilteredMerchants([]);
-      setShowSuggestions(false);
+      setShowSuggestions(false); // Cache la liste si le champ est vide
     }
   }, [merchantName, merchants]);
 
   const validateForm = () => {
-    const newErrors = {
+    // Validation de base pour les champs communs
+    const baseValidation = {
       recipientName: !recipientName.trim(),
       phone: !phone.trim(),
       address: !address.trim(),
-      parcelValue:
-        !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
-      deliveryFee:
-        !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
       merchantName: !merchantName.trim(),
+    };
+
+    // Validation des champs financiers selon le type de paiement
+    let financialValidation = {
+      parcelValue: false,
+      deliveryFee: false,
+    };
+
+    switch (paymentType) {
+      case "CLIENT_PAYE_TOUT":
+        financialValidation = {
+          parcelValue: !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
+          deliveryFee: !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
+        };
+        break;
+
+      case "CLIENT_PAYE_LIVRAISON":
+        financialValidation = {
+          parcelValue: false, // Non obligatoire
+          deliveryFee: !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
+        };
+        break;
+
+      case "COLIS_DEJA_PAYE":
+        financialValidation = {
+          parcelValue: false, // Non obligatoire
+          deliveryFee: false, // Non obligatoire
+        };
+        break;
+    }
+
+    const newErrors = {
+      ...baseValidation,
+      ...financialValidation,
     };
 
     setErrors(newErrors);
@@ -201,8 +239,8 @@ export default function AddDelivery() {
     setIsSaving(true);
 
     try {
-      const parcelValueNum = Number(parcelValue.replace(",", "."));
-      const deliveryFeeNum = Number(deliveryFee.replace(",", "."));
+      const parcelValueNum = parcelValue ? Number(parcelValue.replace(",", ".") || 0) : 0;
+      const deliveryFeeNum = deliveryFee ? Number(deliveryFee.replace(",", ".") || 0) : 0;
       const merchantIdValue = await getOrCreateMerchant();
 
       const amountCollected =
@@ -241,8 +279,8 @@ export default function AddDelivery() {
             amountCollected,
             amountToReturn,
             profit,
-            Number(id)
-          ]
+            Number(id),
+          ],
         );
 
         showSuccess("Succès", "Livraison modifiée avec succès");
@@ -268,7 +306,7 @@ export default function AddDelivery() {
             "A_LIVRER",
             user.id,
             new Date().toISOString(),
-          ]
+          ],
         );
 
         await sendDeliveryCreatedNotification(user.id, 1);
@@ -338,10 +376,22 @@ export default function AddDelivery() {
     setErrors((prev) => ({ ...prev, merchantName: false }));
   };
 
+  const calculateTotal = () => {
+    const parcelNum = parcelValue ? Number(parcelValue.replace(",", ".") || 0) : 0;
+    const deliveryNum = deliveryFee ? Number(deliveryFee.replace(",", ".") || 0) : 0;
+    return (parcelNum + deliveryNum).toLocaleString("fr-FR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
   if (loading) {
     return (
       <View style={commonStyles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={COLORS.background}
+        />
         <View style={addDeliveryStyles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={addDeliveryStyles.loadingText}>Chargement...</Text>
@@ -359,7 +409,10 @@ export default function AddDelivery() {
 
       {/* En-tête */}
       <BlurView intensity={95} style={addDeliveryStyles.header}>
-        <TouchableOpacity onPress={handleCancel} style={addDeliveryStyles.cancelButton}>
+        <TouchableOpacity
+          onPress={handleCancel}
+          style={addDeliveryStyles.cancelButton}
+        >
           <Text style={addDeliveryStyles.cancelButtonText}>Annuler</Text>
         </TouchableOpacity>
 
@@ -367,8 +420,8 @@ export default function AddDelivery() {
           {isEditing ? "Modifier la Livraison" : "Ajouter une Livraison"}
         </Text>
 
-        <TouchableOpacity 
-          onPress={handleSave} 
+        <TouchableOpacity
+          onPress={handleSave}
           style={addDeliveryStyles.saveButtonHeader}
           disabled={isSaving}
         >
@@ -464,7 +517,8 @@ export default function AddDelivery() {
               />
               <View style={addDeliveryStyles.inputContent}>
                 <Text style={addDeliveryStyles.inputLabel}>
-                  Adresse de livraison <Text style={addDeliveryStyles.required}>*</Text>
+                  Adresse de livraison{" "}
+                  <Text style={addDeliveryStyles.required}>*</Text>
                 </Text>
                 <TextInput
                   style={addDeliveryStyles.input}
@@ -499,7 +553,8 @@ export default function AddDelivery() {
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Nom du commerçant <Text style={addDeliveryStyles.required}>*</Text>
+                Nom du commerçant{" "}
+                <Text style={addDeliveryStyles.required}>*</Text>
               </Text>
               <View style={addDeliveryStyles.merchantInputContainer}>
                 <TextInput
@@ -531,12 +586,17 @@ export default function AddDelivery() {
                   <TouchableOpacity
                     style={addDeliveryStyles.clearButton}
                     onPress={() => {
-                      setMerchantName("");
-                      setMerchantId(null);
-                      setShowSuggestions(false);
+                      setMerchantName(""); // Vide le texte
+                      setMerchantId(null); // Supprime l'ID du commerçant sélectionné
+                      setShowSuggestions(false); // Ferme la liste
+                      setFilteredMerchants([]); // Vide la liste filtrée
                     }}
                   >
-                    <MaterialIcons name="close" size={20} color={COLORS.muted} />
+                    <MaterialIcons
+                      name="close"
+                      size={20}
+                      color={COLORS.muted}
+                    />
                   </TouchableOpacity>
                 )}
               </View>
@@ -557,7 +617,9 @@ export default function AddDelivery() {
                         style={addDeliveryStyles.suggestionIcon}
                       />
                       <View style={addDeliveryStyles.suggestionContent}>
-                        <Text style={addDeliveryStyles.suggestionName}>{item.name}</Text>
+                        <Text style={addDeliveryStyles.suggestionName}>
+                          {item.name}
+                        </Text>
                         {item.phone && (
                           <Text style={addDeliveryStyles.suggestionPhone}>
                             {item.phone}
@@ -583,7 +645,11 @@ export default function AddDelivery() {
 
               {merchantId && (
                 <View style={addDeliveryStyles.selectedMerchantInfo}>
-                  <MaterialIcons name="check-circle" size={16} color={COLORS.success} />
+                  <MaterialIcons
+                    name="check-circle"
+                    size={16}
+                    color={COLORS.success}
+                  />
                   <Text style={addDeliveryStyles.selectedMerchantText}>
                     Commerçant existant sélectionné
                   </Text>
@@ -598,21 +664,27 @@ export default function AddDelivery() {
           <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
 
           <View style={addDeliveryStyles.financialGrid}>
-            {/* Valeur du colis */}
+            {/* Valeur du colis - optionnelle selon paymentType */}
             <View
               style={[
                 addDeliveryStyles.financialCard,
-                errors.parcelValue && addDeliveryStyles.inputError,
+                paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Valeur du colis <Text style={addDeliveryStyles.required}>*</Text>
+                Valeur du colis{" "}
+                {paymentType === "CLIENT_PAYE_TOUT" && (
+                  <Text style={addDeliveryStyles.required}>*</Text>
+                )}
+                {paymentType !== "CLIENT_PAYE_TOUT" && (
+                  <Text style={addDeliveryStyles.optional}>(Optionnel)</Text>
+                )}
               </Text>
               <View style={addDeliveryStyles.currencyInput}>
                 <Text
                   style={[
                     addDeliveryStyles.currencySymbol,
-                    errors.parcelValue && { color: COLORS.danger },
+                    paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && { color: COLORS.danger },
                   ]}
                 >
                   FCFA
@@ -620,12 +692,10 @@ export default function AddDelivery() {
                 <TextInput
                   style={[
                     addDeliveryStyles.financialInput,
-                    errors.parcelValue && { color: COLORS.danger },
+                    paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && { color: COLORS.danger },
                   ]}
-                  placeholder="0,00"
-                  placeholderTextColor={
-                    errors.parcelValue ? COLORS.danger : COLORS.muted
-                  }
+                  placeholder={paymentType !== "CLIENT_PAYE_TOUT" ? "Optionnel" : "0,00"}
+                  placeholderTextColor={COLORS.muted}
                   value={parcelValue}
                   onChangeText={(text) => {
                     handleCurrencyChange(text, setParcelValue);
@@ -635,28 +705,34 @@ export default function AddDelivery() {
                   editable={!isSaving}
                 />
               </View>
-              {errors.parcelValue && (
+              {paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && (
                 <Text style={addDeliveryStyles.errorText}>
                   Valeur supérieure à 0 requise
                 </Text>
               )}
             </View>
 
-            {/* Frais de livraison */}
+            {/* Frais de livraison - obligatoire sauf pour COLIS_DEJA_PAYE */}
             <View
               style={[
                 addDeliveryStyles.financialCard,
-                errors.deliveryFee && addDeliveryStyles.inputError,
+                paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
-                Frais de livraison <Text style={addDeliveryStyles.required}>*</Text>
+                Frais de livraison{" "}
+                {paymentType !== "COLIS_DEJA_PAYE" && (
+                  <Text style={addDeliveryStyles.required}>*</Text>
+                )}
+                {paymentType === "COLIS_DEJA_PAYE" && (
+                  <Text style={addDeliveryStyles.optional}>(Optionnel)</Text>
+                )}
               </Text>
               <View style={addDeliveryStyles.currencyInput}>
                 <Text
                   style={[
                     addDeliveryStyles.currencySymbol,
-                    errors.deliveryFee && { color: COLORS.danger },
+                    paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && { color: COLORS.danger },
                   ]}
                 >
                   FCFA
@@ -664,12 +740,10 @@ export default function AddDelivery() {
                 <TextInput
                   style={[
                     addDeliveryStyles.financialInput,
-                    errors.deliveryFee && { color: COLORS.danger },
+                    paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && { color: COLORS.danger },
                   ]}
-                  placeholder="0,00"
-                  placeholderTextColor={
-                    errors.deliveryFee ? COLORS.danger : COLORS.muted
-                  }
+                  placeholder={paymentType === "COLIS_DEJA_PAYE" ? "Optionnel" : "0,00"}
+                  placeholderTextColor={COLORS.muted}
                   value={deliveryFee}
                   onChangeText={(text) => {
                     handleCurrencyChange(text, setDeliveryFee);
@@ -679,7 +753,7 @@ export default function AddDelivery() {
                   editable={!isSaving}
                 />
               </View>
-              {errors.deliveryFee && (
+              {paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && (
                 <Text style={addDeliveryStyles.errorText}>
                   Valeur supérieure à 0 requise
                 </Text>
@@ -694,24 +768,35 @@ export default function AddDelivery() {
               {[
                 {
                   key: "CLIENT_PAYE_TOUT",
-                  label: "Client paie colis + livraison",
+                  label: "Client paie colis et livraison",
                 },
                 {
                   key: "CLIENT_PAYE_LIVRAISON",
                   label: "Client paie livraison seulement",
                 },
-                { key: "COLIS_DEJA_PAYE", label: "Colis déjà payé" },
+                { key: "COLIS_DEJA_PAYE", label: "Colis et livraison déjà payé" },
               ].map((item) => (
                 <TouchableOpacity
                   key={item.key}
                   style={[
                     addDeliveryStyles.paymentOption,
-                    paymentType === item.key && addDeliveryStyles.paymentSelected,
+                    paymentType === item.key &&
+                      addDeliveryStyles.paymentSelected,
                   ]}
-                  onPress={() => !isSaving && setPaymentType(item.key as any)}
+                  onPress={() => {
+                    setPaymentType(item.key as any);
+                    // Réinitialiser les erreurs lors du changement de type de paiement
+                    setErrors((prev) => ({
+                      ...prev,
+                      parcelValue: false,
+                      deliveryFee: false,
+                    }));
+                  }}
                   disabled={isSaving}
                 >
-                  <Text style={addDeliveryStyles.paymentText}>{item.label}</Text>
+                  <Text style={addDeliveryStyles.paymentText}>
+                    {item.label}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -721,17 +806,16 @@ export default function AddDelivery() {
           <View style={addDeliveryStyles.netIncomeCard}>
             <View style={addDeliveryStyles.netIncomeContent}>
               <Text style={addDeliveryStyles.netIncomeLabel}>TOTAL</Text>
-              <Text style={addDeliveryStyles.netIncomeSubtitle}>Valeur + Frais</Text>
+              <Text style={addDeliveryStyles.netIncomeSubtitle}>
+                {paymentType === "COLIS_DEJA_PAYE" 
+                  ? "Déjà payé" 
+                  : paymentType === "CLIENT_PAYE_LIVRAISON" 
+                    ? "Frais de livraison uniquement" 
+                    : "Valeur + Frais"}
+              </Text>
             </View>
             <Text style={addDeliveryStyles.netIncomeAmount}>
-              {(
-                Number(parcelValue.replace(",", ".") || 0) +
-                Number(deliveryFee.replace(",", ".") || 0)
-              ).toLocaleString("fr-FR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{" "}
-              FCFA
+              {calculateTotal()} FCFA
             </Text>
           </View>
         </View>
@@ -741,19 +825,18 @@ export default function AddDelivery() {
       </ScrollView>
 
       {/* Bouton d'action */}
-      <BlurView  style={addDeliveryStyles.actionButtons}>
+      <BlurView style={addDeliveryStyles.actionButtons}>
         <TouchableOpacity
           style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.7 }]}
           onPress={handleSave}
           disabled={isSaving}
         >
           <Text style={addDeliveryStyles.saveButtonText}>
-            {isSaving 
-              ? "Enregistrement..." 
-              : isEditing 
-                ? "Modifier la livraison" 
-                : "Enregistrer la livraison"
-            }
+            {isSaving
+              ? "Enregistrement..."
+              : isEditing
+                ? "Modifier la livraison"
+                : "Enregistrer la livraison"}
           </Text>
         </TouchableOpacity>
       </BlurView>

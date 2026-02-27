@@ -1,48 +1,87 @@
-import { Slot } from "expo-router";
+import { Slot, useRouter } from "expo-router";
 import { View, ActivityIndicator, Text } from "react-native";
-import { useEffect, useState } from "react";
-// IMPORT IMPORTANT :
-import { GestureHandlerRootView } from 'react-native-gesture-handler'; 
+import { useEffect, useState, useRef } from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import * as Notifications from "expo-notifications";
 
 import NavigationTabs from "../components/NavigationTabs";
 import { initializeDatabase } from "../src/database/db";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { ModalProvider } from "../providers/ModalProvider";
-import { setupNotifications, setupBackgroundTask } from "../src/services/notification.service";
+import {
+  setupNotifications,
+  setupBackgroundTask,
+  scheduleInactivityReminders,
+} from "../src/services/notification.service";
 
 function RootLayoutNav() {
-  const { isAuthenticated, authReady } = useAuth();
+  const { isAuthenticated, authReady, user } = useAuth();
   const [servicesReady, setServicesReady] = useState(false);
+  const router = useRouter();
+  
+  // Correction : Utilisation du type correct de Notifications et initialisation à null
+  const notificationListener = useRef<Notifications.Subscription | null>(null);
+  const responseListener = useRef<Notifications.Subscription | null>(null);
+
+  useEffect(() => {
+    // Écouteur de CLIC
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        if (data.type === "delivery_progress" || data.type === "pending_reminder" || data.type === "delivery_created") {
+          router.push("/deliveries");
+        } else if (data.type === "inactivity_reminder") {
+          router.push("/dashboard");
+        }
+      }
+    );
+
+    // Écouteur de RÉCEPTION
+    notificationListener.current = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log("🔔 Notification reçue en direct:", notification.request.content.title);
+      }
+    );
+
+    return () => {
+      // Correction : Utilisation de .remove() sur la ref
+      if (notificationListener.current) notificationListener.current.remove();
+      if (responseListener.current) responseListener.current.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const initServices = async () => {
+      if (!authReady) return;
+
       try {
         await setupNotifications();
-        if (isAuthenticated) {
+        if (isAuthenticated && user) {
           await setupBackgroundTask();
+          await scheduleInactivityReminders(user.id);
         }
       } catch (e) {
-        console.error("Erreur services:", e);
+        console.error("❌ Erreur services:", e);
       } finally {
         setServicesReady(true);
       }
     };
 
-    if (authReady) {
-      initServices();
-    }
-  }, [authReady, isAuthenticated]);
+    initServices();
+  }, [authReady, isAuthenticated, user]);
 
   if (!authReady || !servicesReady) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "white" }}>
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={{ marginTop: 15, color: "#64748B", fontWeight: "500" }}>
+          Chargement ...
+        </Text>
       </View>
     );
   }
 
   return (
-    // On enveloppe TOUT le contenu ici pour que le Swipe fonctionne partout
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
         <Slot />
@@ -61,7 +100,7 @@ export default function Layout() {
         await initializeDatabase();
         setDbReady(true);
       } catch (error) {
-        console.error('❌ Erreur critique DB:', error);
+        console.error("❌ Erreur critique initialisation:", error);
       }
     };
     initApp();
@@ -69,9 +108,9 @@ export default function Layout() {
 
   if (!dbReady) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text style={{ marginTop: 10 }}>Initialisation...</Text>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" }}>
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={{ marginTop: 10, color: "#475569" }}>Chargement... </Text>
       </View>
     );
   }

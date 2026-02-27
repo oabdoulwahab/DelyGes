@@ -1,24 +1,33 @@
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications'; // Import nécessaire
 import * as BackgroundFetch from 'expo-background-fetch';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 import { db } from '../database/db';
 import { NotificationStore } from './notification.store';
 
-// Définition des noms des tâches en arrière-plan
 const BACKGROUND_FETCH_TASK = 'check-delivery-reminder';
-const ENCOURAGEMENT_TASK = 'send-encouragement-notifications';
 
-/**
- * 1. CONFIGURATION INITIALE
- */
 export const setupNotifications = async () => {
   try {
-    const { status } = await Notifications.requestPermissionsAsync();
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
     
-    if (status !== 'granted') {
-      console.log('⚠️ Permissions de notifications non accordées');
-      return;
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') return;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'Alertes Livraisons',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+        sound: 'default',
+      });
     }
 
     Notifications.setNotificationHandler({
@@ -27,19 +36,15 @@ export const setupNotifications = async () => {
         shouldPlaySound: true,
         shouldSetBadge: true,
         shouldShowBanner: true,
-        shouldShowList: true,
+        shouldShowList: true, 
       }),
     });
 
     console.log('✅ Notifications configurées');
   } catch (error) {
-    console.error('❌ Erreur configuration notifications:', error);
+    console.error('❌ Erreur setup notifications:', error);
   }
 };
-
-/**
- * 2. LOGIQUE DE VÉRIFICATION
- */
 
 const checkPendingDeliveries = async (userId: number) => {
   try {
@@ -65,33 +70,30 @@ export const sendPendingReminderNotification = async (userId: number) => {
     if (!pending) return;
 
     let title = '📦 Livraisons en attente';
-    let body = `Vous avez ${pending.count} livraison(s) à traiter.`;
+    let body = `Bonjour ${user.name}, vous avez ${pending.count} livraison(s) à traiter.`;
 
-    if (pending.oldest_hours >= 24) body = `Attention ! ${pending.count} livraisons attendent depuis plus de 24h.`;
+    if (pending.oldest_hours >= 24) {
+      body = `Attention ! ${pending.count} livraisons attendent depuis plus de 24h.`;
+    }
 
     const notificationId = await NotificationStore.add({
-      type: 'pending_reminder',
-      title,
-      body,
-      data: { count: pending.count },
-      userId
+      type: 'pending_reminder', title, body, data: { count: pending.count }, userId
     });
 
     await Notifications.scheduleNotificationAsync({
-      content: { title, body, data: { type: 'pending_reminder', notificationId }, sound: true },
+      content: { 
+        title, 
+        body, 
+        data: { type: 'pending_reminder', notificationId }, 
+        sound: true,
+      },
       trigger: null,
     });
   } catch (error) { console.error('❌ Erreur rappel:', error); }
 };
 
-/**
- * 3. NOTIFICATIONS MANUELLES (Appelées depuis deliveries.tsx)
- */
-
-// --- CETTE FONCTION MANQUAIT ET CAUSAIT L'ERREUR ---
 export const sendDeliveryCompletedNotification = async (userId: number, amount: number) => {
   try {
-    // 1. Calculer le total du jour pour un message plus informatif
     const today = new Date().toISOString().split('T')[0];
     const stats = await db.getFirstAsync<{ total: number }>(
       "SELECT SUM(delivery_fee) as total FROM deliveries WHERE user_id = ? AND status = 'LIVREE' AND date(delivered_at) = ?",
@@ -99,18 +101,12 @@ export const sendDeliveryCompletedNotification = async (userId: number, amount: 
     );
 
     const title = '✅ Livraison terminée';
-    const body = `+${amount.toLocaleString('fr-FR')} FCFA. Total aujourd'hui: ${(stats?.total || amount).toLocaleString('fr-FR')} FCFA`;
+    const body = `+${amount.toLocaleString('fr-FR')} FCFA. Total jour: ${(stats?.total || amount).toLocaleString('fr-FR')} FCFA`;
 
-    // 2. Stocker en base
     const notificationId = await NotificationStore.add({
-      type: 'delivery_progress',
-      title,
-      body,
-      data: { amount, totalDay: stats?.total },
-      userId
+      type: 'delivery_progress', title, body, data: { amount, totalDay: stats?.total }, userId
     });
 
-    // 3. Envoyer le push
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
@@ -120,32 +116,59 @@ export const sendDeliveryCompletedNotification = async (userId: number, amount: 
       },
       trigger: null,
     });
-  } catch (error) {
-    console.error('❌ Erreur notification delivery completed:', error);
-  }
+  } catch (error) { console.error('❌ Erreur:', error); }
 };
 
 export const sendDeliveryCreatedNotification = async (userId: number, count: number) => {
   try {
     const title = '✅ Livraison enregistrée';
-    const body = `Nouvelle livraison ajoutée. Total en attente : ${count}`;
+    const body = `Nouvelle livraison ajoutée. En attente : ${count}`;
     
     const notificationId = await NotificationStore.add({
       type: 'delivery_created', title, body, data: { count }, userId
     });
 
     await Notifications.scheduleNotificationAsync({
-      content: { title, body, data: { notificationId }, sound: true },
+      content: { 
+        title, 
+        body, 
+        data: { type: 'delivery_created', notificationId }, 
+        sound: true,
+      },
       trigger: null,
     });
-  } catch (error) {
-    console.error('❌ Erreur notification delivery created:', error);
-  }
+  } catch (error) { console.error('❌ Erreur:', error); }
 };
 
-/**
- * 4. TÂCHES BACKGROUND
- */
+export const scheduleInactivityReminders = async (userId: number) => {
+  await Notifications.cancelAllScheduledNotificationsAsync();
+
+  // Rappel : 24h
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "On vous attend ! 👋",
+      body: "Cela fait 24h que vous ne vous êtes pas connecté.",
+      data: { type: 'inactivity_reminder', step: 1 },
+    },
+    trigger: { 
+      seconds: 24 * 3600,
+      type: SchedulableTriggerInputTypes.TIME_INTERVAL 
+    } as Notifications.TimeIntervalTriggerInput,
+  });
+
+  // Rappel : +8h
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Petit rappel 🔔",
+      body: "Toujours aucune activité ? Venez voir vos livraisons !",
+      data: { type: 'inactivity_reminder', step: 2 },
+    },
+    trigger: { 
+      seconds: 32 * 3600,
+      type: SchedulableTriggerInputTypes.TIME_INTERVAL 
+    } as Notifications.TimeIntervalTriggerInput,
+  });
+};
 
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
@@ -162,29 +185,18 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   }
 });
 
-TaskManager.defineTask(ENCOURAGEMENT_TASK, async () => {
-  try {
-    const tableCheck = await db.getFirstAsync("SELECT name FROM sqlite_master WHERE type='table' AND name='user'");
-    if (!tableCheck) return BackgroundFetch.BackgroundFetchResult.NoData;
-    return BackgroundFetch.BackgroundFetchResult.NewData;
-  } catch (error) {
-    return BackgroundFetch.BackgroundFetchResult.Failed;
-  }
-});
-
 export const setupBackgroundTask = async () => {
   try {
-    const isRappelRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
-    if (!isRappelRegistered) {
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
+    if (!isRegistered) {
       await BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
-        minimumInterval: 6 * 60 * 60,
+        minimumInterval: 15 * 60,
         stopOnTerminate: false,
         startOnBoot: true,
       });
     }
-    console.log('✅ Tâches de fond enregistrées');
   } catch (error) {
-    console.error('❌ Erreur BackgroundTask:', error);
+    console.error("❌ Erreur BackgroundTask:", error);
   }
 };
 

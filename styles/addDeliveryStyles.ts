@@ -88,6 +88,9 @@ export const addDeliveryStyles = StyleSheet.create({
     color: COLORS.white,
     padding: 0,
     margin: 0,
+    // merged from below
+    paddingVertical: 8,
+    minHeight: 40,
   },
   inputIcon: {
     marginRight: 12,
@@ -198,7 +201,8 @@ export const addDeliveryStyles = StyleSheet.create({
   // Merchant suggestions
   merchantInputContainer: {
     position: "relative",
-    width: "100%",
+    // width: "100%",
+    zIndex: 1000,
   },
   inputWithSuggestions: {
     borderBottomLeftRadius: 0,
@@ -210,15 +214,28 @@ export const addDeliveryStyles = StyleSheet.create({
     top: "50%",
     transform: [{ translateY: -10 }],
   },
+
   suggestionsContainer: {
     backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderTopWidth: 0,
     borderColor: COLORS.borderLight,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    borderRadius: 12,
+
+    // Positionnement flottant
+    position: "absolute",
+    top: 80, // S'affiche juste en dessous du champ de saisie
+    left: 0,
+    right: 0,
+    zIndex: 5000,
+
+    // Ombre pour décoller du fond
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+
     maxHeight: 200,
-    overflow: "hidden",
   },
   suggestionItem: {
     flexDirection: "row",
@@ -282,5 +299,10 @@ export const addDeliveryStyles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 20,
+  },
+  optional: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: "normal",
   },
 });
