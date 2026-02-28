@@ -484,7 +484,7 @@ export default function AddDelivery() {
               </Text>
               <TextInput
                 style={addDeliveryStyles.input}
-                placeholder="06 12 34 56 78"
+                placeholder="05 06 34 56 78"
                 placeholderTextColor={COLORS.muted}
                 value={phone}
                 onChangeText={(text) => {
@@ -522,7 +522,7 @@ export default function AddDelivery() {
                 </Text>
                 <TextInput
                   style={addDeliveryStyles.input}
-                  placeholder="123 Avenue des Champs-Élysées, Paris"
+                  placeholder="Angré petro ivoire ,Yopougon, Abidjan"
                   placeholderTextColor={COLORS.muted}
                   value={address}
                   onChangeText={(text) => {
@@ -694,7 +694,7 @@ export default function AddDelivery() {
                     addDeliveryStyles.financialInput,
                     paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && { color: COLORS.danger },
                   ]}
-                  placeholder={paymentType !== "CLIENT_PAYE_TOUT" ? "Optionnel" : "0,00"}
+                  placeholder={paymentType !== "CLIENT_PAYE_TOUT" ? " " : "0,00"}
                   placeholderTextColor={COLORS.muted}
                   value={parcelValue}
                   onChangeText={(text) => {
@@ -742,7 +742,7 @@ export default function AddDelivery() {
                     addDeliveryStyles.financialInput,
                     paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && { color: COLORS.danger },
                   ]}
-                  placeholder={paymentType === "COLIS_DEJA_PAYE" ? "Optionnel" : "0,00"}
+                  placeholder={paymentType === "COLIS_DEJA_PAYE" ? " " : "0,00"}
                   placeholderTextColor={COLORS.muted}
                   value={deliveryFee}
                   onChangeText={(text) => {

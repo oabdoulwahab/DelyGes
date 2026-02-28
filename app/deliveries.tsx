@@ -293,7 +293,7 @@ export default function Deliveries() {
         };
       case "A_LIVRER":
         return {
-          backgroundColor: isSelected ? COLORS.warningSoft : "transparent",
+          backgroundColor: isSelected ? COLORS.warningSoft : COLORS.card,
           borderColor: isSelected ? COLORS.warning + "30" : COLORS.borderLight,
           textColor: COLORS.warning,
           text: "En attente",
@@ -309,8 +309,8 @@ export default function Deliveries() {
         };
       default:
         return {
-          backgroundColor: "#6b728010",
-          borderColor: "#6b728030",
+          backgroundColor: COLORS.card,
+          borderColor: COLORS.borderLight,
           textColor: COLORS.muted,
           text: "Prévu",
           icon: "pending",
@@ -456,7 +456,7 @@ export default function Deliveries() {
             deliveriesStyles.calendarDay,
             isToday && deliveriesStyles.calendarDayToday,
             isSelected && deliveriesStyles.calendarDaySelected,
-            hasDeliveries && deliveriesStyles.calendarDayHasDeliveries,
+            hasDeliveries && !isSelected && deliveriesStyles.calendarDayHasDeliveries,
           ]}
           onPress={() => {
             setSelectedDate(date);
@@ -473,7 +473,7 @@ export default function Deliveries() {
           >
             {i}
           </Text>
-          {hasDeliveries && <View style={deliveriesStyles.deliveryIndicator} />}
+          {hasDeliveries && !isSelected && <View style={deliveriesStyles.deliveryIndicator} />}
         </TouchableOpacity>,
       );
     }
@@ -782,6 +782,9 @@ export default function Deliveries() {
                 {morning.map((delivery) => (
                   <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
+                {afternoon.length > 0 && morning.length > 0 && (
+                  <View style={deliveriesStyles.sectionSeparator} />
+                )}
               </View>
             )}
 
@@ -791,6 +794,9 @@ export default function Deliveries() {
                 {afternoon.map((delivery) => (
                   <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
+                {evening.length > 0 && afternoon.length > 0 && (
+                  <View style={deliveriesStyles.sectionSeparator} />
+                )}
               </View>
             )}
 
@@ -822,8 +828,13 @@ export default function Deliveries() {
           </View>
         ) : (
           <View style={deliveriesStyles.deliveriesList}>
-            {deliveries.map((delivery) => (
-              <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
+            {deliveries.map((delivery, index) => (
+              <View key={delivery.id}>
+                {renderDeliveryCard(delivery)}
+                {index < deliveries.length - 1 && (
+                  <View style={deliveriesStyles.sectionSeparator} />
+                )}
+              </View>
             ))}
 
             {deliveries.length === 0 && (

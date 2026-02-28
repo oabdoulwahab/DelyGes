@@ -19,7 +19,7 @@ export const dashboardStyles = StyleSheet.create({
     gap: 12,
     alignItems: "center",
   },
-  
+
   // Avatar avec initiale
   profileImage: {
     width: 48,
@@ -222,15 +222,29 @@ export const dashboardStyles = StyleSheet.create({
     fontWeight: "bold",
   },
 
+  scheduleScrollContainer: {
+    maxHeight: 300, // Limite la hauteur avant que le scroll n'apparaisse
+    marginTop: 8,
+    borderRadius: 12,
+    // backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    padding: 0,
+  },
+
+  scheduleScrollContent: {
+    paddingVertical: 2,
+    paddingHorizontal: 1,
+  },
   // Schedule section
   scheduleSection: {
-    marginBottom: 80,
+    marginBottom: 70,
   },
   scheduleHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
   scheduleTitle: {
     color: COLORS.white,
@@ -253,7 +267,7 @@ export const dashboardStyles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    marginBottom: 12,
+    marginBottom: 8, // Réduire de 12 à 8
   },
   timeContainer: {
     width: 48,
@@ -328,7 +342,7 @@ export const dashboardStyles = StyleSheet.create({
     fontSize: 14,
     color: "#FFFFFF",
   },
-   bottomSpacer: {
+  bottomSpacer: {
     height: 70, // Ajustez cette valeur selon la hauteur de votre tab bar
   },
 });

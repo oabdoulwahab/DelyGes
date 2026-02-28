@@ -181,12 +181,12 @@ export default function Dashboard() {
     console.log("Week:", weekResult);
     console.log("Month:", monthResult);
 
-    // Livraisons du jour pour le planning
+    // Livraisons du jour pour le planning - SUPPRIMER LA LIMITE 3
     const deliveriesResult = await db.getAllAsync<Delivery>(
       `SELECT * FROM deliveries 
        WHERE (status = 'A_LIVRER' OR status = 'LIVREE') 
        AND date(created_at) = date('now')
-       ORDER BY created_at LIMIT 3`,
+       ORDER BY created_at`, // Supprimé LIMIT 3
     );
 
     // Objectif mensuel de l'utilisateur
@@ -279,6 +279,7 @@ export default function Dashboard() {
       <ScrollView
         style={dashboardStyles.content}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true} // Ajouté pour permettre le scroll imbriqué
       >
         {/* En-tête avec date */}
         <View style={dashboardStyles.dateHeader}>
@@ -430,7 +431,7 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Planning du jour */}
+        {/* Planning du jour - RENDU SCROLLABLE */}
         <View style={dashboardStyles.scheduleSection}>
           <View style={dashboardStyles.scheduleHeader}>
             <Text style={dashboardStyles.scheduleTitle}>Planning du jour</Text>
@@ -443,78 +444,77 @@ export default function Dashboard() {
             </TouchableOpacity>
           </View>
 
-          {todayDeliveries.length > 0 ? (
-            todayDeliveries.map((delivery) => {
-              const statusColor = getStatusColor(delivery.status);
-              const statusText = getStatusText(delivery.status);
+          {/* Conteneur scrollable pour les livraisons */}
+          <View style={dashboardStyles.scheduleScrollContainer}>
+            <ScrollView 
+              showsVerticalScrollIndicator={true}
+              contentContainerStyle={dashboardStyles.scheduleScrollContent}
+              nestedScrollEnabled={true} // Ajouté pour permettre le scroll imbriqué
+              scrollEnabled={true} // Forcer le scroll
+            >
+              {todayDeliveries.length > 0 ? (
+                todayDeliveries.map((delivery) => {
+                  const statusColor = getStatusColor(delivery.status);
+                  const statusText = getStatusText(delivery.status);
 
-              return (
-                <TouchableOpacity
-                  key={delivery.id}
-                  style={dashboardStyles.deliveryCard}
-                  onPress={() => router.push(`/delivery/${delivery.id}`)}
-                >
-                  <View style={dashboardStyles.timeContainer}>
-                    <Text style={dashboardStyles.timeText}>
-                      {new Date(delivery.created_at).toLocaleTimeString(
-                        "fr-FR",
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        },
-                      )}
-                    </Text>
-                  </View>
-                  <View style={dashboardStyles.deliveryInfo}>
-                    <Text style={dashboardStyles.deliveryName}>
-                      {delivery.recipient_name}
-                    </Text>
-                    <Text style={dashboardStyles.deliveryAddress}>
-                      {delivery.address}
-                    </Text>
-                  </View>
-                  <View style={dashboardStyles.deliveryRight}>
-                    <Text style={dashboardStyles.deliveryFee}>
-                      {delivery.delivery_fee} FCFA
-                    </Text>
-                    <View
-                      style={[
-                        dashboardStyles.statusBadge,
-                        { backgroundColor: statusColor.backgroundColor },
-                      ]}
+                  return (
+                    <TouchableOpacity
+                      key={delivery.id}
+                      style={dashboardStyles.deliveryCard}
+                      onPress={() => router.push(`/delivery/${delivery.id}`)}
                     >
-                      <Text
-                        style={[
-                          dashboardStyles.statusText,
-                          { color: statusColor.color },
-                        ]}
-                      >
-                        {statusText}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          ) : (
-            <Text style={dashboardStyles.noDeliveries}>
-              Aucune livraison planifiée aujourd'hui
-            </Text>
-          )}
+                      <View style={dashboardStyles.timeContainer}>
+                        <Text style={dashboardStyles.timeText}>
+                          {new Date(delivery.created_at).toLocaleTimeString(
+                            "fr-FR",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </Text>
+                      </View>
+                      <View style={dashboardStyles.deliveryInfo}>
+                        <Text style={dashboardStyles.deliveryName}>
+                          {delivery.recipient_name}
+                        </Text>
+                        <Text style={dashboardStyles.deliveryAddress}>
+                          {delivery.address}
+                        </Text>
+                      </View>
+                      <View style={dashboardStyles.deliveryRight}>
+                        <Text style={dashboardStyles.deliveryFee}>
+                          {delivery.delivery_fee} FCFA
+                        </Text>
+                        <View
+                          style={[
+                            dashboardStyles.statusBadge,
+                            { backgroundColor: statusColor.backgroundColor },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              dashboardStyles.statusText,
+                              { color: statusColor.color },
+                            ]}
+                          >
+                            {statusText}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <Text style={dashboardStyles.noDeliveries}>
+                  Aucune livraison planifiée aujourd'hui
+                </Text>
+              )}
+            </ScrollView>
+          </View>
         </View>
         <View style={dashboardStyles.bottomSpacer} />
       </ScrollView>
-
-      {/* Bouton flottant */}
-      {/* <TouchableOpacity
-        style={dashboardStyles.floatingButton}
-        onPress={() => router.push("/add-delivery")}
-      >
-        <MaterialIcons name="add" size={24} color="#FFFFFF" />
-        <Text style={dashboardStyles.floatingButtonText}>
-          Ajouter une livraison
-        </Text>
-      </TouchableOpacity> */}
     </View>
   );
 }

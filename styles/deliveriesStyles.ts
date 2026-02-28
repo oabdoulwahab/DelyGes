@@ -8,6 +8,9 @@ export const deliveriesStyles = StyleSheet.create({
     paddingTop: 48,
     paddingBottom: 12,
     paddingHorizontal: 16,
+    position: "relative",
+    zIndex: 10,
+    backgroundColor: COLORS.background,
   },
   headerContent: {
     flexDirection: "row",
@@ -33,9 +36,12 @@ export const deliveriesStyles = StyleSheet.create({
   // Scroll
   scrollView: {
     flex: 1,
+    // zIndex: 1,
+    backgroundColor: COLORS.background,
   },
   scrollContent: {
     paddingBottom: 120,
+    paddingTop: 8,
   },
 
   // Search
@@ -43,8 +49,10 @@ export const deliveriesStyles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: COLORS.background,
+    zIndex: 5,
   },
   searchInputContainer: {
     flex: 1,
@@ -92,7 +100,8 @@ export const deliveriesStyles = StyleSheet.create({
   // Date filter
   dateFilterContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
+    backgroundColor: COLORS.background,
   },
   dateFilterContent: {
     flexDirection: "row",
@@ -116,6 +125,8 @@ export const deliveriesStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderLight,
     paddingBottom: 8,
+    backgroundColor: COLORS.background,
+    zIndex: 4,
   },
   tabsScroll: {
     paddingHorizontal: 16,
@@ -150,7 +161,8 @@ export const deliveriesStyles = StyleSheet.create({
   // Deliveries list
   deliveriesList: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 8,
+    backgroundColor: COLORS.background,
   },
   sectionTitle: {
     fontSize: 12,
@@ -158,8 +170,10 @@ export const deliveriesStyles = StyleSheet.create({
     color: COLORS.muted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 12,
+    marginBottom: 8,
     marginLeft: 4,
+    backgroundColor: COLORS.background,
+    paddingVertical: 4,
   },
 
   // Delivery card
@@ -170,6 +184,14 @@ export const deliveriesStyles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
     alignItems: "flex-start",
+    backgroundColor: COLORS.card,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    position: "relative",
+    zIndex: 2,
   },
   checkboxContainer: {
     paddingRight: 12,
@@ -206,6 +228,7 @@ export const deliveriesStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    flexWrap: "wrap",
   },
   statusBadge: {
     flexDirection: "row",
@@ -254,6 +277,7 @@ export const deliveriesStyles = StyleSheet.create({
   // Delivery details
   deliveryDetails: {
     marginBottom: 8,
+    backgroundColor: "transparent",
   },
   paymentTypeText: {
     color: COLORS.muted,
@@ -273,13 +297,19 @@ export const deliveriesStyles = StyleSheet.create({
   actionsContainer: {
     flexDirection: "row",
     gap: 8,
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderVeryLight,
   },
   actionButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.primary,
@@ -298,7 +328,8 @@ export const deliveriesStyles = StyleSheet.create({
   emptyState: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 60,
+    paddingVertical: 40,
+    backgroundColor: COLORS.background,
   },
   emptyStateText: {
     marginTop: 12,
@@ -326,6 +357,7 @@ export const deliveriesStyles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
+    zIndex: 20,
   },
   selectionInfo: {
     flex: 1,
@@ -365,11 +397,19 @@ export const deliveriesStyles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
+  // Section separator
+  sectionSeparator: {
+    height: 1,
+    backgroundColor: COLORS.borderVeryLight,
+    marginVertical: 12,
+  },
+
   // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
+    zIndex: 30,
   },
   modalContent: {
     backgroundColor: COLORS.card,
@@ -377,6 +417,7 @@ export const deliveriesStyles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingTop: 20,
     maxHeight: "90%",
+    zIndex: 31,
   },
   modalHeader: {
     flexDirection: "row",
