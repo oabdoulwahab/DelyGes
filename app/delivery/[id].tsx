@@ -18,6 +18,8 @@ import { deliveryDetailStyles } from "../../styles/deliveryDetailStyles";
 import { COLORS } from "../../styles/colors";
 import { useNavigation } from "../../hooks/useNavigation";
 import { useModal } from "../../providers/ModalProvider";
+import { useAuth } from "../../src/hooks/useAuth";
+import { sendDeliveryCompletedNotification } from "../../src/services/notification.service";
 
 type Delivery = {
   id: number;
@@ -45,8 +47,10 @@ export default function DeliveryDetail() {
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { showConfirm, showSuccess, showError, showAlert } = useModal();
   const { goBack, goToDeliveries } = useNavigation();
+  const { user } = useAuth();
 
   useEffect(() => {
     const loadDelivery = async () => {
@@ -70,6 +74,43 @@ export default function DeliveryDetail() {
 
     loadDelivery();
   }, [id]);
+
+  const handleMarkAsDelivered = () => {
+    showConfirm(
+      "Marquer comme livrée",
+      "Confirmez-vous que cette livraison a été effectuée ?",
+      async () => {
+        setIsUpdating(true);
+        try {
+          await db.runAsync(
+            "UPDATE deliveries SET status = ?, delivered_at = ? WHERE id = ?",
+            ["LIVREE", new Date().toISOString(), Number(id)],
+          );
+          
+          // Envoyer une notification
+          if (user?.id && delivery) {
+            await sendDeliveryCompletedNotification(user.id, delivery.delivery_fee);
+          }
+          
+          // Recharger les données
+          const updatedDelivery = await db.getFirstAsync<Delivery>(
+            "SELECT * FROM deliveries WHERE id = ?",
+            [Number(id)],
+          );
+          setDelivery(updatedDelivery);
+          
+          showSuccess("Succès", "Livraison marquée comme livrée");
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour:", error);
+          showError("Erreur", "Impossible de marquer la livraison comme livrée");
+        } finally {
+          setIsUpdating(false);
+        }
+      },
+      "Oui",
+      "Non",
+    );
+  };
 
   const handleDelete = () => {
     showConfirm(
@@ -182,6 +223,7 @@ export default function DeliveryDetail() {
           backgroundColor: COLORS.successSoft,
           borderColor: COLORS.success,
           textColor: COLORS.success,
+          isClickable: false,
         };
       case "A_LIVRER":
         return {
@@ -189,6 +231,7 @@ export default function DeliveryDetail() {
           backgroundColor: COLORS.warningSoft,
           borderColor: COLORS.warning,
           textColor: COLORS.warning,
+          isClickable: true,
         };
       case "ANNULEE":
         return {
@@ -196,6 +239,7 @@ export default function DeliveryDetail() {
           backgroundColor: COLORS.dangerSoft,
           borderColor: COLORS.danger,
           textColor: COLORS.danger,
+          isClickable: false,
         };
       default:
         return {
@@ -203,6 +247,7 @@ export default function DeliveryDetail() {
           backgroundColor: "#6b728020",
           borderColor: "#6b728030",
           textColor: "#6b7280",
+          isClickable: false,
         };
     }
   };
@@ -272,21 +317,54 @@ export default function DeliveryDetail() {
             Livraison #{delivery.id.toString().padStart(4, "0")}
           </Text>
 
-          <View
-            style={[
-              deliveryDetailStyles.statusBadgeHeader,
-              { backgroundColor: statusConfig.backgroundColor },
-            ]}
-          >
-            <Text
+          {/* Badge de statut - devient cliquable si la livraison peut être marquée comme livrée */}
+          {statusConfig.isClickable ? (
+            <TouchableOpacity
               style={[
-                deliveryDetailStyles.statusTextHeader,
-                { color: statusConfig.textColor },
+                deliveryDetailStyles.statusBadgeHeader,
+                { backgroundColor: statusConfig.backgroundColor },
+              ]}
+              onPress={handleMarkAsDelivered}
+              disabled={isUpdating}
+            >
+              {isUpdating ? (
+                <ActivityIndicator size="small" color={statusConfig.textColor} />
+              ) : (
+                <>
+                  <MaterialIcons
+                    name="check-circle"
+                    size={16}
+                    color={statusConfig.textColor}
+                    style={{ marginRight: 1 }}
+                  />
+                  <Text
+                    style={[
+                      deliveryDetailStyles.statusTextHeader,
+                      { color: statusConfig.textColor },
+                    ]}
+                  >
+                    {statusConfig.text}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View
+              style={[
+                deliveryDetailStyles.statusBadgeHeader,
+                { backgroundColor: statusConfig.backgroundColor },
               ]}
             >
-              {statusConfig.text}
-            </Text>
-          </View>
+              <Text
+                style={[
+                  deliveryDetailStyles.statusTextHeader,
+                  { color: statusConfig.textColor },
+                ]}
+              >
+                {statusConfig.text}
+              </Text>
+            </View>
+          )}
         </View>
       </BlurView>
 
@@ -330,17 +408,16 @@ export default function DeliveryDetail() {
                     style={deliveryDetailStyles.clientPhoneContainer}
                     onPress={handleCall}
                     activeOpacity={0.7}
-                    disabled={!isEditable}
                   >
                     <MaterialIcons
                       name="phone"
                       size={14}
-                      color={isEditable ? COLORS.primary : COLORS.muted}
+                      color={COLORS.primary}
                     />
                     <Text
                       style={[
                         deliveryDetailStyles.clientPhone,
-                        { color: isEditable ? COLORS.primary : COLORS.muted },
+                        { color: COLORS.primary },
                       ]}
                     >
                       {" "}
@@ -608,7 +685,7 @@ export default function DeliveryDetail() {
 
       {/* Actions - Affichage conditionnel selon le statut */}
       {isEditable ? (
-        // Mode édition : Afficher tous les boutons
+        // Mode édition : Afficher tous les boutons (sans le bouton "Marquer comme livrée" car il est dans le header)
         <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
           <TouchableOpacity
             style={deliveryDetailStyles.primaryButton}
@@ -616,7 +693,7 @@ export default function DeliveryDetail() {
           >
             <MaterialIcons name="phone" size={20} color="#FFFFFF" />
             <Text style={deliveryDetailStyles.primaryButtonText}>
-              Appeler le client
+              Appeler
             </Text>
           </TouchableOpacity>
 

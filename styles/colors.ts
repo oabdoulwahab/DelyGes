@@ -1,3 +1,4 @@
+// Dans le fichier styles/colors.ts, modifions successSoft pour qu'il soit plus visible
 export const COLORS = {
   background: "#EFECE6", // Beige clair pour le fond, chaleureux et professionnel
   card: "#f8fafcf6",       // Gris clair pour les cartes
@@ -21,6 +22,7 @@ export const COLORS = {
   borderLight: "#E2E8F0",
   borderVeryLight: "#F1F5F9",
   dangerSoft: "rgba(239, 68, 68, 0.1)",
-  successSoft: "rgba(16, 185, 129, 0.1)",
+  successSoft: "#D1FAE5", // Vert beaucoup plus visible (vert très clair)
+  // "rgba(16, 185, 129, 0.2)", // Alternative avec opacité 20%
   warningSoft: "rgba(245, 158, 11, 0.1)",
 };

@@ -435,7 +435,7 @@ export default function Dashboard() {
         <View style={dashboardStyles.scheduleSection}>
           <View style={dashboardStyles.scheduleHeader}>
             <Text style={dashboardStyles.scheduleTitle}>Planning du jour</Text>
-            <TouchableOpacity style={dashboardStyles.calendarButton}>
+            <TouchableOpacity onPress={() => router.push("/deliveries")} style={dashboardStyles.calendarButton}>
               <MaterialIcons
                 name="calendar-today"
                 size={20}

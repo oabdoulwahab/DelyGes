@@ -765,6 +765,7 @@ export default function Settings() {
           <MaterialIcons name="logout" size={20} color={COLORS.danger} />
           <Text style={settingsStyles.logoutButtonText}>Déconnexion</Text>
         </TouchableOpacity>
+         <View style={settingsStyles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );

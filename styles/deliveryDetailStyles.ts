@@ -406,4 +406,21 @@ export const deliveryDetailStyles = StyleSheet.create({
     fontStyle: "italic",
     marginBottom: SPACING.sm,
   },
+  markDeliveredButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  backgroundColor: COLORS.success,
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  borderRadius: 12,
+  marginBottom: 8,
+  width: "100%",
+},
+markDeliveredButtonText: {
+  color: "#FFFFFF",
+  fontSize: 16,
+  fontWeight: "bold",
+},
 });

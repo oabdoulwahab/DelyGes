@@ -677,7 +677,7 @@ export default function Deliveries() {
         <View style={deliveriesStyles.headerContent}>
           <Text style={deliveriesStyles.headerTitle}>Historique et Planning</Text>
           <TouchableOpacity style={deliveriesStyles.doneButton}>
-            <Text style={deliveriesStyles.doneButtonText}>Terminé</Text>
+            {/* <Text style={deliveriesStyles.doneButtonText}>Terminé</Text> */}
           </TouchableOpacity>
         </View>
       </BlurView>

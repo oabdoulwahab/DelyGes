@@ -322,4 +322,7 @@ export const settingsStyles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
+   bottomSpacer: {
+    height: 50,
+  },
 });
