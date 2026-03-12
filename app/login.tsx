@@ -62,20 +62,19 @@ export default function Login() {
     mode: "onChange",
   });
 
-  const onSubmit = async (data: LoginFormData): Promise<void> => {
-    try {
-      setLoading(true);
-      setLoginError(null);
-      await login(data.emailOrPhone, data.password);
-      
-      // Une fois connecté, le Layout détectera le changement d'état via le Context
-      router.replace("/dashboard");
-    } catch (e: any) {
-      setLoginError(e.message || "Identifiants incorrects");
-    } finally {
-      setLoading(false);
-    }
-  };
+ 
+const onSubmit = async (data: LoginFormData) => {
+  try {
+    setLoading(true);
+    setLoginError(null);
+    await login(data.emailOrPhone, data.password);
+    router.replace("/dashboard");
+  } catch (e: any) {
+    setLoginError(e.message || "Identifiants incorrects");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleForgotPassword = () => {
     router.push("/forgot-password");

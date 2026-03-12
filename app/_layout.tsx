@@ -13,6 +13,7 @@ import {
   setupBackgroundTask,
   scheduleInactivityReminders,
 } from "../src/services/notification.service";
+import { addFirebaseColumns } from '../src/database/migrations/add_firebase_columns';
 
 function RootLayoutNav() {
   const { isAuthenticated, authReady, user } = useAuth();
@@ -98,6 +99,7 @@ export default function Layout() {
     const initApp = async () => {
       try {
         await initializeDatabase();
+        await addFirebaseColumns();
         setDbReady(true);
       } catch (error) {
         console.error("❌ Erreur critique initialisation:", error);

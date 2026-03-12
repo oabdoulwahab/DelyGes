@@ -2,7 +2,6 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import Checkbox from "expo-checkbox";
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import { useState } from "react";
 import {
   Alert,
@@ -14,11 +13,9 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
-import { db } from "../src/database/db";
-import { User } from "../src/types";
 import { COLORS } from "../styles/colors";
 import { registerStyles } from "../styles/registerStyles";
-import { useAuth } from "../src/context/AuthContext";
+import { useAuth } from "../src/context/AuthContext"; // Assure-toi que ce hook pointe vers ton contexte
 
 export default function Register() {
   const [fullName, setFullName] = useState("");
@@ -30,9 +27,12 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const { checkAuth } = useAuth(); // Récupère checkAuth depuis le context
+  
+  // 🔥 IMPORTANT: On récupère la fonction register du contexte, plus checkAuth
+  const { register } = useAuth(); 
 
   const handleRegister = async () => {
+    // ✅ Garde TOUTES tes validations existantes
     if (!fullName.trim()) {
       Alert.alert("Erreur", "Le nom complet est obligatoire");
       return;
@@ -69,49 +69,28 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      // ✅ Vérifier si l'email existe déjà
-      const existingUser = await db.getFirstAsync(
-        "SELECT id FROM user WHERE email = ?",
-        [email.trim().toLowerCase()],
-      );
+      // 🔥 On appelle la fonction register du contexte Firebase
+      await register({
+        name: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        password: password
+      });
 
-      if (existingUser) {
-        Alert.alert("Erreur", "Vous avez déjà un compte");
-        return;
+      // ✅ Si on arrive ici, l'inscription a réussi
+      // La redirection vers /dashboard est automatique car le contexte met à jour isAuthenticated
+      
+    } catch (error: any) {
+      console.error("❌ Erreur inscription:", error);
+      
+      // Afficher le message d'erreur approprié
+      if (error.message.includes("email est déjà utilisé")) {
+        Alert.alert("Erreur", "Cet email est déjà utilisé");
+      } else if (error.message.includes("Mot de passe trop faible")) {
+        Alert.alert("Erreur", "Le mot de passe doit faire au moins 6 caractères");
+      } else {
+        Alert.alert("Erreur", error.message || "Une erreur est survenue lors de l'inscription");
       }
-
-      // ⚠️ Pour l'instant mot de passe en clair (OK pour MVP)
-      await db.runAsync(
-        "INSERT INTO user (name, email, phone, password, created_at) VALUES (?, ?, ?, ?, ?)",
-        [
-          fullName.trim(),
-          email.trim().toLowerCase(),
-          phone.trim(),
-          password,
-          new Date().toISOString(),
-        ],
-      );
-
-      // ✅ Récupérer l'utilisateur créé
-      const user = await db.getFirstAsync<User>(
-        "SELECT * FROM user WHERE email = ?",
-        [email.trim().toLowerCase()],
-      );
-
-      if (!user) {
-        Alert.alert("Erreur", "Impossible de récupérer l'utilisateur créé");
-        return;
-      }
-
-      // ✅ Sauvegarder la session
-      await SecureStore.setItemAsync("AUTH_USER_ID", String(user.id));
-
-      await checkAuth(); // Met à jour le context global
-
-      router.replace("/dashboard");
-    } catch (error) {
-      console.error(error);
-      Alert.alert("Erreur", "Une erreur est survenue lors de l'inscription");
     } finally {
       setIsLoading(false);
     }
