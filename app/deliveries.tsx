@@ -29,6 +29,7 @@ import { COLORS } from "../styles/colors";
 import { useModal } from "../providers/ModalProvider";
 import { sendDeliveryCompletedNotification } from "../src/services/notification.service";
 import { useAuth } from "../src/hooks/useAuth";
+import { useSync } from "../src/hooks/useSync";
 
 type Delivery = {
   id: number;
@@ -63,6 +64,7 @@ export default function Deliveries() {
   const [deliveryDates, setDeliveryDates] = useState<Date[]>([]);
   const { showConfirm, showSuccess, showError } = useModal();
   const { user } = useAuth();
+  const { markAndSync } = useSync();
 
   // Charger les dates des livraisons pour le calendrier
   const loadDeliveryDates = async () => {
@@ -224,15 +226,17 @@ export default function Deliveries() {
       prev.filter((deliveryId) => deliveryId !== id),
     );
 
-    // Récupérer le montant de la livraison
     const delivery = deliveries.find((d) => d.id === id);
     const amount = delivery?.delivery_fee || 0;
 
     await db.runAsync(
-      "UPDATE deliveries SET status = ?, delivered_at = ? WHERE id = ?",
+      "UPDATE deliveries SET status = ?, delivered_at = ?, needs_sync = 1 WHERE id = ?",
       ["LIVREE", new Date().toISOString(), id],
     );
-    // 📨 Envoyer une notification de livraison terminée
+
+    // 🔥 Marquer pour synchronisation
+    await markAndSync("deliveries", id);
+
     if (user?.id) {
       await sendDeliveryCompletedNotification(user.id, amount);
     }
@@ -269,10 +273,14 @@ export default function Deliveries() {
       "Annuler la livraison",
       "Êtes-vous sûr de vouloir annuler cette livraison ?",
       async () => {
-        await db.runAsync("UPDATE deliveries SET status = ? WHERE id = ?", [
-          "ANNULEE",
-          id,
-        ]);
+        await db.runAsync(
+          "UPDATE deliveries SET status = ?, needs_sync = 1 WHERE id = ?",
+          ["ANNULEE", id],
+        );
+
+        // 🔥 Marquer pour synchronisation
+        await markAndSync("deliveries", id);
+
         showSuccess("Succès", "Livraison annulée");
         loadDeliveries();
       },
@@ -438,7 +446,9 @@ export default function Deliveries() {
       const date = new Date(year, month, -i);
       days.push(
         <View key={`prev-${i}`} style={deliveriesStyles.calendarDayInactive}>
-          <Text style={deliveriesStyles.calendarDayTextInactive}>{date.getDate()}</Text>
+          <Text style={deliveriesStyles.calendarDayTextInactive}>
+            {date.getDate()}
+          </Text>
         </View>,
       );
     }
@@ -456,7 +466,9 @@ export default function Deliveries() {
             deliveriesStyles.calendarDay,
             isToday && deliveriesStyles.calendarDayToday,
             isSelected && deliveriesStyles.calendarDaySelected,
-            hasDeliveries && !isSelected && deliveriesStyles.calendarDayHasDeliveries,
+            hasDeliveries &&
+              !isSelected &&
+              deliveriesStyles.calendarDayHasDeliveries,
           ]}
           onPress={() => {
             setSelectedDate(date);
@@ -473,7 +485,9 @@ export default function Deliveries() {
           >
             {i}
           </Text>
-          {hasDeliveries && !isSelected && <View style={deliveriesStyles.deliveryIndicator} />}
+          {hasDeliveries && !isSelected && (
+            <View style={deliveriesStyles.deliveryIndicator} />
+          )}
         </TouchableOpacity>,
       );
     }
@@ -570,7 +584,10 @@ export default function Deliveries() {
                   color={statusConfig.textColor}
                 />
                 <Text
-                  style={[deliveriesStyles.statusText, { color: statusConfig.textColor }]}
+                  style={[
+                    deliveriesStyles.statusText,
+                    { color: statusConfig.textColor },
+                  ]}
                 >
                   {statusConfig.text}
                 </Text>
@@ -593,7 +610,10 @@ export default function Deliveries() {
           <View style={deliveriesStyles.addressContainer}>
             <View style={deliveriesStyles.addressLine}>
               <View
-                style={[deliveriesStyles.addressDot, { backgroundColor: COLORS.muted }]}
+                style={[
+                  deliveriesStyles.addressDot,
+                  { backgroundColor: COLORS.muted },
+                ]}
               />
               <Text style={deliveriesStyles.addressText} numberOfLines={1}>
                 {delivery.address || "Adresse non spécifiée"}
@@ -602,7 +622,10 @@ export default function Deliveries() {
 
             <View style={deliveriesStyles.addressLine}>
               <View
-                style={[deliveriesStyles.addressDot, { backgroundColor: COLORS.primary }]}
+                style={[
+                  deliveriesStyles.addressDot,
+                  { backgroundColor: COLORS.primary },
+                ]}
               />
               <Text style={deliveriesStyles.addressText} numberOfLines={1}>
                 {delivery.recipient_name}
@@ -610,7 +633,7 @@ export default function Deliveries() {
               </Text>
             </View>
           </View>
-          
+
           <View style={deliveriesStyles.deliveryDetails}>
             <Text style={deliveriesStyles.paymentTypeText}>
               {isClientPaysTout && "💰 Client paie colis + livraison"}
@@ -639,7 +662,9 @@ export default function Deliveries() {
                 onPress={() => markAsDelivered(delivery.id)}
               >
                 <MaterialIcons name="check" size={16} color="#FFFFFF" />
-                <Text style={deliveriesStyles.actionButtonText}>Marquer livrée</Text>
+                <Text style={deliveriesStyles.actionButtonText}>
+                  Marquer livrée
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -651,7 +676,10 @@ export default function Deliveries() {
               >
                 <MaterialIcons name="close" size={16} color={COLORS.danger} />
                 <Text
-                  style={[deliveriesStyles.actionButtonText, { color: COLORS.danger }]}
+                  style={[
+                    deliveriesStyles.actionButtonText,
+                    { color: COLORS.danger },
+                  ]}
                 >
                   Annuler
                 </Text>
@@ -675,7 +703,9 @@ export default function Deliveries() {
 
       <BlurView intensity={95} style={deliveriesStyles.header}>
         <View style={deliveriesStyles.headerContent}>
-          <Text style={deliveriesStyles.headerTitle}>Historique et Planning</Text>
+          <Text style={deliveriesStyles.headerTitle}>
+            Historique et Planning
+          </Text>
           <TouchableOpacity style={deliveriesStyles.doneButton}>
             {/* <Text style={deliveriesStyles.doneButtonText}>Terminé</Text> */}
           </TouchableOpacity>
@@ -716,7 +746,9 @@ export default function Deliveries() {
               size={20}
               color={dateFilterEnabled ? COLORS.primary : COLORS.muted}
             />
-            {dateFilterEnabled && <View style={deliveriesStyles.filterIndicator} />}
+            {dateFilterEnabled && (
+              <View style={deliveriesStyles.filterIndicator} />
+            )}
           </TouchableOpacity>
         </View>
 
@@ -748,7 +780,10 @@ export default function Deliveries() {
               (tab) => (
                 <TouchableOpacity
                   key={tab}
-                  style={[deliveriesStyles.tab, activeTab === tab && deliveriesStyles.activeTab]}
+                  style={[
+                    deliveriesStyles.tab,
+                    activeTab === tab && deliveriesStyles.activeTab,
+                  ]}
                   onPress={() => setActiveTab(tab)}
                 >
                   <Text
@@ -778,7 +813,9 @@ export default function Deliveries() {
           <View style={deliveriesStyles.deliveriesList}>
             {morning.length > 0 && (
               <View style={commonStyles.section}>
-                <Text style={deliveriesStyles.sectionTitle}>Tournées du matin</Text>
+                <Text style={deliveriesStyles.sectionTitle}>
+                  Tournées du matin
+                </Text>
                 {morning.map((delivery) => (
                   <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
@@ -790,7 +827,9 @@ export default function Deliveries() {
 
             {afternoon.length > 0 && (
               <View style={commonStyles.section}>
-                <Text style={deliveriesStyles.sectionTitle}>Bloc après-midi</Text>
+                <Text style={deliveriesStyles.sectionTitle}>
+                  Bloc après-midi
+                </Text>
                 {afternoon.map((delivery) => (
                   <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
                 ))}
@@ -887,7 +926,9 @@ export default function Deliveries() {
               style={deliveriesStyles.markPaidButton}
               onPress={markSelectedAsPaid}
             >
-              <Text style={deliveriesStyles.markPaidButtonText}>Marquer comme payé</Text>
+              <Text style={deliveriesStyles.markPaidButtonText}>
+                Marquer comme payé
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -915,7 +956,9 @@ export default function Deliveries() {
                 onPress={clearDateFilter}
                 style={deliveriesStyles.modalResetButton}
               >
-                <Text style={deliveriesStyles.modalResetText}>Réinitialiser</Text>
+                <Text style={deliveriesStyles.modalResetText}>
+                  Réinitialiser
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -930,7 +973,8 @@ export default function Deliveries() {
                   <TouchableOpacity
                     style={[
                       deliveriesStyles.periodButton,
-                      activePeriod === "today" && deliveriesStyles.periodButtonActive,
+                      activePeriod === "today" &&
+                        deliveriesStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("today")}
                   >
@@ -948,7 +992,8 @@ export default function Deliveries() {
                   <TouchableOpacity
                     style={[
                       deliveriesStyles.periodButton,
-                      activePeriod === "week" && deliveriesStyles.periodButtonActive,
+                      activePeriod === "week" &&
+                        deliveriesStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("week")}
                   >
@@ -966,7 +1011,8 @@ export default function Deliveries() {
                   <TouchableOpacity
                     style={[
                       deliveriesStyles.periodButton,
-                      activePeriod === "month" && deliveriesStyles.periodButtonActive,
+                      activePeriod === "month" &&
+                        deliveriesStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("month")}
                   >
@@ -1067,7 +1113,9 @@ export default function Deliveries() {
                 style={deliveriesStyles.resetButton}
                 onPress={clearDateFilter}
               >
-                <Text style={deliveriesStyles.resetButtonText}>Réinitialiser</Text>
+                <Text style={deliveriesStyles.resetButtonText}>
+                  Réinitialiser
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity

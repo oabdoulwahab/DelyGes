@@ -2,33 +2,82 @@
 import { db } from '../database/db';
 import { auth, db as firestore } from '../config/firebase';
 import NetInfo from '@react-native-community/netinfo';
-import { collection, doc, setDoc, updateDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, setDoc, updateDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 
 class SyncService {
   private isOnline: boolean = true;
+  private syncInProgress: boolean = false;
+  private lastSyncTime: number = 0;
+  private syncQueue: Array<{table: string, id: number}> = [];
+  private syncTimeout: ReturnType<typeof setTimeout> | null = null;
+  private readonly SYNC_DEBOUNCE = 2000; // 2 secondes
+  private readonly SYNC_COOLDOWN = 5000; // 5 secondes entre deux sync complètes
 
   constructor() {
     // Écouter les changements de connexion
     NetInfo.addEventListener(state => {
+      const wasOnline = this.isOnline;
       this.isOnline = state.isConnected ?? false;
-      if (this.isOnline) {
-        console.log('📶 En ligne - synchronisation...');
-        this.syncAll();
+      
+      if (!wasOnline && this.isOnline) {
+        console.log('📶 Connexion rétablie - synchronisation...');
+        this.processSyncQueue();
       }
     });
   }
 
-  // 🔥 NOUVELLE FONCTION : Importer les données depuis Firebase
+  async deleteFromFirebase(table: string, firebaseId: string) {
+    if (!this.isOnline || !auth.currentUser) {
+      console.log('⏭️ Suppression Firebase ignorée: hors ligne');
+      return;
+    }
+    
+    try {
+      console.log(`🗑️ Suppression ${table} ${firebaseId} de Firebase...`);
+      await deleteDoc(doc(firestore, table, firebaseId));
+      console.log(`✅ ${table} supprimé de Firebase`);
+    } catch (error) {
+      console.error(`❌ Erreur suppression ${table}:`, error);
+    }
+  }
+
+  // 🔥 Import optimisé avec cache et exécution en arrière-plan
   async importFromFirebase() {
     if (!auth.currentUser) {
       console.log('⏭️ Import ignoré: utilisateur non connecté');
       return;
     }
 
+    // Éviter les imports multiples
+    if (this.syncInProgress) {
+      console.log('⏭️ Import déjà en cours');
+      return;
+    }
+
+    // Vérifier si l'import est récent (moins de 30 secondes)
+    if (Date.now() - this.lastSyncTime < 30000) {
+      console.log('⏭️ Import récent ignoré');
+      return;
+    }
+
+    this.syncInProgress = true;
     console.log('📥 Import des données depuis Firebase...');
 
     try {
-      // Importer les commerçants
+      // 1. Récupérer tous les IDs Firebase existants en local
+      const localFirebaseIds = new Set();
+      
+      const localMerchants = await db.getAllAsync<{ firebase_id: string }>(
+        'SELECT firebase_id FROM merchants WHERE firebase_id IS NOT NULL'
+      );
+      localMerchants.forEach(m => localFirebaseIds.add(m.firebase_id));
+
+      const localDeliveries = await db.getAllAsync<{ firebase_id: string }>(
+        'SELECT firebase_id FROM deliveries WHERE firebase_id IS NOT NULL'
+      );
+      localDeliveries.forEach(d => localFirebaseIds.add(d.firebase_id));
+
+      // 2. Importer les commerçants
       console.log('📦 Import des commerçants...');
       const merchantsQuery = query(
         collection(firestore, 'merchants'),
@@ -37,35 +86,34 @@ class SyncService {
       const merchantsSnapshot = await getDocs(merchantsQuery);
       
       let merchantCount = 0;
-      for (const doc of merchantsSnapshot.docs) {
-        const data = doc.data();
-        
-        // Vérifier si le commerçant existe déjà en local
-        const existing = await db.getFirstAsync<any>(
-          'SELECT id FROM merchants WHERE firebase_id = ?',
-          [doc.id]
-        );
+      const batchSize = 10; // Traiter par lots pour éviter de bloquer
+      let merchantBatch = [];
 
-        if (!existing) {
-          await db.runAsync(
-            `INSERT INTO merchants 
-             (name, phone, address, firebase_id, user_id, created_at, needs_sync) 
-             VALUES (?, ?, ?, ?, ?, ?, 0)`,
-            [
-              data.name || '',
-              data.phone || '',
-              data.address || '',
-              doc.id,
-              auth.currentUser.uid,
-              data.created_at || new Date().toISOString()
-            ]
-          );
-          merchantCount++;
+      for (const doc of merchantsSnapshot.docs) {
+        // Ignorer si déjà importé
+        if (localFirebaseIds.has(doc.id)) continue;
+
+        const data = doc.data();
+        merchantBatch.push({
+          firebaseId: doc.id,
+          data: data
+        });
+
+        if (merchantBatch.length >= batchSize) {
+          await this.processMerchantBatch(merchantBatch);
+          merchantCount += merchantBatch.length;
+          merchantBatch = [];
         }
       }
-      console.log(`✅ ${merchantCount} commerçants importés`);
 
-      // Importer les livraisons
+      if (merchantBatch.length > 0) {
+        await this.processMerchantBatch(merchantBatch);
+        merchantCount += merchantBatch.length;
+      }
+
+      console.log(`✅ ${merchantCount} nouveaux commerçants importés`);
+
+      // 3. Importer les livraisons
       console.log('📦 Import des livraisons...');
       const deliveriesQuery = query(
         collection(firestore, 'deliveries'),
@@ -74,186 +122,273 @@ class SyncService {
       const deliveriesSnapshot = await getDocs(deliveriesQuery);
 
       let deliveryCount = 0;
+      let deliveryBatch = [];
+
       for (const doc of deliveriesSnapshot.docs) {
+        if (localFirebaseIds.has(doc.id)) continue;
+
         const data = doc.data();
-        
-        // Vérifier si la livraison existe déjà en local
-        const existing = await db.getFirstAsync<any>(
-          'SELECT id FROM deliveries WHERE firebase_id = ?',
-          [doc.id]
-        );
+        deliveryBatch.push({
+          firebaseId: doc.id,
+          data: data
+        });
 
-        if (!existing) {
-          // Trouver l'ID local du commerçant si nécessaire
-          let localMerchantId = null;
-          if (data.merchant_id) {
-            const merchant = await db.getFirstAsync<{ id: number }>(
-              'SELECT id FROM merchants WHERE firebase_id = ?',
-              [data.merchant_id]
-            );
-            localMerchantId = merchant?.id || null;
-          }
-
-          await db.runAsync(
-            `INSERT INTO deliveries 
-             (recipient_name, phone, address, parcel_value, delivery_fee, 
-              merchant_id, payment_type, amount_collected, amount_to_return,
-              profit, status, created_at, delivered_at, user_id, firebase_id, needs_sync)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-            [
-              data.recipient_name || '',
-              data.phone || '',
-              data.address || '',
-              data.parcel_value || 0,
-              data.delivery_fee || 0,
-              localMerchantId,
-              data.payment_type || 'CLIENT_PAYE_TOUT',
-              data.amount_collected || 0,
-              data.amount_to_return || 0,
-              data.profit || 0,
-              data.status || 'A_LIVRER',
-              data.created_at || new Date().toISOString(),
-              data.delivered_at || null,
-              auth.currentUser.uid,
-              doc.id
-            ]
-          );
-          deliveryCount++;
+        if (deliveryBatch.length >= batchSize) {
+          await this.processDeliveryBatch(deliveryBatch);
+          deliveryCount += deliveryBatch.length;
+          deliveryBatch = [];
         }
       }
 
-      console.log(`✅ ${deliveryCount} livraisons importées`);
+      if (deliveryBatch.length > 0) {
+        await this.processDeliveryBatch(deliveryBatch);
+        deliveryCount += deliveryBatch.length;
+      }
+
+      console.log(`✅ ${deliveryCount} nouvelles livraisons importées`);
       console.log('📥 Import terminé avec succès');
 
     } catch (error) {
       console.error('❌ Erreur import:', error);
-      throw error;
+    } finally {
+      this.syncInProgress = false;
+      this.lastSyncTime = Date.now();
     }
+  }
+
+  // Traiter un lot de commerçants
+  private async processMerchantBatch(batch: Array<{firebaseId: string, data: any}>) {
+    const queries = batch.map(item => 
+      db.runAsync(
+        `INSERT INTO merchants 
+         (name, phone, address, firebase_id, user_id, created_at, needs_sync) 
+         VALUES (?, ?, ?, ?, ?, ?, 0)`,
+        [
+          item.data.name || '',
+          item.data.phone || '',
+          item.data.address || '',
+          item.firebaseId,
+          auth.currentUser?.uid,
+          item.data.created_at || new Date().toISOString()
+        ]
+      )
+    );
+    await Promise.all(queries);
+  }
+
+  // Traiter un lot de livraisons
+  private async processDeliveryBatch(batch: Array<{firebaseId: string, data: any}>) {
+    const queries = batch.map(async (item) => {
+      // Trouver l'ID local du commerçant
+      let localMerchantId = null;
+      if (item.data.merchant_id) {
+        const merchant = await db.getFirstAsync<{ id: number }>(
+          'SELECT id FROM merchants WHERE firebase_id = ?',
+          [item.data.merchant_id]
+        );
+        localMerchantId = merchant?.id || null;
+      }
+
+      return db.runAsync(
+        `INSERT INTO deliveries 
+         (recipient_name, phone, address, parcel_value, delivery_fee, 
+          merchant_id, payment_type, amount_collected, amount_to_return,
+          profit, status, created_at, delivered_at, user_id, firebase_id, needs_sync)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [
+          item.data.recipient_name || '',
+          item.data.phone || '',
+          item.data.address || '',
+          item.data.parcel_value || 0,
+          item.data.delivery_fee || 0,
+          localMerchantId,
+          item.data.payment_type || 'CLIENT_PAYE_TOUT',
+          item.data.amount_collected || 0,
+          item.data.amount_to_return || 0,
+          item.data.profit || 0,
+          item.data.status || 'A_LIVRER',
+          item.data.created_at || new Date().toISOString(),
+          item.data.delivered_at || null,
+          auth.currentUser?.uid,
+          item.firebaseId
+        ]
+      );
+    });
+
+    await Promise.all(queries);
   }
 
   async syncAll() {
-    if (!this.isOnline || !auth.currentUser) return;
+    // Éviter les synchronisations trop fréquentes
+    if (!this.isOnline || !auth.currentUser || this.syncInProgress) return;
+    
+    // Vérifier le cooldown
+    if (Date.now() - this.lastSyncTime < this.SYNC_COOLDOWN) {
+      console.log('⏭️ Sync ignorée (cooldown)');
+      return;
+    }
+
+    this.syncInProgress = true;
     
     try {
       console.log('🔄 Synchronisation...');
-      await this.syncDeliveries();
-      await this.syncMerchants();
+      await Promise.all([
+        this.syncDeliveries(),
+        this.syncMerchants()
+      ]);
+      this.lastSyncTime = Date.now();
     } catch (error) {
       console.error('❌ Erreur sync:', error);
-    }
-  }
-
-  private async syncDeliveries() {
-    const items = await db.getAllAsync<any>(
-      `SELECT * FROM deliveries WHERE needs_sync = 1`
-    );
-
-    if (items.length === 0) return;
-    console.log(`🔄 Synchronisation de ${items.length} livraisons...`);
-
-    for (const item of items) {
-      try {
-        // Récupérer le firebase_id du commerçant
-        let merchantFirebaseId = null;
-        if (item.merchant_id) {
-          const merchant = await db.getFirstAsync<{ firebase_id: string }>(
-            'SELECT firebase_id FROM merchants WHERE id = ?',
-            [item.merchant_id]
-          );
-          merchantFirebaseId = merchant?.firebase_id;
-        }
-
-        const firestoreData = {
-          recipient_name: item.recipient_name,
-          phone: item.phone,
-          address: item.address,
-          parcel_value: item.parcel_value,
-          delivery_fee: item.delivery_fee,
-          merchant_id: merchantFirebaseId,
-          payment_type: item.payment_type,
-          amount_collected: item.amount_collected,
-          amount_to_return: item.amount_to_return,
-          profit: item.profit,
-          status: item.status,
-          created_at: item.created_at,
-          delivered_at: item.delivered_at,
-          user_id: auth.currentUser?.uid,
-          updated_at: new Date().toISOString()
-        };
-
-        if (item.firebase_id) {
-          // Mise à jour
-          await updateDoc(doc(firestore, 'deliveries', item.firebase_id), firestoreData);
-          await db.runAsync(
-            `UPDATE deliveries SET needs_sync = 0 WHERE id = ?`,
-            [item.id]
-          );
-        } else {
-          // Nouvelle livraison
-          const docRef = doc(collection(firestore, 'deliveries'));
-          await setDoc(docRef, {
-            ...firestoreData,
-            created_at: item.created_at || new Date().toISOString()
-          });
-          
-          await db.runAsync(
-            `UPDATE deliveries SET firebase_id = ?, needs_sync = 0 WHERE id = ?`,
-            [docRef.id, item.id]
-          );
-        }
-      } catch (error) {
-        console.error(`❌ Erreur sync livraison ${item.id}:`, error);
-      }
-    }
-  }
-
-  private async syncMerchants() {
-    const items = await db.getAllAsync<any>(
-      `SELECT * FROM merchants WHERE needs_sync = 1`
-    );
-
-    if (items.length === 0) return;
-    console.log(`🔄 Synchronisation de ${items.length} commerçants...`);
-
-    for (const item of items) {
-      try {
-        const firestoreData = {
-          name: item.name,
-          phone: item.phone,
-          address: item.address,
-          user_id: auth.currentUser?.uid,
-          updated_at: new Date().toISOString()
-        };
-
-        if (item.firebase_id) {
-          // Mise à jour
-          await updateDoc(doc(firestore, 'merchants', item.firebase_id), firestoreData);
-          await db.runAsync(
-            `UPDATE merchants SET needs_sync = 0 WHERE id = ?`,
-            [item.id]
-          );
-        } else {
-          // Nouveau commerçant
-          const docRef = doc(collection(firestore, 'merchants'));
-          await setDoc(docRef, {
-            ...firestoreData,
-            created_at: item.created_at || new Date().toISOString()
-          });
-          
-          await db.runAsync(
-            `UPDATE merchants SET firebase_id = ?, needs_sync = 0 WHERE id = ?`,
-            [docRef.id, item.id]
-          );
-        }
-      } catch (error) {
-        console.error(`❌ Erreur sync commerçant ${item.id}:`, error);
-      }
+    } finally {
+      this.syncInProgress = false;
     }
   }
 
   async markForSync(table: string, id: number) {
     await db.runAsync(`UPDATE ${table} SET needs_sync = 1 WHERE id = ?`, [id]);
-    if (this.isOnline) this.syncAll();
+    
+    // Ajouter à la queue
+    this.syncQueue.push({table, id});
+    
+    // Debounce la synchronisation
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+    }
+    
+    this.syncTimeout = setTimeout(() => {
+      this.processSyncQueue();
+    }, this.SYNC_DEBOUNCE);
+  }
+
+  private async processSyncQueue() {
+    if (this.syncQueue.length === 0 || !this.isOnline) return;
+    
+    console.log(`🔄 Traitement de ${this.syncQueue.length} éléments en attente...`);
+    this.syncQueue = [];
+    await this.syncAll();
+  }
+
+  private async syncDeliveries() {
+    const items = await db.getAllAsync<any>(
+      `SELECT * FROM deliveries WHERE needs_sync = 1 LIMIT 20` // Limiter pour performance
+    );
+
+    if (items.length === 0) return;
+    console.log(`🔄 Synchronisation de ${items.length} livraisons...`);
+
+    const promises = items.map(item => this.syncSingleDelivery(item));
+    await Promise.all(promises);
+  }
+
+  private async syncSingleDelivery(item: any) {
+    try {
+      // Récupérer le firebase_id du commerçant
+      let merchantFirebaseId = null;
+      if (item.merchant_id) {
+        const merchant = await db.getFirstAsync<{ firebase_id: string }>(
+          'SELECT firebase_id FROM merchants WHERE id = ?',
+          [item.merchant_id]
+        );
+        merchantFirebaseId = merchant?.firebase_id;
+      }
+
+      const firestoreData = {
+        recipient_name: item.recipient_name,
+        phone: item.phone,
+        address: item.address,
+        parcel_value: item.parcel_value,
+        delivery_fee: item.delivery_fee,
+        merchant_id: merchantFirebaseId,
+        payment_type: item.payment_type,
+        amount_collected: item.amount_collected,
+        amount_to_return: item.amount_to_return,
+        profit: item.profit,
+        status: item.status,
+        created_at: item.created_at,
+        delivered_at: item.delivered_at,
+        user_id: auth.currentUser?.uid,
+        updated_at: new Date().toISOString()
+      };
+
+      if (item.firebase_id) {
+        // Mise à jour
+        await updateDoc(doc(firestore, 'deliveries', item.firebase_id), firestoreData);
+        await db.runAsync(
+          `UPDATE deliveries SET needs_sync = 0 WHERE id = ?`,
+          [item.id]
+        );
+      } else {
+        // Nouvelle livraison
+        const docRef = doc(collection(firestore, 'deliveries'));
+        await setDoc(docRef, {
+          ...firestoreData,
+          created_at: item.created_at || new Date().toISOString()
+        });
+        
+        await db.runAsync(
+          `UPDATE deliveries SET firebase_id = ?, needs_sync = 0 WHERE id = ?`,
+          [docRef.id, item.id]
+        );
+      }
+    } catch (error) {
+      console.error(`❌ Erreur sync livraison ${item.id}:`, error);
+    }
+  }
+
+  private async syncMerchants() {
+    const items = await db.getAllAsync<any>(
+      `SELECT * FROM merchants WHERE needs_sync = 1 LIMIT 20`
+    );
+
+    if (items.length === 0) return;
+    console.log(`🔄 Synchronisation de ${items.length} commerçants...`);
+
+    const promises = items.map(item => this.syncSingleMerchant(item));
+    await Promise.all(promises);
+  }
+
+  private async syncSingleMerchant(item: any) {
+    try {
+      const firestoreData = {
+        name: item.name,
+        phone: item.phone,
+        address: item.address,
+        user_id: auth.currentUser?.uid,
+        updated_at: new Date().toISOString()
+      };
+
+      if (item.firebase_id) {
+        // Mise à jour
+        await updateDoc(doc(firestore, 'merchants', item.firebase_id), firestoreData);
+        await db.runAsync(
+          `UPDATE merchants SET needs_sync = 0 WHERE id = ?`,
+          [item.id]
+        );
+      } else {
+        // Nouveau commerçant
+        const docRef = doc(collection(firestore, 'merchants'));
+        await setDoc(docRef, {
+          ...firestoreData,
+          created_at: item.created_at || new Date().toISOString()
+        });
+        
+        await db.runAsync(
+          `UPDATE merchants SET firebase_id = ?, needs_sync = 0 WHERE id = ?`,
+          [docRef.id, item.id]
+        );
+      }
+    } catch (error) {
+      console.error(`❌ Erreur sync commerçant ${item.id}:`, error);
+    }
+  }
+
+  // Réinitialiser la queue (utile pour les tests)
+  clearQueue() {
+    this.syncQueue = [];
+    if (this.syncTimeout) {
+      clearTimeout(this.syncTimeout);
+      this.syncTimeout = null;
+    }
   }
 }
 

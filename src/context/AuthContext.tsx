@@ -2,18 +2,18 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import * as SecureStore from "expo-secure-store";
 import { db as sqliteDb } from "../database/db";
-import { auth, db as firestore } from '../config/firebase';
-import { 
+import { auth, db as firestore } from "../config/firebase";
+import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
-  updateProfile
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { syncService } from '../services/sync.service';
-import { addFirebaseColumns } from '../database/migrations/add_firebase_columns';
+  updateProfile,
+} from "firebase/auth";
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { syncService } from "../services/sync.service";
+import { addFirebaseColumns } from "../database/migrations/add_firebase_columns";
 
 const USER_KEY = "AUTH_USER_ID";
 
@@ -37,7 +37,13 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNode; isDbReady: boolean }) => {
+export const AuthProvider = ({
+  children,
+  isDbReady,
+}: {
+  children: React.ReactNode;
+  isDbReady: boolean;
+}) => {
   const [user, setUser] = useState<any>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -45,23 +51,26 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
 
   // 1. Écouter les changements d'état Firebase
   useEffect(() => {
-    console.log('👂 Mise en place de l\'écoute Firebase...');
-    
+    console.log("👂 Mise en place de l'écoute Firebase...");
+
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      console.log('🔥 Firebase auth changed:', fbUser ? fbUser.uid : 'déconnecté');
+      console.log(
+        "🔥 Firebase auth changed:",
+        fbUser ? fbUser.uid : "déconnecté",
+      );
       setFirebaseUser(fbUser);
-      
+
       if (fbUser && isDbReady) {
         // Charger l'utilisateur depuis SQLite
         await loadLocalUser(fbUser.uid);
       } else if (!fbUser) {
         // Déconnexion
-        console.log('👋 Utilisateur déconnecté');
+        console.log("👋 Utilisateur déconnecté");
         setUser(null);
         setIsAuthenticated(false);
         await SecureStore.deleteItemAsync(USER_KEY);
       }
-      
+
       setAuthReady(true);
     });
 
@@ -71,50 +80,60 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
   // 2. Charger l'utilisateur local
   const loadLocalUser = async (firebaseUid: string) => {
     try {
-      console.log('📦 Chargement utilisateur local...');
-      
+      console.log("📦 Chargement utilisateur local...");
+
       let localUser = await sqliteDb.getFirstAsync<any>(
         "SELECT * FROM user WHERE firebase_uid = ?",
-        [firebaseUid]
+        [firebaseUid],
       );
 
       if (!localUser) {
-        // Premier démarrage : créer l'utilisateur local
-        console.log('🆕 Création utilisateur local...');
+        console.log("🆕 Création utilisateur local...");
         const fbUser = auth.currentUser;
-        
+
         if (fbUser) {
-          const result = await sqliteDb.runAsync(
-            `INSERT INTO user (name, email, phone, firebase_uid, password, created_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [
-              fbUser.displayName || 'Livreur',
-              fbUser.email || '',
-              fbUser.phoneNumber || '',
-              firebaseUid,
-              'firebase_managed',
-              new Date().toISOString()
-            ]
+          // Supprimer tout utilisateur avec le même email ou téléphone
+          await sqliteDb.runAsync(
+            "DELETE FROM user WHERE email = ? OR phone = ?",
+            [fbUser.email || "", fbUser.phoneNumber || ""],
           );
-          
+
+          const result = await sqliteDb.runAsync(
+            `INSERT INTO user (name, email, phone, firebase_uid, password, created_at, daily_goal)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              fbUser.displayName || "Livreur",
+              fbUser.email || "",
+              fbUser.phoneNumber || "",
+              firebaseUid,
+              "firebase_managed",
+              new Date().toISOString(),
+              15000,
+            ],
+          );
+
           localUser = await sqliteDb.getFirstAsync<any>(
             "SELECT * FROM user WHERE id = ?",
-            [result.lastInsertRowId]
+            [result.lastInsertRowId],
           );
         }
       }
 
       if (localUser) {
-        console.log('✅ Utilisateur local chargé:', localUser.name);
+        console.log("✅ Utilisateur local chargé:", localUser.name);
         setUser(localUser);
         setIsAuthenticated(true);
         await SecureStore.setItemAsync(USER_KEY, String(localUser.id));
-        
-        // Synchroniser les données depuis Firebase
-        await syncService.importFromFirebase();
+
+        // 🔥 IMPORTANT: Lancer l'import en arrière-plan
+        setTimeout(() => {
+          syncService
+            .importFromFirebase()
+            .catch((e) => console.log("⚠️ Import Firebase différé:", e));
+        }, 1000);
       }
     } catch (error) {
-      console.error('❌ Erreur chargement utilisateur local:', error);
+      console.error("❌ Erreur chargement utilisateur local:", error);
     }
   };
 
@@ -123,21 +142,21 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
     if (!isDbReady) return;
 
     try {
-      console.log('🔍 Vérification session...');
-      
+      console.log("🔍 Vérification session...");
+
       // Ajouter les colonnes Firebase si nécessaire
       await addFirebaseColumns();
 
       const localUserId = await SecureStore.getItemAsync(USER_KEY);
-      
+
       if (localUserId) {
         const localUser = await sqliteDb.getFirstAsync<any>(
           "SELECT * FROM user WHERE id = ?",
-          [Number(localUserId)]
+          [Number(localUserId)],
         );
-        
+
         if (localUser?.firebase_uid) {
-          console.log('👤 Session locale trouvée pour:', localUser.name);
+          console.log("👤 Session locale trouvée pour:", localUser.name);
           setUser(localUser);
           setIsAuthenticated(true);
         } else {
@@ -152,28 +171,34 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
   // 4. Connexion
   const login = async (email: string, password: string) => {
     try {
-      console.log('🔐 Tentative de connexion...');
-      
+      console.log("🔐 Tentative de connexion...");
+
       // Connexion à Firebase
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
       const fbUser = userCredential.user;
-      
-      console.log('✅ Connecté à Firebase:', fbUser.uid);
-      
+
+      console.log("✅ Connecté à Firebase:", fbUser.uid);
+
       // Le reste est géré par onAuthStateChanged
-      
     } catch (error: any) {
-      console.error('❌ Erreur login:', error.code, error.message);
-      
+      console.error("❌ Erreur login:", error.code, error.message);
+
       // Traduire les erreurs Firebase
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        throw new Error('Email ou mot de passe incorrect');
-      } else if (error.code === 'auth/invalid-email') {
-        throw new Error('Email invalide');
-      } else if (error.code === 'auth/too-many-requests') {
-        throw new Error('Trop de tentatives. Réessayez plus tard');
+      if (
+        error.code === "auth/user-not-found" ||
+        error.code === "auth/wrong-password"
+      ) {
+        throw new Error("Email ou mot de passe incorrect");
+      } else if (error.code === "auth/invalid-email") {
+        throw new Error("Email invalide");
+      } else if (error.code === "auth/too-many-requests") {
+        throw new Error("Trop de tentatives. Réessayez plus tard");
       } else {
-        throw new Error('Erreur de connexion');
+        throw new Error("Erreur de connexion");
       }
     }
   };
@@ -181,47 +206,114 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
   // 5. Inscription
   const register = async (data: RegisterData) => {
     try {
-      console.log('📝 Tentative d\'inscription...');
-      
-      // Créer l'utilisateur Firebase
+      console.log("📝 Tentative d'inscription...");
+
+      // 1. Vérifier d'abord si le téléphone existe déjà dans SQLite
+      const existingPhone = await sqliteDb.getFirstAsync<any>(
+        "SELECT id FROM user WHERE phone = ?",
+        [data.phone],
+      );
+
+      if (existingPhone) {
+        throw new Error("Ce téléphone est déjà utilisé");
+      }
+
+      // 2. Créer l'utilisateur Firebase
       const userCredential = await createUserWithEmailAndPassword(
-        auth, 
-        data.email, 
-        data.password
+        auth,
+        data.email,
+        data.password,
       );
       const fbUser = userCredential.user;
 
-      console.log('✅ Compte Firebase créé:', fbUser.uid);
+      console.log("✅ Compte Firebase créé:", fbUser.uid);
 
-      // Mettre à jour le profil avec le nom
+      // 3. Mettre à jour le profil avec le nom
       await updateProfile(fbUser, {
-        displayName: data.name
+        displayName: data.name,
       });
 
-      // Créer le document utilisateur dans Firestore
-      await setDoc(doc(firestore, 'users', fbUser.uid), {
+      // 4. Créer le document utilisateur dans Firestore
+      await setDoc(doc(firestore, "users", fbUser.uid), {
         name: data.name,
         email: data.email,
         phone: data.phone,
         created_at: new Date().toISOString(),
         monthly_goal: 250000,
-        daily_goal: 15000
+        daily_goal: 15000,
       });
 
-      console.log('✅ Document Firestore créé');
-      
+      console.log("✅ Document Firestore créé");
+
+      // 5. ✅ CRÉER L'UTILISATEUR DANS SQLITE IMMÉDIATEMENT
+      console.log("📦 Création utilisateur dans SQLite...");
+
+      // Supprimer tout utilisateur existant avec le même firebase_uid (au cas où)
+      await sqliteDb.runAsync("DELETE FROM user WHERE firebase_uid = ?", [
+        fbUser.uid,
+      ]);
+
+      // Insérer le nouvel utilisateur
+      const result = await sqliteDb.runAsync(
+        `INSERT INTO user 
+       (name, email, phone, firebase_uid, password, created_at, daily_goal) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          data.name,
+          data.email,
+          data.phone,
+          fbUser.uid,
+          "firebase_managed",
+          new Date().toISOString(),
+          15000,
+        ],
+      );
+
+      console.log(
+        "✅ Utilisateur SQLite créé avec ID:",
+        result.lastInsertRowId,
+      );
+
+      // 6. Récupérer l'utilisateur créé
+      const newLocalUser = await sqliteDb.getFirstAsync<any>(
+        "SELECT * FROM user WHERE id = ?",
+        [result.lastInsertRowId],
+      );
+
+      // 7. Mettre à jour le state
+      setUser(newLocalUser);
+      setIsAuthenticated(true);
+      await SecureStore.setItemAsync(USER_KEY, String(newLocalUser.id));
     } catch (error: any) {
-      console.error('❌ Erreur inscription:', error.code, error.message);
-      
+      console.error("❌ Erreur inscription:", error.code, error.message);
+
+      // Si Firebase Auth a réussi mais que SQLite a échoué, nettoyer Firebase
+      if (
+        error.code !== "auth/email-already-in-use" &&
+        error.code !== "auth/weak-password"
+      ) {
+        try {
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            await currentUser.delete();
+            console.log("✅ Compte Firebase nettoyé après erreur SQLite");
+          }
+        } catch (cleanupError) {
+          console.error("❌ Erreur nettoyage Firebase:", cleanupError);
+        }
+      }
+
       // Traduire les erreurs Firebase
-      if (error.code === 'auth/email-already-in-use') {
-        throw new Error('Cet email est déjà utilisé');
-      } else if (error.code === 'auth/invalid-email') {
-        throw new Error('Email invalide');
-      } else if (error.code === 'auth/weak-password') {
-        throw new Error('Mot de passe trop faible (minimum 6 caractères)');
+      if (error.code === "auth/email-already-in-use") {
+        throw new Error("Cet email est déjà utilisé");
+      } else if (error.code === "auth/invalid-email") {
+        throw new Error("Email invalide");
+      } else if (error.code === "auth/weak-password") {
+        throw new Error("Mot de passe trop faible (minimum 6 caractères)");
+      } else if (error.message.includes("téléphone est déjà utilisé")) {
+        throw new Error("Ce téléphone est déjà utilisé");
       } else {
-        throw new Error("Erreur d'inscription");
+        throw new Error(error.message || "Erreur d'inscription");
       }
     }
   };
@@ -229,11 +321,11 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
   // 6. Déconnexion
   const logout = async () => {
     try {
-      console.log('🚪 Déconnexion...');
+      console.log("🚪 Déconnexion...");
       await signOut(auth);
       // Le nettoyage est géré par onAuthStateChanged
     } catch (error) {
-      console.error('❌ Erreur logout:', error);
+      console.error("❌ Erreur logout:", error);
       throw error;
     }
   };
@@ -245,16 +337,18 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
   }, [isDbReady]);
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      firebaseUser,
-      isAuthenticated, 
-      authReady, 
-      login, 
-      register,
-      logout, 
-      checkAuth 
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        firebaseUser,
+        isAuthenticated,
+        authReady,
+        login,
+        register,
+        logout,
+        checkAuth,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -262,6 +356,7 @@ export const AuthProvider = ({ children, isDbReady }: { children: React.ReactNod
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth doit être utilisé dans un AuthProvider");
+  if (!context)
+    throw new Error("useAuth doit être utilisé dans un AuthProvider");
   return context;
 };

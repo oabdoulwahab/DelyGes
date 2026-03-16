@@ -20,6 +20,7 @@ import { COLORS } from "../styles/colors";
 import { useAuth } from "../src/hooks/useAuth";
 import { useModal } from "../providers/ModalProvider";
 import { sendDeliveryCreatedNotification } from "../src/services/notification.service";
+import { useSync } from "../src/hooks/useSync";
 
 type Delivery = {
   id: number;
@@ -59,6 +60,7 @@ export default function AddDelivery() {
   const [paymentType, setPaymentType] = useState<
     "COLIS_DEJA_PAYE" | "CLIENT_PAYE_LIVRAISON" | "CLIENT_PAYE_TOUT"
   >("CLIENT_PAYE_TOUT");
+  const { markAndSync } = useSync();
 
   // États UI
   const [loading, setLoading] = useState(isEditing);
@@ -173,15 +175,18 @@ export default function AddDelivery() {
     switch (paymentType) {
       case "CLIENT_PAYE_TOUT":
         financialValidation = {
-          parcelValue: !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
-          deliveryFee: !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
+          parcelValue:
+            !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
+          deliveryFee:
+            !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
         };
         break;
 
       case "CLIENT_PAYE_LIVRAISON":
         financialValidation = {
           parcelValue: false, // Non obligatoire
-          deliveryFee: !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
+          deliveryFee:
+            !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
         };
         break;
 
@@ -224,10 +229,7 @@ export default function AddDelivery() {
 
   const handleSave = async () => {
     if (!validateForm()) {
-      showError(
-        "Erreur",
-        "Veuillez remplir tous les champs obligatoires avec des valeurs valides",
-      );
+      showError("Erreur", "Veuillez remplir tous les champs obligatoires");
       return;
     }
 
@@ -239,8 +241,12 @@ export default function AddDelivery() {
     setIsSaving(true);
 
     try {
-      const parcelValueNum = parcelValue ? Number(parcelValue.replace(",", ".") || 0) : 0;
-      const deliveryFeeNum = deliveryFee ? Number(deliveryFee.replace(",", ".") || 0) : 0;
+      const parcelValueNum = parcelValue
+        ? Number(parcelValue.replace(",", ".") || 0)
+        : 0;
+      const deliveryFeeNum = deliveryFee
+        ? Number(deliveryFee.replace(",", ".") || 0)
+        : 0;
       const merchantIdValue = await getOrCreateMerchant();
 
       const amountCollected =
@@ -266,7 +272,8 @@ export default function AddDelivery() {
             payment_type = ?,
             amount_collected = ?,
             amount_to_return = ?,
-            profit = ?
+            profit = ?,
+            needs_sync = 1
           WHERE id = ?`,
           [
             recipientName.trim(),
@@ -283,6 +290,9 @@ export default function AddDelivery() {
           ],
         );
 
+        // 🔥 Marquer pour synchronisation
+        await markAndSync("deliveries", Number(id));
+
         showSuccess("Succès", "Livraison modifiée avec succès");
       } else {
         // Mode création
@@ -290,8 +300,8 @@ export default function AddDelivery() {
           `INSERT INTO deliveries (
             recipient_name, phone, address, parcel_value, delivery_fee,
             merchant_id, payment_type, amount_collected, amount_to_return,
-            profit, status, user_id, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            profit, status, user_id, created_at, needs_sync
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
           [
             recipientName.trim(),
             phone.trim(),
@@ -308,6 +318,9 @@ export default function AddDelivery() {
             new Date().toISOString(),
           ],
         );
+
+        // 🔥 Marquer pour synchronisation
+        await markAndSync("deliveries", result.lastInsertRowId);
 
         await sendDeliveryCreatedNotification(user.id, 1);
         showSuccess("Succès", "Livraison ajoutée avec succès");
@@ -377,8 +390,12 @@ export default function AddDelivery() {
   };
 
   const calculateTotal = () => {
-    const parcelNum = parcelValue ? Number(parcelValue.replace(",", ".") || 0) : 0;
-    const deliveryNum = deliveryFee ? Number(deliveryFee.replace(",", ".") || 0) : 0;
+    const parcelNum = parcelValue
+      ? Number(parcelValue.replace(",", ".") || 0)
+      : 0;
+    const deliveryNum = deliveryFee
+      ? Number(deliveryFee.replace(",", ".") || 0)
+      : 0;
     return (parcelNum + deliveryNum).toLocaleString("fr-FR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -668,7 +685,9 @@ export default function AddDelivery() {
             <View
               style={[
                 addDeliveryStyles.financialCard,
-                paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && addDeliveryStyles.inputError,
+                paymentType === "CLIENT_PAYE_TOUT" &&
+                  errors.parcelValue &&
+                  addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
@@ -684,7 +703,8 @@ export default function AddDelivery() {
                 <Text
                   style={[
                     addDeliveryStyles.currencySymbol,
-                    paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && { color: COLORS.danger },
+                    paymentType === "CLIENT_PAYE_TOUT" &&
+                      errors.parcelValue && { color: COLORS.danger },
                   ]}
                 >
                   FCFA
@@ -692,9 +712,12 @@ export default function AddDelivery() {
                 <TextInput
                   style={[
                     addDeliveryStyles.financialInput,
-                    paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && { color: COLORS.danger },
+                    paymentType === "CLIENT_PAYE_TOUT" &&
+                      errors.parcelValue && { color: COLORS.danger },
                   ]}
-                  placeholder={paymentType !== "CLIENT_PAYE_TOUT" ? " " : "0,00"}
+                  placeholder={
+                    paymentType !== "CLIENT_PAYE_TOUT" ? " " : "0,00"
+                  }
                   placeholderTextColor={COLORS.muted}
                   value={parcelValue}
                   onChangeText={(text) => {
@@ -716,7 +739,9 @@ export default function AddDelivery() {
             <View
               style={[
                 addDeliveryStyles.financialCard,
-                paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && addDeliveryStyles.inputError,
+                paymentType !== "COLIS_DEJA_PAYE" &&
+                  errors.deliveryFee &&
+                  addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
@@ -732,7 +757,8 @@ export default function AddDelivery() {
                 <Text
                   style={[
                     addDeliveryStyles.currencySymbol,
-                    paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && { color: COLORS.danger },
+                    paymentType !== "COLIS_DEJA_PAYE" &&
+                      errors.deliveryFee && { color: COLORS.danger },
                   ]}
                 >
                   FCFA
@@ -740,7 +766,8 @@ export default function AddDelivery() {
                 <TextInput
                   style={[
                     addDeliveryStyles.financialInput,
-                    paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && { color: COLORS.danger },
+                    paymentType !== "COLIS_DEJA_PAYE" &&
+                      errors.deliveryFee && { color: COLORS.danger },
                   ]}
                   placeholder={paymentType === "COLIS_DEJA_PAYE" ? " " : "0,00"}
                   placeholderTextColor={COLORS.muted}
@@ -774,7 +801,10 @@ export default function AddDelivery() {
                   key: "CLIENT_PAYE_LIVRAISON",
                   label: "Client paie livraison seulement",
                 },
-                { key: "COLIS_DEJA_PAYE", label: "Colis et livraison déjà payé" },
+                {
+                  key: "COLIS_DEJA_PAYE",
+                  label: "Colis et livraison déjà payé",
+                },
               ].map((item) => (
                 <TouchableOpacity
                   key={item.key}
@@ -807,10 +837,10 @@ export default function AddDelivery() {
             <View style={addDeliveryStyles.netIncomeContent}>
               <Text style={addDeliveryStyles.netIncomeLabel}>TOTAL</Text>
               <Text style={addDeliveryStyles.netIncomeSubtitle}>
-                {paymentType === "COLIS_DEJA_PAYE" 
-                  ? "Déjà payé" 
-                  : paymentType === "CLIENT_PAYE_LIVRAISON" 
-                    ? "Frais de livraison uniquement" 
+                {paymentType === "COLIS_DEJA_PAYE"
+                  ? "Déjà payé"
+                  : paymentType === "CLIENT_PAYE_LIVRAISON"
+                    ? "Frais de livraison uniquement"
                     : "Valeur + Frais"}
               </Text>
             </View>

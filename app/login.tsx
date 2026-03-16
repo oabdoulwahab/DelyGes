@@ -68,6 +68,8 @@ const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
     setLoginError(null);
     await login(data.emailOrPhone, data.password);
+    // Afficher une alerte de succès
+    showAlert("Succès", "Vous êtes connecté !");
     router.replace("/dashboard");
   } catch (e: any) {
     setLoginError(e.message || "Identifiants incorrects");

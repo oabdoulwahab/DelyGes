@@ -77,8 +77,8 @@ export default function Register() {
         password: password
       });
 
-      // ✅ Si on arrive ici, l'inscription a réussi
-      // La redirection vers /dashboard est automatique car le contexte met à jour isAuthenticated
+      // ✅ Si on arrive ici, l'inscription a réussi, on peut rediriger vers le dashboard
+      router.replace("/dashboard");
       
     } catch (error: any) {
       console.error("❌ Erreur inscription:", error);

@@ -20,6 +20,7 @@ import { useNavigation } from "../../hooks/useNavigation";
 import { useModal } from "../../providers/ModalProvider";
 import { useAuth } from "../../src/hooks/useAuth";
 import { sendDeliveryCompletedNotification } from "../../src/services/notification.service";
+import { useSync } from "../../src/hooks/useSync";
 
 type Delivery = {
   id: number;
@@ -51,6 +52,7 @@ export default function DeliveryDetail() {
   const { showConfirm, showSuccess, showError, showAlert } = useModal();
   const { goBack, goToDeliveries } = useNavigation();
   const { user } = useAuth();
+  const { markAndSync } = useSync();
 
   useEffect(() => {
     const loadDelivery = async () => {
@@ -83,26 +85,33 @@ export default function DeliveryDetail() {
         setIsUpdating(true);
         try {
           await db.runAsync(
-            "UPDATE deliveries SET status = ?, delivered_at = ? WHERE id = ?",
+            "UPDATE deliveries SET status = ?, delivered_at = ?, needs_sync = 1 WHERE id = ?",
             ["LIVREE", new Date().toISOString(), Number(id)],
           );
-          
-          // Envoyer une notification
+
+          // 🔥 Marquer pour synchronisation
+          await markAndSync("deliveries", Number(id));
+
           if (user?.id && delivery) {
-            await sendDeliveryCompletedNotification(user.id, delivery.delivery_fee);
+            await sendDeliveryCompletedNotification(
+              user.id,
+              delivery.delivery_fee,
+            );
           }
-          
-          // Recharger les données
+
           const updatedDelivery = await db.getFirstAsync<Delivery>(
             "SELECT * FROM deliveries WHERE id = ?",
             [Number(id)],
           );
           setDelivery(updatedDelivery);
-          
+
           showSuccess("Succès", "Livraison marquée comme livrée");
         } catch (error) {
           console.error("Erreur lors de la mise à jour:", error);
-          showError("Erreur", "Impossible de marquer la livraison comme livrée");
+          showError(
+            "Erreur",
+            "Impossible de marquer la livraison comme livrée",
+          );
         } finally {
           setIsUpdating(false);
         }
@@ -117,7 +126,13 @@ export default function DeliveryDetail() {
       "Supprimer la livraison",
       "Êtes-vous sûr de vouloir supprimer cette livraison ? Cette action est irréversible.",
       async () => {
+        // 🔥 Pour Firebase, on ne supprime pas directement, on marque comme à supprimer
+        // Ou on peut simplement supprimer en local et laisser la sync gérer
         await db.runAsync("DELETE FROM deliveries WHERE id = ?", [Number(id)]);
+
+        // Si tu veux aussi supprimer de Firebase, il faudra une logique spéciale
+        // Pour l'instant, on synchronise juste l'absence de l'ID local
+
         showSuccess("Succès", "Livraison supprimée");
         goToDeliveries();
       },
@@ -282,7 +297,7 @@ export default function DeliveryDetail() {
   const isDelivered = delivery.status === "LIVREE";
   const isCancelled = delivery.status === "ANNULEE";
   const isEditable = !isDelivered && !isCancelled;
-  
+
   const displayDate =
     isDelivered && delivery.delivered_at
       ? delivery.delivered_at
@@ -328,7 +343,10 @@ export default function DeliveryDetail() {
               disabled={isUpdating}
             >
               {isUpdating ? (
-                <ActivityIndicator size="small" color={statusConfig.textColor} />
+                <ActivityIndicator
+                  size="small"
+                  color={statusConfig.textColor}
+                />
               ) : (
                 <>
                   <MaterialIcons
@@ -692,9 +710,7 @@ export default function DeliveryDetail() {
             onPress={handleCall}
           >
             <MaterialIcons name="phone" size={20} color="#FFFFFF" />
-            <Text style={deliveryDetailStyles.primaryButtonText}>
-              Appeler
-            </Text>
+            <Text style={deliveryDetailStyles.primaryButtonText}>Appeler</Text>
           </TouchableOpacity>
 
           <View style={deliveryDetailStyles.actionButtonsRow}>

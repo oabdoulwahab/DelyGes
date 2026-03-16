@@ -1,3 +1,4 @@
+// app/settings.tsx
 import {
   View,
   Text,
@@ -16,11 +17,17 @@ import { BlurView } from "expo-blur";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
 import { settingsStyles } from "../styles/settingsStyles";
-import { useAuth } from "../src/hooks/useAuth";
+// 🔥 CHANGEMENT: Importer depuis le contexte au lieu du hook
+import { useAuth } from "../src/context/AuthContext";
 import { useAutoSave } from "../src/hooks/useAutoSave";
 import { useModal } from "../providers/ModalProvider";
 import * as Updates from "expo-updates";
 import * as Application from "expo-application";
+// 🔥 NOUVEAU: Importer Firebase
+import { auth, db as firestore } from '../src/config/firebase';
+import { updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { syncService } from '../src/services/sync.service';
 
 type UserSettings = {
   name: string;
@@ -35,7 +42,8 @@ type UserSettings = {
 };
 
 export default function Settings() {
-  const { user, isAuthenticated, logout, authReady } = useAuth();
+  // 🔥 CHANGEMENT: useAuth vient maintenant du contexte
+  const { user, isAuthenticated, logout, authReady, firebaseUser } = useAuth();
   const [appVersion, setAppVersion] = useState("");
   const [passwordExpanded, setPasswordExpanded] = useState(false);
   const [passwordData, setPasswordData] = useState({
@@ -66,14 +74,40 @@ export default function Settings() {
     reminder_notifications: 1,
     payment_notifications: 1,
   });
-  const { showModal, showConfirm, showSuccess, showError, showAlert } =
-    useModal();
+  const { showModal, showConfirm, showSuccess, showError, showAlert } = useModal();
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fonction pour mettre à jour un champ avec auto-save
-  const updateSetting = (field: keyof UserSettings, value: any) => {
+  // Fonction pour mettre à jour un champ avec auto-save ET Firebase
+  const updateSetting = async (field: keyof UserSettings, value: any) => {
+    // Mettre à jour l'état local
     setSettings((prev) => ({ ...prev, [field]: value }));
+    
+    // Sauvegarde automatique dans SQLite
     autoSave(field, value);
+
+    // 🔥 Synchroniser avec Firebase si connecté
+    if (firebaseUser) {
+      try {
+        const userRef = doc(firestore, 'users', firebaseUser.uid);
+        
+        // Cas spéciaux pour certains champs
+        if (field === 'name') {
+          // Mettre à jour le profil Firebase Auth
+          await updateProfile(firebaseUser, { displayName: value });
+        }
+        
+        // Mettre à jour le document Firestore
+        await updateDoc(userRef, {
+          [field]: value,
+          updated_at: new Date().toISOString()
+        });
+        
+        console.log(`✅ Champ ${field} synchronisé avec Firebase`);
+      } catch (error) {
+        console.error(`❌ Erreur synchronisation ${field}:`, error);
+        showError("Erreur", "Impossible de synchroniser avec le cloud");
+      }
+    }
   };
 
   // Ajouter les colonnes manquantes à la table user
@@ -100,10 +134,7 @@ export default function Settings() {
             );
             console.log(`✅ Colonne ${column.name} ajoutée avec succès`);
           } catch (alterError) {
-            console.error(
-              `❌ Erreur ajout colonne ${column.name}:`,
-              alterError,
-            );
+            console.error(`❌ Erreur ajout colonne ${column.name}:`, alterError);
           }
         } else {
           console.log(`✅ Colonne ${column.name} existe déjà`);
@@ -201,6 +232,17 @@ export default function Settings() {
               ? 1
               : userData.payment_notifications,
         });
+
+        // 🔥 Si on a un utilisateur Firebase, vérifier si des données sont plus récentes
+        if (firebaseUser) {
+          try {
+            const userRef = doc(firestore, 'users', firebaseUser.uid);
+            // Note: Pour lire un document, il faut utiliser getDoc()
+            // Mais on va simplifier pour l'instant
+          } catch (fbError) {
+            console.log("ℹ️ Pas de document Firestore pour cet utilisateur");
+          }
+        }
       }
     } catch (error) {
       console.error("❌ Erreur lors du chargement des paramètres:", error);
@@ -222,8 +264,9 @@ export default function Settings() {
     } else if (authReady && !isAuthenticated) {
       setIsLoading(false);
     }
-  }, [authReady, isAuthenticated, user]);
+  }, [authReady, isAuthenticated, user, firebaseUser]);
 
+  // 🔥 NOUVELLE FONCTION: Validation du mot de passe avec Firebase
   const validatePassword = () => {
     const errors = {
       currentPassword: "",
@@ -257,41 +300,51 @@ export default function Settings() {
     return isValid;
   };
 
+  // 🔥 NOUVELLE FONCTION: Changer le mot de passe avec Firebase
   const handleChangePassword = async () => {
     if (!validatePassword()) return;
+    if (!firebaseUser || !firebaseUser.email) {
+      showError("Erreur", "Utilisateur Firebase non trouvé");
+      return;
+    }
 
     setIsChangingPassword(true);
     try {
-      // Vérifier l'ancien mot de passe
-      const userData = await db.getFirstAsync<any>(
-        "SELECT password FROM user WHERE id = ?",
-        [user.id]
+      // Réauthentifier l'utilisateur
+      const credential = EmailAuthProvider.credential(
+        firebaseUser.email,
+        passwordData.currentPassword
       );
-
-      if (userData.password !== passwordData.currentPassword) {
-        showError("Erreur", "Mot de passe actuel incorrect");
-        setIsChangingPassword(false);
-        return;
-      }
-
-      // Mettre à jour le mot de passe
+      
+      await reauthenticateWithCredential(firebaseUser, credential);
+      
+      // Changer le mot de passe
+      await updatePassword(firebaseUser, passwordData.newPassword);
+      
+      // Mettre à jour dans SQLite (optionnel, car le mot de passe est géré par Firebase)
       await db.runAsync(
         "UPDATE user SET password = ? WHERE id = ?",
-        [passwordData.newPassword, user.id]
+        ['firebase_managed', user.id]
       );
 
       showSuccess("Succès", "Mot de passe modifié avec succès");
       
-      // Réinitialiser le formulaire et replier
       setPasswordData({
         currentPassword: "",
         newPassword: "",
         confirmPassword: "",
       });
       setPasswordExpanded(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Erreur changement mot de passe:", error);
-      showError("Erreur", "Impossible de modifier le mot de passe");
+      
+      if (error.code === 'auth/wrong-password') {
+        showError("Erreur", "Mot de passe actuel incorrect");
+      } else if (error.code === 'auth/weak-password') {
+        showError("Erreur", "Nouveau mot de passe trop faible");
+      } else {
+        showError("Erreur", "Impossible de modifier le mot de passe");
+      }
     } finally {
       setIsChangingPassword(false);
     }
@@ -356,36 +409,67 @@ export default function Settings() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (!user) {
-      showError("Erreur", "Vous devez être connecté");
-      return;
-    }
+  // 🔥 NOUVELLE FONCTION: Supprimer le compte de Firebase aussi
+const handleDeleteAccount = async () => {
+  if (!user || !firebaseUser) {
+    showError("Erreur", "Vous devez être connecté");
+    return;
+  }
 
-    showConfirm(
-      "Supprimer le compte",
-      "Êtes-vous sûr de vouloir supprimer votre compte ? Toutes vos données seront effacées. Cette action est irréversible.",
-      async () => {
+  showConfirm(
+    "Supprimer le compte",
+    "Êtes-vous sûr de vouloir supprimer votre compte ? Toutes vos données (locales et cloud) seront effacées. Cette action est irréversible.",
+    async () => {
+      try {
+        console.log("🗑️ DÉBUT SUPPRESSION COMPTE");
+        console.log("👤 Firebase UID:", firebaseUser.uid);
+        
+        // 1. Supprimer le document utilisateur dans Firestore (si existe)
         try {
-          await db.runAsync("DELETE FROM deliveries WHERE user_id = ?", [
-            user.id,
-          ]);
-          await db.runAsync("DELETE FROM user WHERE id = ?", [user.id]);
+          await deleteDoc(doc(firestore, 'users', firebaseUser.uid));
+          console.log("✅ Document utilisateur supprimé");
+        } catch (fbError) {
+          console.log("ℹ️ Pas de document utilisateur ou déjà supprimé");
+        }
 
-          showSuccess(
-            "Compte supprimé",
-            "Votre compte a été supprimé avec succès.",
+        // 2. Supprimer les données locales
+        console.log("🗑️ Suppression des données locales...");
+        await db.runAsync("DELETE FROM deliveries WHERE user_id = ?", [user.id]);
+        await db.runAsync("DELETE FROM merchants WHERE user_id = ?", [user.id]);
+        await db.runAsync("DELETE FROM user WHERE id = ?", [user.id]);
+        console.log("✅ Données locales supprimées");
+
+        // 3. Supprimer le compte Firebase Auth
+        console.log("🗑️ Suppression du compte Firebase Auth...");
+        await firebaseUser.delete();
+        console.log("✅ Compte Firebase Auth supprimé");
+
+        showSuccess(
+          "Compte supprimé",
+          "Votre compte a été supprimé avec succès.",
+        );
+        
+        router.replace("/register");
+        
+      } catch (error: any) {
+        console.error("❌ Erreur suppression compte:", error);
+        
+        // Gestion spécifique des erreurs Firebase
+        if (error.code === 'auth/requires-recent-login') {
+          showError(
+            "Reconnexion nécessaire", 
+            "Pour des raisons de sécurité, veuillez vous reconnecter avant de supprimer votre compte."
           );
           await logout();
-          router.replace("/register");
-        } catch (error) {
-          console.error("❌ Erreur suppression compte:", error);
-          showError("Erreur", "Impossible de supprimer le compte");
+          router.replace("/login");
+        } else {
+          showError("Erreur", "Impossible de supprimer le compte: " + (error.message || "Erreur inconnue"));
         }
-      },
-      "Supprimer",
-    );
-  };
+      }
+    },
+    "Supprimer définitivement",
+  );
+};
 
   const handleLogout = () => {
     showConfirm(
@@ -465,6 +549,11 @@ export default function Settings() {
           <Text style={settingsStyles.profileSubtitle}>
             {user.phone ? `${user.phone}` : ""}
           </Text>
+          {firebaseUser && (
+            <Text style={[settingsStyles.profileSubtitle, { fontSize: 12, color: COLORS.primary }]}>
+              ✓ Synchronisé avec le cloud
+            </Text>
+          )}
         </View>
 
         {/* Section: Profil Professionnel */}
