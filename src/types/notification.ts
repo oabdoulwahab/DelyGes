@@ -5,7 +5,8 @@ export type NotificationType =
   | 'encouragement'
   | 'delivery_progress'
   | 'delivery_created'
-  | 'all_completed';
+  | 'all_completed'
+  | 'goal_achieved';
 
 export interface Notification {
   id: string;

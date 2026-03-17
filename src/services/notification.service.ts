@@ -170,6 +170,44 @@ export const scheduleInactivityReminders = async (userId: number) => {
   });
 };
 
+export const sendGoalAchievedNotification = async (userId: number, amount: number, goal: number) => {
+  try {
+    const user = await db.getFirstAsync<{ name: string; daily_goal_notifications?: number }>(
+      'SELECT name, daily_goal_notifications FROM user WHERE id = ?', [userId]
+    );
+
+    // Vérifier si l'utilisateur veut ces notifications (par défaut oui)
+    const notificationsEnabled = user?.daily_goal_notifications !== 0;
+    
+    if (!notificationsEnabled) return;
+
+    const title = '🎯 OBJECTIF ATTEINT !';
+    const body = `Félicitations ${user?.name || ''} ! Vous avez gagné ${amount.toLocaleString('fr-FR')} FCFA aujourd'hui. Objectif: ${goal.toLocaleString('fr-FR')} FCFA 🎉`;
+
+    const notificationId = await NotificationStore.add({
+      type: 'goal_achieved',
+      title,
+      body,
+      data: { amount, goal },
+      userId
+    });
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: { type: 'goal_achieved', notificationId },
+        sound: true,
+      },
+      trigger: null,
+    });
+
+    console.log('✅ Notification objectif atteint envoyée');
+  } catch (error) {
+    console.error('❌ Erreur notification objectif:', error);
+  }
+};
+
 TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   try {
     const tableCheck = await db.getFirstAsync("SELECT name FROM sqlite_master WHERE type='table' AND name='user'");

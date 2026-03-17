@@ -5,14 +5,14 @@ import { SPACING } from "./spacing";
 export const settingsStyles = StyleSheet.create({
   // Header
   header: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     zIndex: 50,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: SPACING.md,
     paddingTop: 48,
     paddingBottom: SPACING.sm,
@@ -23,13 +23,13 @@ export const settingsStyles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 20,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.white,
   },
   saveButton: {
@@ -38,7 +38,7 @@ export const settingsStyles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.primary,
   },
 
@@ -53,12 +53,12 @@ export const settingsStyles = StyleSheet.create({
 
   // Profile section
   profileSection: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingVertical: SPACING.lg,
     paddingHorizontal: SPACING.lg,
   },
   profileImageContainer: {
-    position: 'relative',
+    position: "relative",
     marginBottom: SPACING.md,
   },
   profileImage: {
@@ -66,22 +66,22 @@ export const settingsStyles = StyleSheet.create({
     height: 112,
     borderRadius: 56,
     backgroundColor: COLORS.primarySoft,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 4,
     borderColor: COLORS.primarySoft,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   onlineIndicator: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 4,
     right: 4,
     width: 24,
     height: 24,
     borderRadius: 12,
     backgroundColor: COLORS.background,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   onlineDot: {
     width: 16,
@@ -91,7 +91,7 @@ export const settingsStyles = StyleSheet.create({
   },
   profileName: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.white,
     marginBottom: SPACING.xs,
   },
@@ -103,9 +103,9 @@ export const settingsStyles = StyleSheet.create({
   // Section
   sectionTitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.muted,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: SPACING.xs,
     marginLeft: SPACING.xs,
@@ -113,9 +113,9 @@ export const settingsStyles = StyleSheet.create({
 
   // Card items
   cardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
@@ -125,31 +125,31 @@ export const settingsStyles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   cardItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.sm,
     flex: 1,
   },
   cardItemLabel: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
     color: COLORS.white,
   },
   cardItemLabelDanger: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
     color: COLORS.danger,
   },
   cardItemInput: {
     flex: 1,
-    textAlign: 'right',
+    textAlign: "right",
     fontSize: 16,
     color: COLORS.white,
     padding: 0,
   },
   cardItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: SPACING.xs,
   },
   cardItemValue: {
@@ -159,14 +159,14 @@ export const settingsStyles = StyleSheet.create({
 
   // Goal input
   goalInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   goalInput: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.white,
-    textAlign: 'right',
+    textAlign: "right",
     minWidth: 60,
     padding: 0,
   },
@@ -178,7 +178,7 @@ export const settingsStyles = StyleSheet.create({
 
   // Notification
   notificationContent: {
-    flexDirection: 'column',
+    flexDirection: "column",
     gap: 2,
   },
   notificationSubtitle: {
@@ -193,9 +193,9 @@ export const settingsStyles = StyleSheet.create({
 
   // Logout button
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: SPACING.xs,
     backgroundColor: COLORS.card,
     borderWidth: 1,
@@ -207,13 +207,13 @@ export const settingsStyles = StyleSheet.create({
   },
   logoutButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.danger,
   },
 
   // Version
   versionText: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 12,
     color: COLORS.muted,
     marginTop: SPACING.lg,
@@ -222,8 +222,8 @@ export const settingsStyles = StyleSheet.create({
   // Loading
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: COLORS.background,
   },
   loadingText: {
@@ -235,14 +235,14 @@ export const settingsStyles = StyleSheet.create({
   // Auth error
   authErrorContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: SPACING.lg,
     backgroundColor: COLORS.background,
   },
   authErrorText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.danger,
     marginTop: SPACING.md,
   },
@@ -255,7 +255,7 @@ export const settingsStyles = StyleSheet.create({
   },
   authErrorButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: "#FFFFFF",
   },
   userIdText: {
@@ -322,7 +322,97 @@ export const settingsStyles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-   bottomSpacer: {
+  bottomSpacer: {
     height: 50,
+  },
+
+  // Styles pour les modales
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: SPACING.lg,
+  },
+  modalContent: {
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: SPACING.lg,
+    width: "100%",
+    maxWidth: 340,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.white,
+    marginBottom: SPACING.xs,
+    textAlign: "center",
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: COLORS.muted,
+    marginBottom: SPACING.lg,
+    textAlign: "center",
+  },
+  modalButtonsContainer: {
+    flexDirection: "row",
+    gap: SPACING.sm,
+  },
+  modalButton: {
+    flex: 1,
+    padding: SPACING.md,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  modalButtonCancel: {
+    backgroundColor: COLORS.borderLight,
+  },
+  modalButtonDanger: {
+    backgroundColor: COLORS.danger,
+  },
+  modalButtonPrimary: {
+    backgroundColor: COLORS.primary,
+  },
+  modalButtonText: {
+    fontWeight: "600",
+  },
+  modalButtonTextCancel: {
+    color: COLORS.white,
+  },
+  modalButtonTextDanger: {
+    color: "#FFFFFF",
+  },
+  modalButtonTextPrimary: {
+    color: "#FFFFFF",
+  },
+
+  // Styles pour l'input de la modale
+  modalInput: {
+    backgroundColor: COLORS.inputBackground,
+    borderRadius: 12,
+    padding: SPACING.md,
+    fontSize: 16,
+    color: COLORS.white,
+    marginBottom: SPACING.lg,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+
+  // Overlay de chargement
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingContent: {
+    backgroundColor: COLORS.card,
+    padding: SPACING.lg,
+    borderRadius: 16,
+    alignItems: "center",
   },
 });

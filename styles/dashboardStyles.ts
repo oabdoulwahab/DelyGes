@@ -345,4 +345,98 @@ export const dashboardStyles = StyleSheet.create({
   bottomSpacer: {
     height: 70, // Ajustez cette valeur selon la hauteur de votre tab bar
   },
+
+goalCard: {
+  backgroundColor: COLORS.card,
+  borderRadius: 20,
+  padding: 16,
+  marginBottom: 16,
+  borderWidth: 1,
+  borderColor: COLORS.borderLight,
+},
+goalHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 12,
+},
+goalTitleContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+},
+goalTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: COLORS.white,
+},
+goalSettingsButton: {
+  padding: 4,
+},
+goalAmountContainer: {
+  flexDirection: 'row',
+  alignItems: 'baseline',
+  marginBottom: 12,
+},
+goalCurrentAmount: {
+  fontSize: 28,
+  fontWeight: 'bold',
+  color: COLORS.primary,
+},
+goalTargetAmount: {
+  fontSize: 18,
+  color: COLORS.muted,
+  marginLeft: 4,
+},
+progressBarContainer: {
+  height: 10,
+  backgroundColor: COLORS.borderLight,
+  borderRadius: 5,
+  overflow: 'hidden',
+  marginBottom: 8,
+},
+progressBarFill: {
+  height: '100%',
+  backgroundColor: COLORS.primary,
+  borderRadius: 5,
+},
+goalFooter: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  marginBottom: 8,
+},
+goalProgressText: {
+  fontSize: 14,
+  color: COLORS.primary,
+  fontWeight: '500',
+},
+goalRemainingText: {
+  fontSize: 14,
+  color: COLORS.muted,
+},
+goalMotivationText: {
+  fontSize: 14,
+  color: COLORS.muted,
+  fontStyle: 'italic',
+  textAlign: 'center',
+  marginTop: 8,
+  paddingTop: 8,
+  borderTopWidth: 1,
+  borderTopColor: COLORS.borderLight,
+},
+goalAchievedBadge: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  backgroundColor: COLORS.success,
+  borderRadius: 12,
+  paddingVertical: 8,
+  marginTop: 8,
+},
+goalAchievedText: {
+  fontSize: 14,
+  fontWeight: 'bold',
+  color: '#FFFFFF',
+},
 });

@@ -1,4 +1,3 @@
-// app/settings.tsx
 import {
   View,
   Text,
@@ -8,6 +7,8 @@ import {
   SafeAreaView,
   Switch,
   ActivityIndicator,
+  Alert,
+  Modal,
 } from "react-native";
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
@@ -17,17 +18,19 @@ import { BlurView } from "expo-blur";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
 import { settingsStyles } from "../styles/settingsStyles";
-// 🔥 CHANGEMENT: Importer depuis le contexte au lieu du hook
 import { useAuth } from "../src/context/AuthContext";
 import { useAutoSave } from "../src/hooks/useAutoSave";
 import { useModal } from "../providers/ModalProvider";
 import * as Updates from "expo-updates";
 import * as Application from "expo-application";
-// 🔥 NOUVEAU: Importer Firebase
-import { auth, db as firestore } from '../src/config/firebase';
-import { updateProfile, updateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { syncService } from '../src/services/sync.service';
+import { auth, db as firestore } from "../src/config/firebase";
+import {
+  updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from "firebase/auth";
+import { doc, updateDoc, deleteDoc } from "firebase/firestore";
 
 type UserSettings = {
   name: string;
@@ -36,13 +39,14 @@ type UserSettings = {
   siret: string;
   vehicle: string;
   is_vat: number;
+  daily_goal: number;
   monthly_goal: number;
   reminder_notifications: number;
   payment_notifications: number;
+  daily_goal_notifications: number;
 };
 
 export default function Settings() {
-  // 🔥 CHANGEMENT: useAuth vient maintenant du contexte
   const { user, isAuthenticated, logout, authReady, firebaseUser } = useAuth();
   const [appVersion, setAppVersion] = useState("");
   const [passwordExpanded, setPasswordExpanded] = useState(false);
@@ -63,6 +67,13 @@ export default function Settings() {
     delay: 400,
   });
 
+  // États pour les modales
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [settings, setSettings] = useState<UserSettings>({
     name: "",
     email: "",
@@ -70,42 +81,37 @@ export default function Settings() {
     siret: "",
     vehicle: "Scooter 125cc",
     is_vat: 0,
-    monthly_goal: 2500,
+    daily_goal:0 ,
+    monthly_goal: 0,
     reminder_notifications: 1,
     payment_notifications: 1,
+    daily_goal_notifications: 1,
   });
-  const { showModal, showConfirm, showSuccess, showError, showAlert } = useModal();
+  const { showModal, showConfirm, showSuccess, showError, showAlert } =
+    useModal();
   const [isLoading, setIsLoading] = useState(true);
 
   // Fonction pour mettre à jour un champ avec auto-save ET Firebase
   const updateSetting = async (field: keyof UserSettings, value: any) => {
-    // Mettre à jour l'état local
     setSettings((prev) => ({ ...prev, [field]: value }));
-    
-    // Sauvegarde automatique dans SQLite
     autoSave(field, value);
 
-    // 🔥 Synchroniser avec Firebase si connecté
     if (firebaseUser) {
       try {
-        const userRef = doc(firestore, 'users', firebaseUser.uid);
-        
-        // Cas spéciaux pour certains champs
-        if (field === 'name') {
-          // Mettre à jour le profil Firebase Auth
+        const userRef = doc(firestore, "users", firebaseUser.uid);
+
+        if (field === "name") {
           await updateProfile(firebaseUser, { displayName: value });
         }
-        
-        // Mettre à jour le document Firestore
+
         await updateDoc(userRef, {
           [field]: value,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         });
-        
+
         console.log(`✅ Champ ${field} synchronisé avec Firebase`);
       } catch (error) {
         console.error(`❌ Erreur synchronisation ${field}:`, error);
-        showError("Erreur", "Impossible de synchroniser avec le cloud");
       }
     }
   };
@@ -119,9 +125,11 @@ export default function Settings() {
         { name: "siret", type: "TEXT" },
         { name: "vehicle", type: "TEXT" },
         { name: "is_vat", type: "INTEGER" },
-        { name: "monthly_goal", type: "REAL" },
-        { name: "reminder_notifications", type: "INTEGER" },
-        { name: "payment_notifications", type: "INTEGER" },
+        { name: "daily_goal", type: "REAL DEFAULT  " },
+        { name: "monthly_goal", type: "REAL DEFAULT 0" },
+        { name: "reminder_notifications", type: "INTEGER DEFAULT 1" },
+        { name: "payment_notifications", type: "INTEGER DEFAULT 1" },
+        { name: "daily_goal_notifications", type: "INTEGER DEFAULT 1" },
       ];
 
       for (const column of columnsToAdd) {
@@ -134,10 +142,11 @@ export default function Settings() {
             );
             console.log(`✅ Colonne ${column.name} ajoutée avec succès`);
           } catch (alterError) {
-            console.error(`❌ Erreur ajout colonne ${column.name}:`, alterError);
+            console.error(
+              `❌ Erreur ajout colonne ${column.name}:`,
+              alterError,
+            );
           }
-        } else {
-          console.log(`✅ Colonne ${column.name} existe déjà`);
         }
       }
     } catch (error) {
@@ -173,9 +182,14 @@ export default function Settings() {
         params.push(0);
       }
 
+      if (userData.daily_goal === null) {
+        updates.push("daily_goal = ?");
+        params.push( );
+      }
+
       if (userData.monthly_goal === null) {
         updates.push("monthly_goal = ?");
-        params.push(2500);
+        params.push(0);
       }
 
       if (userData.reminder_notifications === null) {
@@ -185,6 +199,11 @@ export default function Settings() {
 
       if (userData.payment_notifications === null) {
         updates.push("payment_notifications = ?");
+        params.push(1);
+      }
+
+      if (userData.daily_goal_notifications === null) {
+        updates.push("daily_goal_notifications = ?");
         params.push(1);
       }
 
@@ -222,27 +241,12 @@ export default function Settings() {
           siret: userData.siret || "",
           vehicle: userData.vehicle || "Scooter 125cc",
           is_vat: userData.is_vat || 0,
-          monthly_goal: userData.monthly_goal || 2500,
-          reminder_notifications:
-            userData.reminder_notifications === undefined
-              ? 1
-              : userData.reminder_notifications,
-          payment_notifications:
-            userData.payment_notifications === undefined
-              ? 1
-              : userData.payment_notifications,
+          daily_goal: userData.daily_goal || 0,
+          monthly_goal: userData.monthly_goal || 0,
+          reminder_notifications: userData.reminder_notifications ?? 1,
+          payment_notifications: userData.payment_notifications ?? 1,
+          daily_goal_notifications: userData.daily_goal_notifications ?? 1,
         });
-
-        // 🔥 Si on a un utilisateur Firebase, vérifier si des données sont plus récentes
-        if (firebaseUser) {
-          try {
-            const userRef = doc(firestore, 'users', firebaseUser.uid);
-            // Note: Pour lire un document, il faut utiliser getDoc()
-            // Mais on va simplifier pour l'instant
-          } catch (fbError) {
-            console.log("ℹ️ Pas de document Firestore pour cet utilisateur");
-          }
-        }
       }
     } catch (error) {
       console.error("❌ Erreur lors du chargement des paramètres:", error);
@@ -266,7 +270,6 @@ export default function Settings() {
     }
   }, [authReady, isAuthenticated, user, firebaseUser]);
 
-  // 🔥 NOUVELLE FONCTION: Validation du mot de passe avec Firebase
   const validatePassword = () => {
     const errors = {
       currentPassword: "",
@@ -300,7 +303,6 @@ export default function Settings() {
     return isValid;
   };
 
-  // 🔥 NOUVELLE FONCTION: Changer le mot de passe avec Firebase
   const handleChangePassword = async () => {
     if (!validatePassword()) return;
     if (!firebaseUser || !firebaseUser.email) {
@@ -310,25 +312,21 @@ export default function Settings() {
 
     setIsChangingPassword(true);
     try {
-      // Réauthentifier l'utilisateur
       const credential = EmailAuthProvider.credential(
         firebaseUser.email,
-        passwordData.currentPassword
-      );
-      
-      await reauthenticateWithCredential(firebaseUser, credential);
-      
-      // Changer le mot de passe
-      await updatePassword(firebaseUser, passwordData.newPassword);
-      
-      // Mettre à jour dans SQLite (optionnel, car le mot de passe est géré par Firebase)
-      await db.runAsync(
-        "UPDATE user SET password = ? WHERE id = ?",
-        ['firebase_managed', user.id]
+        passwordData.currentPassword,
       );
 
+      await reauthenticateWithCredential(firebaseUser, credential);
+      await updatePassword(firebaseUser, passwordData.newPassword);
+
+      await db.runAsync("UPDATE user SET password = ? WHERE id = ?", [
+        "firebase_managed",
+        user.id,
+      ]);
+
       showSuccess("Succès", "Mot de passe modifié avec succès");
-      
+
       setPasswordData({
         currentPassword: "",
         newPassword: "",
@@ -337,10 +335,10 @@ export default function Settings() {
       setPasswordExpanded(false);
     } catch (error: any) {
       console.error("❌ Erreur changement mot de passe:", error);
-      
-      if (error.code === 'auth/wrong-password') {
+
+      if (error.code === "auth/wrong-password") {
         showError("Erreur", "Mot de passe actuel incorrect");
-      } else if (error.code === 'auth/weak-password') {
+      } else if (error.code === "auth/weak-password") {
         showError("Erreur", "Nouveau mot de passe trop faible");
       } else {
         showError("Erreur", "Impossible de modifier le mot de passe");
@@ -350,19 +348,19 @@ export default function Settings() {
     }
   };
 
-  // Modifiez la condition de chargement
   if (isLoading || !authReady) {
     return (
       <SafeAreaView style={commonStyles.container}>
         <View style={settingsStyles.loadingContainer}>
           <MaterialIcons name="settings" size={48} color={COLORS.primary} />
-          <Text style={settingsStyles.loadingText}>Chargement des paramètres...</Text>
+          <Text style={settingsStyles.loadingText}>
+            Chargement des paramètres...
+          </Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Maintenant on peut vérifier l'authentification
   if (!isAuthenticated || !user) {
     return (
       <SafeAreaView style={commonStyles.container}>
@@ -409,78 +407,111 @@ export default function Settings() {
     }
   };
 
-  // 🔥 NOUVELLE FONCTION: Supprimer le compte de Firebase aussi
-const handleDeleteAccount = async () => {
-  if (!user || !firebaseUser) {
-    showError("Erreur", "Vous devez être connecté");
-    return;
-  }
+  // Gestion de la suppression de compte
+  const handleDeleteAccount = async () => {
+    if (!user || !firebaseUser) {
+      showError("Erreur", "Vous devez être connecté");
+      return;
+    }
 
-  showConfirm(
-    "Supprimer le compte",
-    "Êtes-vous sûr de vouloir supprimer votre compte ? Toutes vos données (locales et cloud) seront effacées. Cette action est irréversible.",
-    async () => {
-      try {
-        console.log("🗑️ DÉBUT SUPPRESSION COMPTE");
-        console.log("👤 Firebase UID:", firebaseUser.uid);
-        
-        // 1. Supprimer le document utilisateur dans Firestore (si existe)
-        try {
-          await deleteDoc(doc(firestore, 'users', firebaseUser.uid));
-          console.log("✅ Document utilisateur supprimé");
-        } catch (fbError) {
-          console.log("ℹ️ Pas de document utilisateur ou déjà supprimé");
-        }
+    if (!firebaseUser.email) {
+      showError("Erreur", "Compte sans email, impossible de réauthentifier");
+      return;
+    }
 
-        // 2. Supprimer les données locales
-        console.log("🗑️ Suppression des données locales...");
-        await db.runAsync("DELETE FROM deliveries WHERE user_id = ?", [user.id]);
-        await db.runAsync("DELETE FROM merchants WHERE user_id = ?", [user.id]);
-        await db.runAsync("DELETE FROM user WHERE id = ?", [user.id]);
-        console.log("✅ Données locales supprimées");
+    setShowPasswordModal(true);
+    setDeletePassword("");
+  };
 
-        // 3. Supprimer le compte Firebase Auth
-        console.log("🗑️ Suppression du compte Firebase Auth...");
-        await firebaseUser.delete();
-        console.log("✅ Compte Firebase Auth supprimé");
+  const confirmDeleteWithPassword = async () => {
+    if (!deletePassword.trim()) {
+      showError("Erreur", "Mot de passe requis");
+      return;
+    }
 
-        showSuccess(
-          "Compte supprimé",
-          "Votre compte a été supprimé avec succès.",
-        );
-        
-        router.replace("/register");
-        
-      } catch (error: any) {
-        console.error("❌ Erreur suppression compte:", error);
-        
-        // Gestion spécifique des erreurs Firebase
-        if (error.code === 'auth/requires-recent-login') {
-          showError(
-            "Reconnexion nécessaire", 
-            "Pour des raisons de sécurité, veuillez vous reconnecter avant de supprimer votre compte."
-          );
-          await logout();
-          router.replace("/login");
-        } else {
-          showError("Erreur", "Impossible de supprimer le compte: " + (error.message || "Erreur inconnue"));
-        }
+    setShowPasswordModal(false);
+    setIsDeleting(true);
+
+    try {
+      console.log("🔄 Réauthentification...");
+
+      const credential = EmailAuthProvider.credential(
+        firebaseUser!.email!,
+        deletePassword,
+      );
+
+      await reauthenticateWithCredential(firebaseUser!, credential);
+      console.log("✅ Réauthentification réussie");
+
+      setShowDeleteConfirmModal(true);
+      setIsDeleting(false);
+      
+    } catch (error: any) {
+      console.error("❌ Erreur réauthentification:", error);
+
+      if (error.code === "auth/wrong-password") {
+        showError("Erreur", "Mot de passe incorrect");
+      } else if (error.code === "auth/too-many-requests") {
+        showError("Erreur", "Trop de tentatives. Réessayez plus tard");
+      } else {
+        showError("Erreur", "Échec de la vérification");
       }
-    },
-    "Supprimer définitivement",
-  );
-};
+      setIsDeleting(false);
+    }
+  };
 
-  const handleLogout = () => {
-    showConfirm(
-      "Déconnexion",
-      "Êtes-vous sûr de vouloir vous déconnecter ?",
-      async () => {
+  const confirmFinalDelete = async () => {
+    setShowDeleteConfirmModal(false);
+    setIsDeleting(true);
+
+    try {
+      console.log("🗑️ SUPPRESSION FINALE...");
+
+      await deleteDoc(doc(firestore, "users", firebaseUser!.uid));
+      console.log("✅ Document utilisateur supprimé");
+
+      await db.runAsync("DELETE FROM deliveries WHERE user_id = ?", [user.id]);
+      await db.runAsync("DELETE FROM merchants WHERE user_id = ?", [user.id]);
+      await db.runAsync("DELETE FROM user WHERE id = ?", [user.id]);
+      console.log("✅ Données locales supprimées");
+
+      await firebaseUser!.delete();
+      console.log("✅ Compte Firebase Auth supprimé");
+
+      showSuccess(
+        "Compte supprimé",
+        "Votre compte a été supprimé avec succès.",
+      );
+
+      await logout();
+      router.replace("/register");
+    } catch (error: any) {
+      console.error("❌ Erreur suppression:", error);
+
+      if (error.code === "auth/requires-recent-login") {
+        showError(
+          "Erreur",
+          "Session expirée. Veuillez vous reconnecter.",
+        );
         await logout();
         router.replace("/login");
-      },
-      "Déconnexion",
-    );
+      } else {
+        showError("Erreur", "Impossible de supprimer le compte");
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Gestion de la déconnexion
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutModal(false);
+    await logout();
+    router.replace("/login");
   };
 
   const handleBack = () => {
@@ -514,15 +545,20 @@ const handleDeleteAccount = async () => {
 
   return (
     <SafeAreaView style={commonStyles.container}>
-      {/* En-tête flou */}
       <BlurView intensity={95} style={settingsStyles.header}>
-        <TouchableOpacity style={settingsStyles.backButton} onPress={handleBack}>
+        <TouchableOpacity
+          style={settingsStyles.backButton}
+          onPress={handleBack}
+        >
           <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
         </TouchableOpacity>
 
         <Text style={settingsStyles.headerTitle}>Paramètres</Text>
 
-        <TouchableOpacity style={settingsStyles.saveButton} onPress={handleSave}>
+        <TouchableOpacity
+          style={settingsStyles.saveButton}
+          onPress={handleSave}
+        >
           <Text style={settingsStyles.saveButtonText}></Text>
         </TouchableOpacity>
       </BlurView>
@@ -550,8 +586,13 @@ const handleDeleteAccount = async () => {
             {user.phone ? `${user.phone}` : ""}
           </Text>
           {firebaseUser && (
-            <Text style={[settingsStyles.profileSubtitle, { fontSize: 12, color: COLORS.primary }]}>
-              ✓ Synchronisé avec le cloud
+            <Text
+              style={[
+                settingsStyles.profileSubtitle,
+                { fontSize: 12, color: COLORS.primary },
+              ]}
+            >
+              ✓ En ligne
             </Text>
           )}
         </View>
@@ -600,14 +641,18 @@ const handleDeleteAccount = async () => {
 
         {/* Section: Configuration Financière */}
         <View style={commonStyles.section}>
-          <Text style={settingsStyles.sectionTitle}>CONFIGURATION FINANCIÈRE</Text>
+          <Text style={settingsStyles.sectionTitle}>
+            CONFIGURATION FINANCIÈRE
+          </Text>
 
           <View style={commonStyles.card}>
             {/* TVA */}
             <View style={settingsStyles.cardItem}>
               <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons name="percent" size={20} color={COLORS.muted} />
-                <Text style={settingsStyles.cardItemLabel}>Assujetti à la TVA</Text>
+                <Text style={settingsStyles.cardItemLabel}>
+                  Assujetti à la TVA
+                </Text>
               </View>
               <Switch
                 value={settings.is_vat === 1}
@@ -617,6 +662,67 @@ const handleDeleteAccount = async () => {
                 trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
               />
+            </View>
+          </View>
+        </View>
+
+        {/* Section: Objectifs */}
+        <View style={commonStyles.section}>
+          <Text style={settingsStyles.sectionTitle}>OBJECTIFS</Text>
+
+          <View style={commonStyles.card}>
+            {/* Objectif quotidien */}
+            <View style={settingsStyles.cardItem}>
+              <View style={settingsStyles.cardItemLeft}>
+                <MaterialIcons name="flag" size={20} color={COLORS.muted} />
+                <Text style={settingsStyles.cardItemLabel}>
+                  Objectif quotidien
+                </Text>
+              </View>
+              <View style={settingsStyles.goalInputContainer}>
+                <TextInput
+                  style={settingsStyles.goalInput}
+                  value={settings.daily_goal?.toString() || " "}
+                  onChangeText={(text) => {
+                    const numericValue = text.replace(/[^0-9]/g, "");
+                    updateSetting(
+                      "daily_goal",
+                      numericValue ? parseInt(numericValue) : 0,
+                    );
+                  }}
+                  keyboardType="numeric"
+                  placeholder=" "
+                  placeholderTextColor={COLORS.muted}
+                />
+                <Text style={settingsStyles.currency}>FCFA</Text>
+              </View>
+            </View>
+
+            {/* Objectif mensuel */}
+            <View style={settingsStyles.cardItem}>
+              <View style={settingsStyles.cardItemLeft}>
+                <MaterialIcons name="flag" size={20} color={COLORS.muted} />
+                <Text style={settingsStyles.cardItemLabel}>
+                  Objectif mensuel
+                </Text>
+              </View>
+              <View style={settingsStyles.goalInputContainer}>
+                <TextInput
+                  style={settingsStyles.goalInput}
+                  value={settings.monthly_goal?.toString() || "0"}
+                  onChangeText={(text) => {
+                    const numericValue = text.replace(/[^0-9]/g, "");
+                    updateSetting(
+                      "monthly_goal",
+                      numericValue ? parseInt(numericValue) : 0,
+                    );
+                  }}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={COLORS.muted}
+                />
+                <Text style={settingsStyles.currency}>FCFA</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -656,7 +762,9 @@ const handleDeleteAccount = async () => {
                   color={COLORS.muted}
                 />
                 <View style={settingsStyles.notificationContent}>
-                  <Text style={settingsStyles.cardItemLabel}>Rappels de saisie</Text>
+                  <Text style={settingsStyles.cardItemLabel}>
+                    Rappels de saisie
+                  </Text>
                   <Text style={settingsStyles.notificationSubtitle}>
                     Pour ne pas oublier vos km
                   </Text>
@@ -673,15 +781,41 @@ const handleDeleteAccount = async () => {
             </View>
 
             {/* Alertes de paiement */}
-            <View style={[settingsStyles.cardItem, settingsStyles.cardItemNoBorder]}>
+            <View style={settingsStyles.cardItem}>
               <View style={settingsStyles.cardItemLeft}>
                 <MaterialIcons name="payments" size={20} color={COLORS.muted} />
-                <Text style={settingsStyles.cardItemLabel}>Alertes de paiement</Text>
+                <Text style={settingsStyles.cardItemLabel}>
+                  Alertes de paiement
+                </Text>
               </View>
               <Switch
                 value={settings.payment_notifications === 1}
                 onValueChange={(value) =>
                   updateSetting("payment_notifications", value ? 1 : 0)
+                }
+                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
+                thumbColor={COLORS.white}
+              />
+            </View>
+
+            {/* Notification objectif atteint */}
+            <View
+              style={[settingsStyles.cardItem, settingsStyles.cardItemNoBorder]}
+            >
+              <View style={settingsStyles.cardItemLeft}>
+                <MaterialIcons
+                  name="emoji-events"
+                  size={20}
+                  color={COLORS.muted}
+                />
+                <Text style={settingsStyles.cardItemLabel}>
+                  Objectif atteint
+                </Text>
+              </View>
+              <Switch
+                value={settings.daily_goal_notifications === 1}
+                onValueChange={(value) =>
+                  updateSetting("daily_goal_notifications", value ? 1 : 0)
                 }
                 trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
                 thumbColor={COLORS.white}
@@ -695,7 +829,7 @@ const handleDeleteAccount = async () => {
           <Text style={settingsStyles.sectionTitle}>DONNÉES & SÉCURITÉ</Text>
 
           <View style={commonStyles.card}>
-            {/* Changer le mot de passe - Menu déroulant */}
+            {/* Changer le mot de passe */}
             <TouchableOpacity
               style={settingsStyles.cardItem}
               onPress={() => setPasswordExpanded(!passwordExpanded)}
@@ -711,7 +845,9 @@ const handleDeleteAccount = async () => {
                 </Text>
               </View>
               <MaterialIcons
-                name={passwordExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                name={
+                  passwordExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"
+                }
                 size={24}
                 color={COLORS.muted}
               />
@@ -720,21 +856,29 @@ const handleDeleteAccount = async () => {
             {/* Contenu déroulant du changement de mot de passe */}
             {passwordExpanded && (
               <View style={settingsStyles.passwordExpandedContent}>
-                {/* Mot de passe actuel */}
                 <View style={settingsStyles.passwordInputGroup}>
-                  <Text style={settingsStyles.passwordLabel}>Mot de passe actuel</Text>
+                  <Text style={settingsStyles.passwordLabel}>
+                    Mot de passe actuel
+                  </Text>
                   <TextInput
                     style={[
                       settingsStyles.passwordInput,
-                      passwordErrors.currentPassword && settingsStyles.passwordInputError
+                      passwordErrors.currentPassword &&
+                        settingsStyles.passwordInputError,
                     ]}
                     placeholder="••••••••"
                     placeholderTextColor={COLORS.inputPlaceholder}
                     secureTextEntry
                     value={passwordData.currentPassword}
                     onChangeText={(text) => {
-                      setPasswordData({ ...passwordData, currentPassword: text });
-                      setPasswordErrors({ ...passwordErrors, currentPassword: "" });
+                      setPasswordData({
+                        ...passwordData,
+                        currentPassword: text,
+                      });
+                      setPasswordErrors({
+                        ...passwordErrors,
+                        currentPassword: "",
+                      });
                     }}
                   />
                   {passwordErrors.currentPassword ? (
@@ -744,13 +888,15 @@ const handleDeleteAccount = async () => {
                   ) : null}
                 </View>
 
-                {/* Nouveau mot de passe */}
                 <View style={settingsStyles.passwordInputGroup}>
-                  <Text style={settingsStyles.passwordLabel}>Nouveau mot de passe</Text>
+                  <Text style={settingsStyles.passwordLabel}>
+                    Nouveau mot de passe
+                  </Text>
                   <TextInput
                     style={[
                       settingsStyles.passwordInput,
-                      passwordErrors.newPassword && settingsStyles.passwordInputError
+                      passwordErrors.newPassword &&
+                        settingsStyles.passwordInputError,
                     ]}
                     placeholder="••••••••"
                     placeholderTextColor={COLORS.inputPlaceholder}
@@ -771,21 +917,29 @@ const handleDeleteAccount = async () => {
                   </Text>
                 </View>
 
-                {/* Confirmer nouveau mot de passe */}
                 <View style={settingsStyles.passwordInputGroup}>
-                  <Text style={settingsStyles.passwordLabel}>Confirmer le mot de passe</Text>
+                  <Text style={settingsStyles.passwordLabel}>
+                    Confirmer le mot de passe
+                  </Text>
                   <TextInput
                     style={[
                       settingsStyles.passwordInput,
-                      passwordErrors.confirmPassword && settingsStyles.passwordInputError
+                      passwordErrors.confirmPassword &&
+                        settingsStyles.passwordInputError,
                     ]}
                     placeholder="••••••••"
                     placeholderTextColor={COLORS.inputPlaceholder}
                     secureTextEntry
                     value={passwordData.confirmPassword}
                     onChangeText={(text) => {
-                      setPasswordData({ ...passwordData, confirmPassword: text });
-                      setPasswordErrors({ ...passwordErrors, confirmPassword: "" });
+                      setPasswordData({
+                        ...passwordData,
+                        confirmPassword: text,
+                      });
+                      setPasswordErrors({
+                        ...passwordErrors,
+                        confirmPassword: "",
+                      });
                     }}
                   />
                   {passwordErrors.confirmPassword ? (
@@ -795,7 +949,6 @@ const handleDeleteAccount = async () => {
                   ) : null}
                 </View>
 
-                {/* Bouton de confirmation */}
                 <TouchableOpacity
                   style={settingsStyles.passwordConfirmButton}
                   onPress={handleChangePassword}
@@ -850,11 +1003,161 @@ const handleDeleteAccount = async () => {
         </View>
 
         {/* Bouton de déconnexion */}
-        <TouchableOpacity style={settingsStyles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity
+          style={settingsStyles.logoutButton}
+          onPress={handleLogout}
+        >
           <MaterialIcons name="logout" size={20} color={COLORS.danger} />
           <Text style={settingsStyles.logoutButtonText}>Déconnexion</Text>
         </TouchableOpacity>
-         <View style={settingsStyles.bottomSpacer} />
+
+        {/* Version de l'app */}
+        <Text style={settingsStyles.versionText}>Version {appVersion}</Text>
+        <View style={settingsStyles.bottomSpacer} />
+
+        {/* MODALES */}
+
+        {/* Modale pour saisir le mot de passe */}
+        <Modal
+          visible={showPasswordModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowPasswordModal(false)}
+        >
+          <View style={settingsStyles.modalOverlay}>
+            <View style={settingsStyles.modalContent}>
+              <Text style={settingsStyles.modalTitle}>
+                Confirmation de sécurité
+              </Text>
+              <Text style={settingsStyles.modalMessage}>
+                Pour supprimer votre compte, veuillez entrer votre mot de passe :
+              </Text>
+
+              <TextInput
+                style={settingsStyles.modalInput}
+                placeholder="Mot de passe"
+                placeholderTextColor={COLORS.placeholder}
+                secureTextEntry
+                value={deletePassword}
+                onChangeText={setDeletePassword}
+                autoFocus
+              />
+
+              <View style={settingsStyles.modalButtonsContainer}>
+                <TouchableOpacity
+                  style={[settingsStyles.modalButton, settingsStyles.modalButtonCancel]}
+                  onPress={() => {
+                    setShowPasswordModal(false);
+                    setDeletePassword("");
+                  }}
+                >
+                  <Text style={[settingsStyles.modalButtonText, settingsStyles.modalButtonTextCancel]}>
+                    Annuler
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[settingsStyles.modalButton, settingsStyles.modalButtonDanger]}
+                  onPress={confirmDeleteWithPassword}
+                >
+                  <Text style={settingsStyles.modalButtonTextDanger}>
+                    Continuer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modale de confirmation de déconnexion */}
+        <Modal
+          visible={showLogoutModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLogoutModal(false)}
+        >
+          <View style={settingsStyles.modalOverlay}>
+            <View style={settingsStyles.modalContent}>
+              <Text style={settingsStyles.modalTitle}>
+                Déconnexion
+              </Text>
+              <Text style={settingsStyles.modalMessage}>
+                Êtes-vous sûr de vouloir vous déconnecter ?
+              </Text>
+
+              <View style={settingsStyles.modalButtonsContainer}>
+                <TouchableOpacity
+                  style={[settingsStyles.modalButton, settingsStyles.modalButtonCancel]}
+                  onPress={() => setShowLogoutModal(false)}
+                >
+                  <Text style={[settingsStyles.modalButtonText, settingsStyles.modalButtonTextCancel]}>
+                    Annuler
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[settingsStyles.modalButton, settingsStyles.modalButtonDanger]}
+                  onPress={confirmLogout}
+                >
+                  <Text style={settingsStyles.modalButtonTextDanger}>
+                    Déconnexion
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modale de confirmation finale de suppression */}
+        <Modal
+          visible={showDeleteConfirmModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDeleteConfirmModal(false)}
+        >
+          <View style={settingsStyles.modalOverlay}>
+            <View style={settingsStyles.modalContent}>
+              <Text style={settingsStyles.modalTitle}>
+                Supprimer le compte
+              </Text>
+              <Text style={settingsStyles.modalMessage}>
+                Êtes-vous sûr de vouloir supprimer votre compte ? Toutes vos données (locales et cloud) seront effacées. Cette action est irréversible.
+              </Text>
+
+              <View style={settingsStyles.modalButtonsContainer}>
+                <TouchableOpacity
+                  style={[settingsStyles.modalButton, settingsStyles.modalButtonCancel]}
+                  onPress={() => setShowDeleteConfirmModal(false)}
+                >
+                  <Text style={[settingsStyles.modalButtonText, settingsStyles.modalButtonTextCancel]}>
+                    Annuler
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[settingsStyles.modalButton, settingsStyles.modalButtonDanger]}
+                  onPress={confirmFinalDelete}
+                >
+                  <Text style={settingsStyles.modalButtonTextDanger}>
+                    Supprimer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Indicateur de chargement pendant la suppression */}
+        {isDeleting && (
+          <View style={settingsStyles.loadingOverlay}>
+            <View style={settingsStyles.loadingContent}>
+              <ActivityIndicator size="large" color={COLORS.primary} />
+              <Text style={settingsStyles.loadingText}>
+                Suppression en cours...
+              </Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

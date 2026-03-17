@@ -9,6 +9,8 @@ import { dashboardStyles } from "../styles/dashboardStyles";
 import { COLORS } from "../styles/colors";
 import { useModal } from "../providers/ModalProvider";
 import NotificationBadge from "../components/NotificationBadge";
+import { sendGoalAchievedNotification } from '../src/services/notification.service';
+import { useAuth } from '../src/context/AuthContext';
 
 // Définition des types
 type User = {
@@ -30,11 +32,16 @@ type Delivery = {
 };
 
 export default function Dashboard() {
+  const { user } = useAuth(); // 🔥 Récupérer l'utilisateur connecté
   const [available, setAvailable] = useState(true);
   const [todayEarnings, setTodayEarnings] = useState(0);
   const [weekEarnings, setWeekEarnings] = useState(0);
   const [monthEarnings, setMonthEarnings] = useState(0);
   const [monthGoal, setMonthGoal] = useState(0);
+  const [dailyGoal, setDailyGoal] = useState(15000);
+  const [dailyProgress, setDailyProgress] = useState(0);
+  const [goalAchievedToday, setGoalAchievedToday] = useState(false); // 🔥 NOUVEAU
+  const [lastGoalCheck, setLastGoalCheck] = useState(''); // 🔥 NOUVEAU
   const [todayDeliveries, setTodayDeliveries] = useState<Delivery[]>([]);
   const [userName, setUserName] = useState("");
   const [userInitial, setUserInitial] = useState("?");
@@ -60,7 +67,6 @@ export default function Dashboard() {
       );
       if (user) {
         setUserName(user.name || "Livreur");
-        // Extraire la première lettre du prénom ou du nom
         const initial = user.name?.trim().charAt(0).toUpperCase() || "?";
         setUserInitial(initial);
       }
@@ -85,6 +91,7 @@ export default function Dashboard() {
 
   const loadStats = async () => {
     const today = new Date().toISOString().split("T")[0];
+    const todayDateStr = new Date().toDateString();
 
     const deliveries = await db.getAllAsync<any>(
       `SELECT * FROM deliveries 
@@ -116,7 +123,28 @@ export default function Dashboard() {
     setTodayEarnings(profit);
     setTodayCount(deliveries.length);
 
-    // Solde total non reversé (tous jours confondus)
+    // 🔥 Détecter si l'objectif vient d'être atteint
+    const wasAchieved = profit >= dailyGoal;
+    
+    if (wasAchieved && !goalAchievedToday && lastGoalCheck !== todayDateStr) {
+      setGoalAchievedToday(true);
+      setLastGoalCheck(todayDateStr);
+      
+      // Envoyer une notification
+      if (user?.id) {
+        await sendGoalAchievedNotification(user.id, profit, dailyGoal);
+      }
+    }
+    
+    // Si on était en dessous de l'objectif, réinitialiser
+    if (!wasAchieved) {
+      setGoalAchievedToday(false);
+    }
+
+    // Calculer la progression
+    setDailyProgress(dailyGoal > 0 ? (profit / dailyGoal) * 100 : 0);
+
+    // Solde total non reversé
     const pending = await db.getAllAsync<any>(
       `SELECT * FROM deliveries 
        WHERE status = 'LIVREE' 
@@ -124,13 +152,11 @@ export default function Dashboard() {
     );
 
     let pendingTotal = 0;
-
     pending.forEach((delivery) => {
       if (delivery.payment_type === "CLIENT_PAYE_TOUT") {
         pendingTotal += delivery.parcel_value;
       }
     });
-
     setPendingReversal(pendingTotal);
 
     // Total hier
@@ -148,48 +174,50 @@ export default function Dashboard() {
     const variation =
       totalYesterday === 0
         ? 0
-        : Math.round(((todayEarnings - totalYesterday) / totalYesterday) * 100);
-
+        : Math.round(((profit - totalYesterday) / totalYesterday) * 100);
     setTrendPercent(variation);
 
-    // Revenus de la semaine (7 derniers jours)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString();
-
+    // Revenus de la semaine
     const weekResult = await db.getFirstAsync<{ total: number }>(
       `SELECT SUM(delivery_fee) as total 
-        FROM deliveries 
-        WHERE status = 'LIVREE'
-        AND date(delivered_at) >= date('now', '-7 days')`,
+       FROM deliveries 
+       WHERE status = 'LIVREE'
+       AND date(delivered_at) >= date('now', '-7 days')`,
     );
     setWeekEarnings(weekResult?.total || 0);
 
-    // Revenus du mois (mois en cours)
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const firstDayOfMonthStr = firstDayOfMonth.toISOString();
-
+    // Revenus du mois
     const monthResult = await db.getFirstAsync<{ total: number }>(
       `SELECT SUM(delivery_fee) as total 
-      FROM deliveries 
-      WHERE status = 'LIVREE'
-      AND strftime('%Y-%m', delivered_at) = strftime('%Y-%m', 'now')`,
+       FROM deliveries 
+       WHERE status = 'LIVREE'
+       AND strftime('%Y-%m', delivered_at) = strftime('%Y-%m', 'now')`,
     );
-
     setMonthEarnings(monthResult?.total || 0);
-    console.log("Week:", weekResult);
-    console.log("Month:", monthResult);
 
-    // Livraisons du jour pour le planning - SUPPRIMER LA LIMITE 3
+    // Livraisons du jour
     const deliveriesResult = await db.getAllAsync<Delivery>(
       `SELECT * FROM deliveries 
        WHERE (status = 'A_LIVRER' OR status = 'LIVREE') 
        AND date(created_at) = date('now')
-       ORDER BY created_at`, // Supprimé LIMIT 3
+       ORDER BY created_at`,
     );
+    setTodayDeliveries(deliveriesResult || []);
 
-    // Objectif mensuel de l'utilisateur
+    // Charger l'objectif quotidien
+    try {
+      const userGoalResult = await db.getFirstAsync<{ daily_goal: number }>(
+        `SELECT daily_goal FROM user LIMIT 1`,
+      );
+      if (userGoalResult && userGoalResult.daily_goal) {
+        setDailyGoal(userGoalResult.daily_goal);
+        setDailyProgress(profit / userGoalResult.daily_goal * 100);
+      }
+    } catch (error) {
+      console.log("Objectif quotidien non trouvé, utilisation valeur par défaut");
+    }
+
+    // Objectif mensuel
     try {
       const userGoalResult = await db.getFirstAsync<{ monthly_goal: number }>(
         `SELECT monthly_goal FROM user LIMIT 1`,
@@ -198,23 +226,15 @@ export default function Dashboard() {
         setMonthGoal(userGoalResult.monthly_goal);
       }
     } catch (error) {
-      console.log(
-        "Objectif mensuel non trouvé, utilisation de la valeur par défaut",
-      );
+      console.log("Objectif mensuel non trouvé");
     }
-    setTodayDeliveries(deliveriesResult || []);
   };
 
   // Charger les stats au montage + intervalle
   useEffect(() => {
     loadStats();
-
-    // Recharger toutes les 30 secondes
     const interval = setInterval(loadStats, 30000);
-
-    return () => {
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   // Recharger quand l'écran reçoit le focus
@@ -253,7 +273,6 @@ export default function Dashboard() {
       <BlurView intensity={95} style={dashboardStyles.header}>
         <View style={dashboardStyles.headerContent}>
           <View style={dashboardStyles.profileSection}>
-            {/* Avatar avec initiale */}
             <View
               style={[
                 dashboardStyles.profileImage,
@@ -269,9 +288,7 @@ export default function Dashboard() {
           </View>
 
           <View style={dashboardStyles.headerActions}>
-            <View style={dashboardStyles.headerActions}>
-              <NotificationBadge />
-            </View>
+            <NotificationBadge />
           </View>
         </View>
       </BlurView>
@@ -279,7 +296,7 @@ export default function Dashboard() {
       <ScrollView
         style={dashboardStyles.content}
         showsVerticalScrollIndicator={false}
-        nestedScrollEnabled={true} // Ajouté pour permettre le scroll imbriqué
+        nestedScrollEnabled={true}
       >
         {/* En-tête avec date */}
         <View style={dashboardStyles.dateHeader}>
@@ -298,6 +315,64 @@ export default function Dashboard() {
               color={COLORS.muted}
             />
           </TouchableOpacity>
+        </View>
+
+        {/* Carte Objectif du jour */}
+        <View style={dashboardStyles.goalCard}>
+          <View style={dashboardStyles.goalHeader}>
+            <View style={dashboardStyles.goalTitleContainer}>
+              <MaterialIcons name="flag" size={20} color={COLORS.primary} />
+              <Text style={dashboardStyles.goalTitle}>Objectif du jour</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => router.push("/settings")}
+              style={dashboardStyles.goalSettingsButton}
+            >
+              <MaterialIcons name="edit" size={18} color={COLORS.muted} />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={dashboardStyles.goalAmountContainer}>
+            <Text style={dashboardStyles.goalCurrentAmount}>
+              {todayEarnings.toLocaleString("fr-FR")} FCFA
+            </Text>
+            <Text style={dashboardStyles.goalTargetAmount}>
+              / {dailyGoal.toLocaleString("fr-FR")} FCFA
+            </Text>
+          </View>
+          
+          {/* Barre de progression */}
+          <View style={dashboardStyles.progressBarContainer}>
+            <View 
+              style={[
+                dashboardStyles.progressBarFill,
+                { width: `${Math.min(dailyProgress, 100)}%` }
+              ]} 
+            />
+          </View>
+          
+          <View style={dashboardStyles.goalFooter}>
+            <Text style={dashboardStyles.goalProgressText}>
+              {dailyProgress.toFixed(0)}% atteint
+            </Text>
+            <Text style={dashboardStyles.goalRemainingText}>
+              Reste : {(dailyGoal - todayEarnings) > 0 
+                ? (dailyGoal - todayEarnings).toLocaleString("fr-FR") 
+                : "0"} FCFA
+            </Text>
+          </View>
+          
+          {/* Message de motivation */}
+          {dailyProgress >= 100 ? (
+            <View style={dashboardStyles.goalAchievedBadge}>
+              <MaterialIcons name="emoji-events" size={16} color="#FFFFFF" />
+              <Text style={dashboardStyles.goalAchievedText}>Objectif atteint ! 🎉</Text>
+            </View>
+          ) : (
+            <Text style={dashboardStyles.goalMotivationText}>
+              Plus que {(dailyGoal - todayEarnings).toLocaleString("fr-FR")} FCFA à gagner !
+            </Text>
+          )}
         </View>
 
         {/* Cartes de revenus */}
@@ -391,8 +466,8 @@ export default function Dashboard() {
                   {
                     backgroundColor:
                       trendPercent >= 0
-                        ? dashboardStyles.trendBadgeUp.backgroundColor
-                        : dashboardStyles.trendBadgeDown.backgroundColor,
+                        ? "rgba(16, 185, 129, 0.2)"
+                        : "rgba(239, 68, 68, 0.2)",
                   },
                 ]}
               >
@@ -431,7 +506,7 @@ export default function Dashboard() {
           </View>
         </View>
 
-        {/* Planning du jour - RENDU SCROLLABLE */}
+        {/* Planning du jour */}
         <View style={dashboardStyles.scheduleSection}>
           <View style={dashboardStyles.scheduleHeader}>
             <Text style={dashboardStyles.scheduleTitle}>Planning du jour</Text>
@@ -444,13 +519,12 @@ export default function Dashboard() {
             </TouchableOpacity>
           </View>
 
-          {/* Conteneur scrollable pour les livraisons */}
           <View style={dashboardStyles.scheduleScrollContainer}>
             <ScrollView 
               showsVerticalScrollIndicator={true}
               contentContainerStyle={dashboardStyles.scheduleScrollContent}
-              nestedScrollEnabled={true} // Ajouté pour permettre le scroll imbriqué
-              scrollEnabled={true} // Forcer le scroll
+              nestedScrollEnabled={true}
+              scrollEnabled={true}
             >
               {todayDeliveries.length > 0 ? (
                 todayDeliveries.map((delivery) => {
