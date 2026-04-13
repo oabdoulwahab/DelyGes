@@ -206,7 +206,7 @@ export default function Register() {
           <Checkbox
             value={acceptCGU}
             onValueChange={setAcceptCGU}
-            color={acceptCGU ? COLORS.primary : COLORS.borderLight}
+            color={acceptCGU ? COLORS.primary : COLORS.primary} // Garde la même couleur pour les deux états, mais tu peux ajuster si tu veux
             style={registerStyles.checkbox}
           />
           <Text style={registerStyles.checkboxText}>

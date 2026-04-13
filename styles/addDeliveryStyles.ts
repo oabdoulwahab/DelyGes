@@ -198,6 +198,12 @@ export const addDeliveryStyles = StyleSheet.create({
     fontSize: 15,
   },
 
+  paymentDescription: {
+  fontSize: 11,
+  color: COLORS.muted,
+  marginTop: 2,
+},
+
   // Merchant suggestions
   merchantInputContainer: {
     position: "relative",

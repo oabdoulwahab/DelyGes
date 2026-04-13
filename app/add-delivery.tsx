@@ -30,9 +30,10 @@ type Delivery = {
   parcel_value: number;
   delivery_fee: number;
   payment_type:
-    | "COLIS_DEJA_PAYE"
-    | "CLIENT_PAYE_LIVRAISON"
-    | "CLIENT_PAYE_TOUT";
+    | "COLIS_DEJA_PAYE" // Colis déjà payé, livraison à payer
+    | "CLIENT_PAYE_LIVRAISON" // Client paie livraison seulement
+    | "CLIENT_PAYE_TOUT" // Client paie colis + livraison
+    | "LIVRAISON_DEJA_PAYEE"; // 🔥 NOUVEAU: Livraison déjà payée, client paie colis
   merchant_id?: number;
   status: string;
 };
@@ -58,7 +59,10 @@ export default function AddDelivery() {
   const [merchantName, setMerchantName] = useState("");
   const [merchantId, setMerchantId] = useState<number | null>(null);
   const [paymentType, setPaymentType] = useState<
-    "COLIS_DEJA_PAYE" | "CLIENT_PAYE_LIVRAISON" | "CLIENT_PAYE_TOUT"
+    | "COLIS_DEJA_PAYE"
+    | "CLIENT_PAYE_LIVRAISON"
+    | "CLIENT_PAYE_TOUT"
+    | "LIVRAISON_DEJA_PAYEE"
   >("CLIENT_PAYE_TOUT");
   const { markAndSync } = useSync();
 
@@ -190,6 +194,14 @@ export default function AddDelivery() {
         };
         break;
 
+      case "LIVRAISON_DEJA_PAYEE": // 🔥 NOUVEAU
+        financialValidation = {
+          parcelValue:
+            !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
+          deliveryFee: false, // Déjà payé, non obligatoire
+        };
+        break;
+
       case "COLIS_DEJA_PAYE":
         financialValidation = {
           parcelValue: false, // Non obligatoire
@@ -249,32 +261,57 @@ export default function AddDelivery() {
         : 0;
       const merchantIdValue = await getOrCreateMerchant();
 
-      const amountCollected =
-        paymentType === "CLIENT_PAYE_TOUT"
-          ? parcelValueNum + deliveryFeeNum
-          : deliveryFeeNum;
+      // 🔥 CALCUL DES MONTANTS SELON LE TYPE DE PAIEMENT
+      let amountCollected = 0; // Montant que le livreur encaisse chez le client
+      let amountToReturn = 0; // Montant à reverser au commerçant
+      let profit = 0; // Profit du livreur
 
-      const amountToReturn =
-        paymentType === "CLIENT_PAYE_TOUT" ? parcelValueNum : 0;
+      switch (paymentType) {
+        case "CLIENT_PAYE_TOUT":
+          // Client paie colis + livraison
+          amountCollected = parcelValueNum + deliveryFeeNum; // Encaissement total
+          amountToReturn = parcelValueNum; // À reverser au commerçant
+          profit = deliveryFeeNum; // Profit du livreur
+          break;
 
-      const profit = deliveryFeeNum;
+        case "CLIENT_PAYE_LIVRAISON":
+          // Client paie livraison seulement (colis déjà payé)
+          amountCollected = deliveryFeeNum; // Encaissement = frais de livraison
+          amountToReturn = 0; // Rien à reverser (colis déjà payé)
+          profit = deliveryFeeNum; // Profit = frais de livraison
+          break;
+
+        case "LIVRAISON_DEJA_PAYEE":
+          // 🔥 NOUVEAU: Livraison déjà payée, client paie le colis seulement
+          amountCollected = parcelValueNum; // Encaissement = valeur du colis
+          amountToReturn = parcelValueNum; // À reverser au commerçant
+          profit = 0; // Pas de profit (livraison déjà payée)
+          break;
+
+        case "COLIS_DEJA_PAYE":
+          // Tout est déjà payé (colis + livraison)
+          amountCollected = 0; // Rien à encaisser
+          amountToReturn = 0; // Rien à reverser
+          profit = 0; // Pas de profit
+          break;
+      }
 
       if (isEditing) {
         // Mode édition
         await db.runAsync(
           `UPDATE deliveries SET
-            recipient_name = ?,
-            phone = ?,
-            address = ?,
-            parcel_value = ?,
-            delivery_fee = ?,
-            merchant_id = ?,
-            payment_type = ?,
-            amount_collected = ?,
-            amount_to_return = ?,
-            profit = ?,
-            needs_sync = 1
-          WHERE id = ?`,
+          recipient_name = ?,
+          phone = ?,
+          address = ?,
+          parcel_value = ?,
+          delivery_fee = ?,
+          merchant_id = ?,
+          payment_type = ?,
+          amount_collected = ?,
+          amount_to_return = ?,
+          profit = ?,
+          needs_sync = 1
+        WHERE id = ?`,
           [
             recipientName.trim(),
             phone.trim(),
@@ -290,18 +327,16 @@ export default function AddDelivery() {
           ],
         );
 
-        // 🔥 Marquer pour synchronisation
         await markAndSync("deliveries", Number(id));
-
         showSuccess("Succès", "Livraison modifiée avec succès");
       } else {
         // Mode création
         const result = await db.runAsync(
           `INSERT INTO deliveries (
-            recipient_name, phone, address, parcel_value, delivery_fee,
-            merchant_id, payment_type, amount_collected, amount_to_return,
-            profit, status, user_id, created_at, needs_sync
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+          recipient_name, phone, address, parcel_value, delivery_fee,
+          merchant_id, payment_type, amount_collected, amount_to_return,
+          profit, status, user_id, created_at, needs_sync
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
           [
             recipientName.trim(),
             phone.trim(),
@@ -319,9 +354,7 @@ export default function AddDelivery() {
           ],
         );
 
-        // 🔥 Marquer pour synchronisation
         await markAndSync("deliveries", result.lastInsertRowId);
-
         await sendDeliveryCreatedNotification(user.id, 1);
         showSuccess("Succès", "Livraison ajoutée avec succès");
       }
@@ -396,10 +429,28 @@ export default function AddDelivery() {
     const deliveryNum = deliveryFee
       ? Number(deliveryFee.replace(",", ".") || 0)
       : 0;
-    return (parcelNum + deliveryNum).toLocaleString("fr-FR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+
+    switch (paymentType) {
+      case "CLIENT_PAYE_TOUT":
+        return (parcelNum + deliveryNum).toLocaleString("fr-FR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      case "CLIENT_PAYE_LIVRAISON":
+        return deliveryNum.toLocaleString("fr-FR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      case "LIVRAISON_DEJA_PAYEE": // 🔥 NOUVEAU
+        return parcelNum.toLocaleString("fr-FR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      case "COLIS_DEJA_PAYE":
+        return "0,00";
+      default:
+        return "0,00";
+    }
   };
 
   if (loading) {
@@ -692,18 +743,21 @@ export default function AddDelivery() {
             >
               <Text style={addDeliveryStyles.inputLabel}>
                 Valeur du colis{" "}
-                {paymentType === "CLIENT_PAYE_TOUT" && (
+                {(paymentType === "CLIENT_PAYE_TOUT" ||
+                  paymentType === "LIVRAISON_DEJA_PAYEE") && (
                   <Text style={addDeliveryStyles.required}>*</Text>
                 )}
-                {paymentType !== "CLIENT_PAYE_TOUT" && (
-                  <Text style={addDeliveryStyles.optional}>(Optionnel)</Text>
-                )}
+                {paymentType !== "CLIENT_PAYE_TOUT" &&
+                  paymentType !== "LIVRAISON_DEJA_PAYEE" && (
+                    <Text style={addDeliveryStyles.optional}></Text>
+                  )}
               </Text>
               <View style={addDeliveryStyles.currencyInput}>
                 <Text
                   style={[
                     addDeliveryStyles.currencySymbol,
-                    paymentType === "CLIENT_PAYE_TOUT" &&
+                    (paymentType === "CLIENT_PAYE_TOUT" ||
+                      paymentType === "LIVRAISON_DEJA_PAYEE") &&
                       errors.parcelValue && { color: COLORS.danger },
                   ]}
                 >
@@ -740,17 +794,18 @@ export default function AddDelivery() {
               style={[
                 addDeliveryStyles.financialCard,
                 paymentType !== "COLIS_DEJA_PAYE" &&
+                  paymentType !== "LIVRAISON_DEJA_PAYEE" &&
                   errors.deliveryFee &&
                   addDeliveryStyles.inputError,
               ]}
             >
               <Text style={addDeliveryStyles.inputLabel}>
                 Frais de livraison{" "}
-                {paymentType !== "COLIS_DEJA_PAYE" && (
+                {paymentType !== "COLIS_DEJA_PAYE" && paymentType !== "LIVRAISON_DEJA_PAYEE" && (
                   <Text style={addDeliveryStyles.required}>*</Text>
                 )}
                 {paymentType === "COLIS_DEJA_PAYE" && (
-                  <Text style={addDeliveryStyles.optional}>(Optionnel)</Text>
+                  <Text style={addDeliveryStyles.optional}></Text>
                 )}
               </Text>
               <View style={addDeliveryStyles.currencyInput}>
@@ -796,14 +851,24 @@ export default function AddDelivery() {
                 {
                   key: "CLIENT_PAYE_TOUT",
                   label: "Client paie colis et livraison",
+                  description: "Le client paie tout à la livraison",
                 },
                 {
                   key: "CLIENT_PAYE_LIVRAISON",
                   label: "Client paie livraison seulement",
+                  description:
+                    "Le colis est déjà payé, client paie la livraison",
+                },
+                {
+                  key: "LIVRAISON_DEJA_PAYEE", // ✅ Correction ici
+                  label: "Livraison déjà payée",
+                  description:
+                    "Frais de livraison déjà payés, client paie le colis",
                 },
                 {
                   key: "COLIS_DEJA_PAYE",
-                  label: "Colis et livraison déjà payé",
+                  label: "Colis et livraison déjà payés",
+                  description: "Tout est déjà payé en ligne",
                 },
               ].map((item) => (
                 <TouchableOpacity
@@ -815,7 +880,6 @@ export default function AddDelivery() {
                   ]}
                   onPress={() => {
                     setPaymentType(item.key as any);
-                    // Réinitialiser les erreurs lors du changement de type de paiement
                     setErrors((prev) => ({
                       ...prev,
                       parcelValue: false,
@@ -826,6 +890,9 @@ export default function AddDelivery() {
                 >
                   <Text style={addDeliveryStyles.paymentText}>
                     {item.label}
+                  </Text>
+                  <Text style={addDeliveryStyles.paymentDescription}>
+                    {item.description}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -841,7 +908,9 @@ export default function AddDelivery() {
                   ? "Déjà payé"
                   : paymentType === "CLIENT_PAYE_LIVRAISON"
                     ? "Frais de livraison uniquement"
-                    : "Valeur + Frais"}
+                    : paymentType === "LIVRAISON_DEJA_PAYEE" // 🔥 NOUVEAU
+                      ? "Colis uniquement (livraison déjà payée)"
+                      : "Valeur + Frais"}
               </Text>
             </View>
             <Text style={addDeliveryStyles.netIncomeAmount}>
