@@ -98,7 +98,7 @@ export default function NavigationTabs() {
         </TouchableOpacity>
 
         {/* STATS - Utilisation de la Modal */}
-        {/* 
+        
               <TouchableOpacity
                   style={navigationTabsStyles.tabItem}
                   onPress={() => router.push("/stats")}
@@ -124,9 +124,9 @@ export default function NavigationTabs() {
                     Stats
                   </Text>
             </TouchableOpacity> 
-        */}
+       
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={navigationTabsStyles.tabItem}
           onPress={() => {
             // 4. Appel de la modal ici
@@ -156,7 +156,7 @@ export default function NavigationTabs() {
           >
             Stats
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* SETTINGS */}
         <TouchableOpacity

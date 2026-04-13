@@ -309,4 +309,42 @@ export const statsStyles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     borderRadius: 3,
   },
+
+  tabsContainer: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+    paddingBottom: 8,
+    backgroundColor: COLORS.background,
+    zIndex: 4,
+    marginBottom: SPACING.md,
+  },
+  tabsScroll: {
+    paddingHorizontal: SPACING.md,
+  },
+  tab: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 24,
+    alignItems: "center",
+  },
+  activeTab: {},
+  tabText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.muted,
+    marginBottom: 6,
+  },
+  activeTabText: {
+    color: COLORS.primary,
+    fontWeight: "700",
+  },
+  tabIndicator: {
+    height: 3,
+    width: "100%",
+    backgroundColor: "transparent",
+    borderRadius: 1.5,
+  },
+  activeTabIndicator: {
+    backgroundColor: COLORS.primary,
+  },
 });

@@ -22,129 +22,143 @@ import Svg, {
 import { commonStyles } from "../styles/common";
 import { statsStyles } from "../styles/statsStyles";
 import { COLORS } from "../styles/colors";
-import { useAuth } from "../src/hooks/useAuth";
-import { db } from "../src/database/db";
+import { useAuth } from "../src/context/AuthContext";
+import { StatsService, Period, StatsData } from "../src/services/stats.service";
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 32;
 const CHART_HEIGHT = 220;
 
-type Period = "month" | "quarter" | "year";
-type StatsData = {
-  totalRevenue: number;
-  revenueChange: number;
-  totalKm: number;
-  kmChange: number;
-  avgPerDelivery: number;
-  avgChange: string;
-  totalHours: number;
-  hoursChange: number;
-  chartData: number[];
-  sourcesData: {
-    ubereats: number;
-    deliveroo: number;
-    stuart: number;
-  };
-  topZones: Array<{
-    id: number;
-    name: string;
-    deliveries: number;
-    percentage: number;
-  }>;
-};
-
 export default function Stats() {
   const { user, isAuthenticated } = useAuth();
-  const [selectedPeriod, setSelectedPeriod] = useState<Period>("month");
+  const [selectedPeriod, setSelectedPeriod] = useState<Period>("day");
   const [statsData, setStatsData] = useState<StatsData>({
-    totalRevenue: 2450,
-    revenueChange: 12,
-    totalKm: 850,
-    kmChange: 2,
-    avgPerDelivery: 8.5,
-    avgChange: "Stable",
-    totalHours: 124,
-    hoursChange: 8,
-    chartData: [120, 80, 140, 60, 90, 20],
+    totalRevenue: 0,
+    revenueChange: 0,
+    totalDeliveries: 0,
+    deliveriesChange: 0,
+    avgPerDelivery: 0,
+    totalKm: 0,
+    kmChange: 0,
+    chartData: [],
+    chartLabels: [],
     sourcesData: {
-      ubereats: 45,
-      deliveroo: 30,
-      stuart: 25,
+      clientPayeTout: 33,
+      clientPayeLivraison: 33,
+      colisDejaPaye: 34,
     },
     topZones: [
-      { id: 1, name: "Paris Centre", deliveries: 142, percentage: 85 },
-      { id: 2, name: "La Défense", deliveries: 98, percentage: 65 },
-      { id: 3, name: "Montmartre", deliveries: 65, percentage: 45 },
+      { id: 1, name: "Aucune donnée", deliveries: 0, percentage: 0 },
+      { id: 2, name: "Aucune donnée", deliveries: 0, percentage: 0 },
+      { id: 3, name: "Aucune donnée", deliveries: 0, percentage: 0 },
     ],
+    trend: 'stable',
+    trendPercentage: 0
   });
-
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadStatsData();
   }, [selectedPeriod]);
 
   const loadStatsData = async () => {
-    // Simuler un chargement
-    setIsLoading(true);
-    setTimeout(() => {
-      // Ici vous chargeriez les données depuis la base de données
-      setIsLoading(false);
-    }, 500);
-  };
+  if (!isAuthenticated || !user) return;
+
+  try {
+    const data = await StatsService.getStats(selectedPeriod);
+    console.log(`📊 Données pour ${selectedPeriod}:`, {
+      totalRevenue: data.totalRevenue,
+      chartData: data.chartData,
+      chartLabels: data.chartLabels,
+      sources: data.sourcesData
+    });
+    setStatsData(data);
+  } catch (error) {
+    console.error("❌ Erreur chargement stats:", error);
+  }
+};
 
   const formatCurrency = (value: number) => {
-    return `€ ${value.toFixed(2)}`;
+    return `${value.toLocaleString("fr-FR")} FCFA`;
   };
 
   const getPeriodLabel = (period: Period) => {
     switch (period) {
+      case "day":
+        return "Aujourd'hui";
+      case "week":
+        return "Cette semaine";
       case "month":
         return "Ce mois";
-      case "quarter":
-        return "3 mois";
       case "year":
-        return "Année";
+        return "Cette année";
     }
   };
 
   const getDateRange = (period: Period) => {
     const now = new Date();
     switch (period) {
+      case "day":
+        return now.toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+      case "week":
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay() + 1);
+        return `${weekStart.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} - ${now.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
       case "month":
-        return `1 ${now.toLocaleString("fr-FR", { month: "short" })} - ${now.getDate()} ${now.toLocaleString("fr-FR", { month: "short" })}`;
-      case "quarter":
-        return "3 derniers mois";
+        return now.toLocaleDateString("fr-FR", {
+          month: "long",
+          year: "numeric",
+        });
       case "year":
-        return "Cette année";
+        return now.getFullYear().toString();
     }
   };
 
   // Générer le chemin du graphique
   const generateChartPath = () => {
+    if (!statsData || statsData.chartData.length === 0) return "";
+
     const points = statsData.chartData;
+
+    // Si un seul point, on crée une ligne plate
+    if (points.length === 1) {
+      const x = CHART_WIDTH / 2;
+      const y =
+        CHART_HEIGHT -
+        ((points[0] - 0) / (Math.max(...points, 1) || 1)) *
+          (CHART_HEIGHT - 40) -
+        20;
+      return `M ${x} ${y} L ${x} ${y}`;
+    }
+
     const step = CHART_WIDTH / (points.length - 1);
-    const maxValue = Math.max(...points);
-    const minValue = Math.min(...points);
+    const maxValue = Math.max(...points, 1);
+    const minValue = Math.min(...points, 0);
     const range = maxValue - minValue || 1;
 
     let path = "";
     points.forEach((value, index) => {
       const x = index * step;
-      const y = CHART_HEIGHT - ((value - minValue) / range) * (CHART_HEIGHT - 40) - 20;
-      
+      const y =
+        CHART_HEIGHT - ((value - minValue) / range) * (CHART_HEIGHT - 40) - 20;
+
       if (index === 0) {
         path += `M ${x} ${y}`;
       } else {
         const prevX = (index - 1) * step;
-        const prevY = CHART_HEIGHT - ((points[index - 1] - minValue) / range) * (CHART_HEIGHT - 40) - 20;
-        
-        // Courbe lissée
+        const prevY =
+          CHART_HEIGHT -
+          ((points[index - 1] - minValue) / range) * (CHART_HEIGHT - 40) -
+          20;
+
         const cp1x = prevX + step * 0.3;
         const cp1y = prevY;
         const cp2x = x - step * 0.3;
         const cp2y = y;
-        
+
         path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x} ${y}`;
       }
     });
@@ -154,11 +168,35 @@ export default function Stats() {
   // Générer le chemin de l'aire
   const generateAreaPath = () => {
     const linePath = generateChartPath();
-    const lastPoint = statsData.chartData.length - 1;
-    const step = CHART_WIDTH / (statsData.chartData.length - 1);
+    if (!linePath) return "";
+
+    const lastPoint = statsData!.chartData.length - 1;
+    const step = CHART_WIDTH / (statsData!.chartData.length - 1 || 1);
     const lastX = lastPoint * step;
-    
+
     return `${linePath} L ${lastX} ${CHART_HEIGHT} L 0 ${CHART_HEIGHT} Z`;
+  };
+
+  const getTrendIcon = (trend: "up" | "down" | "stable") => {
+    switch (trend) {
+      case "up":
+        return "trending-up";
+      case "down":
+        return "trending-down";
+      default:
+        return "trending-flat";
+    }
+  };
+
+  const getTrendColor = (trend: "up" | "down" | "stable") => {
+    switch (trend) {
+      case "up":
+        return COLORS.success;
+      case "down":
+        return COLORS.danger;
+      default:
+        return COLORS.muted;
+    }
   };
 
   return (
@@ -168,9 +206,6 @@ export default function Stats() {
       {/* En-tête */}
       <BlurView intensity={95} style={statsStyles.header}>
         <Text style={statsStyles.headerTitle}>Statistiques</Text>
-        <TouchableOpacity style={statsStyles.headerButton}>
-          <MaterialIcons name="settings" size={24} color={COLORS.white} />
-        </TouchableOpacity>
       </BlurView>
 
       <ScrollView
@@ -178,43 +213,68 @@ export default function Stats() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={statsStyles.scrollContent}
       >
-        {/* Sélecteur de période */}
-        <View style={statsStyles.periodContainer}>
-          <View style={statsStyles.periodSelector}>
-            {(["month", "quarter", "year"] as Period[]).map((period) => (
+        {/* Sélecteur de période - Style comme deliveries */}
+        <View style={statsStyles.tabsContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={statsStyles.tabsScroll}
+          >
+            {(["day", "week", "month", "year"] as Period[]).map((period) => (
               <TouchableOpacity
                 key={period}
                 style={[
-                  statsStyles.periodOption,
-                  selectedPeriod === period && statsStyles.periodOptionActive,
+                  statsStyles.tab,
+                  selectedPeriod === period && statsStyles.activeTab,
                 ]}
                 onPress={() => setSelectedPeriod(period)}
               >
                 <Text
                   style={[
-                    statsStyles.periodText,
-                    selectedPeriod === period && statsStyles.periodTextActive,
+                    statsStyles.tabText,
+                    selectedPeriod === period && statsStyles.activeTabText,
                   ]}
                 >
                   {getPeriodLabel(period)}
                 </Text>
+                <View
+                  style={[
+                    statsStyles.tabIndicator,
+                    selectedPeriod === period && statsStyles.activeTabIndicator,
+                  ]}
+                />
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* Évolution des revenus */}
         <View style={statsStyles.revenueSection}>
           <View>
-            <Text style={statsStyles.revenueTitle}>Évolution Revenus Nets</Text>
+            <Text style={statsStyles.revenueTitle}>Revenus</Text>
             <View style={statsStyles.revenueHeader}>
               <Text style={statsStyles.revenueAmount}>
                 {formatCurrency(statsData.totalRevenue)}
               </Text>
-              <View style={statsStyles.revenueBadge}>
-                <MaterialIcons name="trending-up" size={16} color={COLORS.primary} />
-                <Text style={statsStyles.revenueBadgeText}>
-                  +{statsData.revenueChange}%
+              <View
+                style={[
+                  statsStyles.revenueBadge,
+                  { backgroundColor: getTrendColor(statsData.trend) + "20" },
+                ]}
+              >
+                <MaterialIcons
+                  name={getTrendIcon(statsData.trend)}
+                  size={16}
+                  color={getTrendColor(statsData.trend)}
+                />
+                <Text
+                  style={[
+                    statsStyles.revenueBadgeText,
+                    { color: getTrendColor(statsData.trend) },
+                  ]}
+                >
+                  {statsData.revenueChange > 0 ? "+" : ""}
+                  {statsData.revenueChange}%
                 </Text>
               </View>
             </View>
@@ -228,8 +288,16 @@ export default function Stats() {
             <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
               <Defs>
                 <SvgGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
-                  <Stop offset="0%" stopColor={COLORS.primary} stopOpacity="0.3" />
-                  <Stop offset="100%" stopColor={COLORS.primary} stopOpacity="0" />
+                  <Stop
+                    offset="0%"
+                    stopColor={COLORS.primary}
+                    stopOpacity="0.3"
+                  />
+                  <Stop
+                    offset="100%"
+                    stopColor={COLORS.primary}
+                    stopOpacity="0"
+                  />
                 </SvgGradient>
               </Defs>
 
@@ -247,44 +315,43 @@ export default function Stats() {
                 />
               ))}
 
-              {/* Aire du graphique */}
-              <Path
-                d={generateAreaPath()}
-                fill="url(#chartGradient)"
-              />
-
-              {/* Ligne du graphique */}
-              <Path
-                d={generateChartPath()}
-                fill="none"
-                stroke={COLORS.primary}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* Point actif */}
-              <Circle
-                cx={CHART_WIDTH * 0.8}
-                cy={CHART_HEIGHT * 0.45}
-                r="6"
-                fill={COLORS.primary}
-              />
-              <Circle
-                cx={CHART_WIDTH * 0.8}
-                cy={CHART_HEIGHT * 0.45}
-                r="3"
-                fill={COLORS.white}
-              />
+              {/* Aire du graphique - conditionnel */}
+              {statsData.chartData.length > 0 && (
+                <>
+                  <Path
+                    d={generateAreaPath()}
+                    fill="url(#chartGradient)"
+                    opacity={statsData.chartData.some((v) => v > 0) ? 1 : 0.3}
+                  />
+                  <Path
+                    d={generateChartPath()}
+                    fill="none"
+                    stroke={COLORS.primary}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity={statsData.chartData.some((v) => v > 0) ? 1 : 0.3}
+                  />
+                </>
+              )}
             </Svg>
 
-            {/* Labels de l'axe X */}
+            {/* Labels de l'axe X - toujours affichés */}
             <View style={statsStyles.chartLabels}>
-              {["S1", "S2", "S3", "S4"].map((label, index) => (
-                <Text key={index} style={statsStyles.chartLabel}>
-                  {label}
-                </Text>
-              ))}
+              {statsData.chartLabels.length > 0 ? (
+                statsData.chartLabels.map((label, index) => (
+                  <Text key={index} style={statsStyles.chartLabel}>
+                    {label}
+                  </Text>
+                ))
+              ) : (
+                // Labels par défaut
+                ["S1", "S2", "S3", "S4"].map((label, index) => (
+                  <Text key={index} style={statsStyles.chartLabel}>
+                    {label}
+                  </Text>
+                ))
+              )}
             </View>
           </View>
         </View>
@@ -297,45 +364,107 @@ export default function Stats() {
               <MaterialIcons name="payments" size={20} color={COLORS.primary} />
             </View>
             <Text style={statsStyles.kpiLabel}>Revenu Total</Text>
-            <Text style={statsStyles.kpiValue}>{formatCurrency(statsData.totalRevenue)}</Text>
-            <Text style={statsStyles.kpiChange}>+5% vs sem. dern.</Text>
+            <Text style={statsStyles.kpiValue}>
+              {formatCurrency(statsData.totalRevenue)}
+            </Text>
+            <Text
+              style={[
+                statsStyles.kpiChange,
+                {
+                  color:
+                    statsData.revenueChange >= 0
+                      ? COLORS.success
+                      : COLORS.danger,
+                },
+              ]}
+            >
+              {statsData.revenueChange > 0 ? "+" : ""}
+              {statsData.revenueChange}%
+            </Text>
           </View>
 
-          {/* Kilométrage */}
+          {/* Livraisons */}
           <View style={statsStyles.kpiCard}>
-            <View style={[statsStyles.kpiIconContainer, { backgroundColor: COLORS.primarySoft }]}>
-              <MaterialIcons name="speed" size={20} color={COLORS.primary} />
+            <View
+              style={[
+                statsStyles.kpiIconContainer,
+                { backgroundColor: COLORS.primarySoft },
+              ]}
+            >
+              <MaterialIcons
+                name="local-shipping"
+                size={20}
+                color={COLORS.primary}
+              />
             </View>
-            <Text style={statsStyles.kpiLabel}>Kilométrage</Text>
-            <Text style={statsStyles.kpiValue}>{statsData.totalKm} km</Text>
-            <Text style={statsStyles.kpiChange}>+2% vs sem. dern.</Text>
+            <Text style={statsStyles.kpiLabel}>Livraisons</Text>
+            <Text style={statsStyles.kpiValue}>
+              {statsData.totalDeliveries}
+            </Text>
+            <Text
+              style={[
+                statsStyles.kpiChange,
+                {
+                  color:
+                    statsData.deliveriesChange >= 0
+                      ? COLORS.success
+                      : COLORS.danger,
+                },
+              ]}
+            >
+              {statsData.deliveriesChange > 0 ? "+" : ""}
+              {statsData.deliveriesChange}%
+            </Text>
           </View>
 
           {/* Moyenne par livraison */}
           <View style={statsStyles.kpiCard}>
-            <View style={[statsStyles.kpiIconContainer, { backgroundColor: COLORS.warningSoft }]}>
-              <MaterialIcons name="local-shipping" size={20} color={COLORS.warning} />
+            <View
+              style={[
+                statsStyles.kpiIconContainer,
+                { backgroundColor: COLORS.warningSoft },
+              ]}
+            >
+              <MaterialIcons name="receipt" size={20} color={COLORS.warning} />
             </View>
             <Text style={statsStyles.kpiLabel}>Moy. / Liv.</Text>
-            <Text style={statsStyles.kpiValue}>{formatCurrency(statsData.avgPerDelivery)}</Text>
-            <Text style={statsStyles.kpiChange}>Stable</Text>
+            <Text style={statsStyles.kpiValue}>
+              {formatCurrency(statsData.avgPerDelivery)}
+            </Text>
+            <Text style={statsStyles.kpiChange}>par livraison</Text>
           </View>
 
-          {/* Heures actives */}
+          {/* Kilométrage */}
           <View style={statsStyles.kpiCard}>
-            <View style={[statsStyles.kpiIconContainer, { backgroundColor: COLORS.dangerSoft }]}>
-              <MaterialIcons name="schedule" size={20} color={COLORS.danger} />
+            <View
+              style={[
+                statsStyles.kpiIconContainer,
+                { backgroundColor: COLORS.dangerSoft },
+              ]}
+            >
+              <MaterialIcons name="speed" size={20} color={COLORS.danger} />
             </View>
-            <Text style={statsStyles.kpiLabel}>Heures Act.</Text>
-            <Text style={statsStyles.kpiValue}>{statsData.totalHours}h</Text>
-            <Text style={statsStyles.kpiChange}>+8% vs sem. dern.</Text>
+            <Text style={statsStyles.kpiLabel}>Kilométrage</Text>
+            <Text style={statsStyles.kpiValue}>{statsData.totalKm} km</Text>
+            <Text
+              style={[
+                statsStyles.kpiChange,
+                {
+                  color:
+                    statsData.kmChange >= 0 ? COLORS.warning : COLORS.muted,
+                },
+              ]}
+            >
+              {statsData.kmChange > 0 ? "+" : ""}
+              {statsData.kmChange}%
+            </Text>
           </View>
         </View>
 
         {/* Sources de revenus */}
         <View style={statsStyles.sourcesSection}>
           <Text style={statsStyles.sourcesTitle}>Sources de Revenus</Text>
-          
+
           <View style={statsStyles.sourcesContainer}>
             {/* Graphique donut */}
             <View style={statsStyles.donutContainer}>
@@ -350,8 +479,8 @@ export default function Stats() {
                     stroke={COLORS.borderLight}
                     strokeWidth="12"
                   />
-                  
-                  {/* UberEats (45%) */}
+
+                  {/* Client paie tout */}
                   <Circle
                     cx="50"
                     cy="50"
@@ -359,36 +488,45 @@ export default function Stats() {
                     fill="transparent"
                     stroke={COLORS.primary}
                     strokeWidth="12"
-                    strokeDasharray={`${(statsData.sourcesData.ubereats / 100) * 251} 251`}
+                    strokeDasharray={`${(statsData.sourcesData.clientPayeTout / 100) * 251} 251`}
                     strokeDashoffset="0"
                   />
-                  
-                  {/* Deliveroo (30%) */}
+
+                  {/* Client paie livraison */}
                   <Circle
                     cx="50"
                     cy="50"
                     r="40"
                     fill="transparent"
-                    stroke="#00CCBC"
+                    stroke={COLORS.warning}
                     strokeWidth="12"
-                    strokeDasharray={`${(statsData.sourcesData.deliveroo / 100) * 251} 251`}
-                    strokeDashoffset={-((statsData.sourcesData.ubereats / 100) * 251)}
+                    strokeDasharray={`${(statsData.sourcesData.clientPayeLivraison / 100) * 251} 251`}
+                    strokeDashoffset={
+                      -((statsData.sourcesData.clientPayeTout / 100) * 251)
+                    }
                   />
-                  
-                  {/* Stuart (25%) */}
+
+                  {/* Colis déjà payé */}
                   <Circle
                     cx="50"
                     cy="50"
                     r="40"
                     fill="transparent"
-                    stroke="#2D6DF6"
+                    stroke={COLORS.success}
                     strokeWidth="12"
-                    strokeDasharray={`${(statsData.sourcesData.stuart / 100) * 251} 251`}
-                    strokeDashoffset={-((statsData.sourcesData.ubereats + statsData.sourcesData.deliveroo) / 100 * 251)}
+                    strokeDasharray={`${(statsData.sourcesData.colisDejaPaye / 100) * 251} 251`}
+                    strokeDashoffset={
+                      -(
+                        ((statsData.sourcesData.clientPayeTout +
+                          statsData.sourcesData.clientPayeLivraison) /
+                          100) *
+                        251
+                      )
+                    }
                   />
                 </G>
               </Svg>
-              
+
               <View style={statsStyles.donutCenter}>
                 <Text style={statsStyles.donutTotalLabel}>Total</Text>
                 <Text style={statsStyles.donutTotal}>100%</Text>
@@ -398,56 +536,85 @@ export default function Stats() {
             {/* Légende */}
             <View style={statsStyles.legendContainer}>
               <View style={statsStyles.legendItem}>
-                <View style={[statsStyles.legendColor, { backgroundColor: COLORS.primary }]} />
-                <Text style={statsStyles.legendLabel}>UberEats</Text>
-                <Text style={statsStyles.legendValue}>{statsData.sourcesData.ubereats}%</Text>
+                <View
+                  style={[
+                    statsStyles.legendColor,
+                    { backgroundColor: COLORS.primary },
+                  ]}
+                />
+                <Text style={statsStyles.legendLabel}>Client paie tout</Text>
+                <Text style={statsStyles.legendValue}>
+                  {statsData.sourcesData.clientPayeTout}%
+                </Text>
               </View>
-              
+
               <View style={statsStyles.legendItem}>
-                <View style={[statsStyles.legendColor, { backgroundColor: "#00CCBC" }]} />
-                <Text style={statsStyles.legendLabel}>Deliveroo</Text>
-                <Text style={statsStyles.legendValue}>{statsData.sourcesData.deliveroo}%</Text>
+                <View
+                  style={[
+                    statsStyles.legendColor,
+                    { backgroundColor: COLORS.warning },
+                  ]}
+                />
+                <Text style={statsStyles.legendLabel}>
+                  Client paie livraison
+                </Text>
+                <Text style={statsStyles.legendValue}>
+                  {statsData.sourcesData.clientPayeLivraison}%
+                </Text>
               </View>
-              
+
               <View style={statsStyles.legendItem}>
-                <View style={[statsStyles.legendColor, { backgroundColor: "#2D6DF6" }]} />
-                <Text style={statsStyles.legendLabel}>Stuart</Text>
-                <Text style={statsStyles.legendValue}>{statsData.sourcesData.stuart}%</Text>
+                <View
+                  style={[
+                    statsStyles.legendColor,
+                    { backgroundColor: COLORS.success },
+                  ]}
+                />
+                <Text style={statsStyles.legendLabel}>Colis déjà payé</Text>
+                <Text style={statsStyles.legendValue}>
+                  {statsData.sourcesData.colisDejaPaye}%
+                </Text>
               </View>
             </View>
           </View>
         </View>
 
         {/* Zones Top */}
-        <View style={statsStyles.zonesSection}>
-          <Text style={statsStyles.zonesTitle}>Zones Top</Text>
-          
-          {statsData.topZones.map((zone, index) => (
-            <View key={zone.id} style={statsStyles.zoneItem}>
-              <View style={statsStyles.zoneRank}>
-                <Text style={statsStyles.zoneRankText}>{index + 1}</Text>
-              </View>
-              
-              <View style={statsStyles.zoneContent}>
-                <View style={statsStyles.zoneHeader}>
-                  <Text style={statsStyles.zoneName}>{zone.name}</Text>
-                  <Text style={statsStyles.zoneDeliveries}>{zone.deliveries}</Text>
+        {statsData.topZones[0]?.deliveries > 0 && (
+          <View style={statsStyles.zonesSection}>
+            <Text style={statsStyles.zonesTitle}>Zones Top</Text>
+
+            {statsData.topZones.map((zone, index) => (
+              <View key={zone.id} style={statsStyles.zoneItem}>
+                <View style={statsStyles.zoneRank}>
+                  <Text style={statsStyles.zoneRankText}>{index + 1}</Text>
                 </View>
-                
-                <View style={statsStyles.progressBar}>
-                  <View
-                    style={[
-                      statsStyles.progressFill,
-                      { width: `${zone.percentage}%` },
-                    ]}
-                  />
+
+                <View style={statsStyles.zoneContent}>
+                  <View style={statsStyles.zoneHeader}>
+                    <Text style={statsStyles.zoneName}>{zone.name}</Text>
+                    <Text style={statsStyles.zoneDeliveries}>
+                      {zone.deliveries}
+                    </Text>
+                  </View>
+
+                  <View style={statsStyles.progressBar}>
+                    <View
+                      style={[
+                        statsStyles.progressFill,
+                        { width: `${zone.percentage}%` },
+                      ]}
+                    />
+                  </View>
+
+                  <Text style={statsStyles.zoneDeliveriesLabel}>
+                    livraisons
+                  </Text>
                 </View>
-                
-                <Text style={statsStyles.zoneDeliveriesLabel}>livraisons</Text>
               </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
