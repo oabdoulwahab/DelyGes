@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "893947341201",
+    "project_id": "delyges-app",
+    "storage_bucket": "delyges-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:893947341201:android:2fac9098102756ba489230",
+        "android_client_info": {
+          "package_name": "com.abdalbensaid.DelyGes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNLR_JXHlN-dK4669vYsvQcm1uhHKfjzQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
