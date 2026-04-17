@@ -44,7 +44,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.abdalbensaid.DelyGes",
-      "versionCode": 16
+      "versionCode": 23
     },
     "web": {
       "output": "static",
@@ -78,9 +78,7 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-secure-store",
-      "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
