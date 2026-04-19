@@ -1121,7 +1121,7 @@ export default function Settings() {
                 Supprimer le compte
               </Text>
               <Text style={settingsStyles.modalMessage}>
-                Êtes-vous sûr de vouloir supprimer votre compte ? Toutes vos données (locales et cloud) seront effacées. Cette action est irréversible.
+                Êtes-vous sûr de vouloir supprimer votre compte ? Toutes vos données personnelles seront effacées. Cette action est irréversible.
               </Text>
 
               <View style={settingsStyles.modalButtonsContainer}>
