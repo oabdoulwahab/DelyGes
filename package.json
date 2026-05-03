@@ -73,6 +73,7 @@
     "@types/react-native-bcrypt": "^2.4.6",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "firebase-tools": "^15.16.0",
     "fs-extra": "^11.3.3",
     "typescript": "~5.9.2"
   },

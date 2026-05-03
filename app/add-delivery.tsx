@@ -30,10 +30,10 @@ type Delivery = {
   parcel_value: number;
   delivery_fee: number;
   payment_type:
-    | "COLIS_DEJA_PAYE" // Colis déjà payé, livraison à payer
-    | "CLIENT_PAYE_LIVRAISON" // Client paie livraison seulement
-    | "CLIENT_PAYE_TOUT" // Client paie colis + livraison
-    | "LIVRAISON_DEJA_PAYEE"; // 🔥 NOUVEAU: Livraison déjà payée, client paie colis
+    | "COLIS_DEJA_PAYE"
+    | "CLIENT_PAYE_LIVRAISON"
+    | "CLIENT_PAYE_TOUT"
+    | "LIVRAISON_DEJA_PAYEE";
   merchant_id?: number;
   status: string;
 };
@@ -50,7 +50,6 @@ export default function AddDelivery() {
   const { user, isAuthenticated } = useAuth();
   const { showConfirm, showSuccess, showError, showAlert } = useModal();
 
-  // États du formulaire
   const [recipientName, setRecipientName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -66,7 +65,6 @@ export default function AddDelivery() {
   >("CLIENT_PAYE_TOUT");
   const { markAndSync } = useSync();
 
-  // États UI
   const [loading, setLoading] = useState(isEditing);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({
@@ -78,12 +76,10 @@ export default function AddDelivery() {
     merchantName: false,
   });
 
-  // États pour les suggestions de commerçants
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filteredMerchants, setFilteredMerchants] = useState<Merchant[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Charger les données si en mode édition
   useEffect(() => {
     if (isEditing) {
       loadDeliveryData();
@@ -99,11 +95,10 @@ export default function AddDelivery() {
       );
 
       if (delivery) {
-        // Vérifier si la livraison peut être modifiée
         if (delivery.status === "LIVREE" || delivery.status === "ANNULEE") {
           showError(
             "Modification impossible",
-            "Cette livraison ne peut plus être modifiée car elle est déjà terminée ou annulée.",
+            "Cette livraison ne peut plus être modifiée.",
           );
           router.back();
           return;
@@ -116,7 +111,6 @@ export default function AddDelivery() {
         setDeliveryFee(delivery.delivery_fee.toString());
         setPaymentType(delivery.payment_type);
 
-        // Charger le commerçant associé
         if (delivery.merchant_id) {
           const merchant = await db.getFirstAsync<Merchant>(
             "SELECT * FROM merchants WHERE id = ?",
@@ -137,32 +131,31 @@ export default function AddDelivery() {
   };
 
   const loadMerchants = async () => {
-    const result = await db.getAllAsync<Merchant>(
-      "SELECT * FROM merchants ORDER BY name ASC",
-    );
-    setMerchants(result);
+    try {
+      const result = await db.getAllAsync<Merchant>(
+        "SELECT * FROM merchants ORDER BY name ASC",
+      );
+      setMerchants(result);
+    } catch (error) {
+      console.error("Erreur chargement merchants:", error);
+    }
   };
 
-  // Filtrer les commerçants en fonction de la saisie du nom
   useEffect(() => {
-    // On n'affiche les suggestions que si l'utilisateur a saisi au moins 1 caractère
-    // ET qu'on n'est pas en train d'afficher un commerçant déjà sélectionné (facultatif)
+    
     if (merchantName.trim().length > 0) {
       const filtered = merchants.filter((merchant) =>
         merchant.name.toLowerCase().includes(merchantName.toLowerCase()),
       );
       setFilteredMerchants(filtered);
-
-      // N'afficher que s'il y a des résultats
       setShowSuggestions(filtered.length > 0);
     } else {
       setFilteredMerchants([]);
-      setShowSuggestions(false); // Cache la liste si le champ est vide
+      setShowSuggestions(false);
     }
   }, [merchantName, merchants]);
 
   const validateForm = () => {
-    // Validation de base pour les champs communs
     const baseValidation = {
       recipientName: !recipientName.trim(),
       phone: !phone.trim(),
@@ -170,7 +163,6 @@ export default function AddDelivery() {
       merchantName: !merchantName.trim(),
     };
 
-    // Validation des champs financiers selon le type de paiement
     let financialValidation = {
       parcelValue: false,
       deliveryFee: false,
@@ -185,58 +177,81 @@ export default function AddDelivery() {
             !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
         };
         break;
-
       case "CLIENT_PAYE_LIVRAISON":
         financialValidation = {
-          parcelValue: false, // Non obligatoire
+          parcelValue: false,
           deliveryFee:
             !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
         };
         break;
-
-      case "LIVRAISON_DEJA_PAYEE": // 🔥 NOUVEAU
+      case "LIVRAISON_DEJA_PAYEE":
         financialValidation = {
           parcelValue:
             !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
-          deliveryFee: false, // Déjà payé, non obligatoire
+          deliveryFee: false,
         };
         break;
-
       case "COLIS_DEJA_PAYE":
         financialValidation = {
-          parcelValue: false, // Non obligatoire
-          deliveryFee: false, // Non obligatoire
+          parcelValue: false,
+          deliveryFee: false,
         };
         break;
     }
 
-    const newErrors = {
-      ...baseValidation,
-      ...financialValidation,
-    };
-
+    const newErrors = { ...baseValidation, ...financialValidation };
     setErrors(newErrors);
     return !Object.values(newErrors).some((error) => error);
   };
-
   const getOrCreateMerchant = async () => {
-    if (!merchantName.trim()) return null;
+    if (!merchantName.trim()) {
+      console.log("⚠️ Pas de nom de commerçant, merchant_id sera null");
+      return null;
+    }
 
-    const existingMerchant = await db.getFirstAsync<Merchant>(
-      "SELECT * FROM merchants WHERE name = ?",
-      [merchantName.trim()],
+    if (!user?.id) {
+      console.log("⚠️ Pas d'utilisateur connecté");
+      return null;
+    }
+
+    // 🔥 Chercher par nom ET par user_id
+    const existingMerchant = await db.getFirstAsync<any>(
+      "SELECT * FROM merchants WHERE name = ? AND user_id = ?",
+      [merchantName.trim(), user.id],
     );
 
     if (existingMerchant) {
+      console.log("✅ Commerçant existant trouvé:", {
+        id: existingMerchant.id,
+        name: existingMerchant.name,
+        firebase_id: existingMerchant.firebase_id,
+      });
       return existingMerchant.id;
     }
 
+    // 🔥 Créer un nouveau commerçant avec user_id
     const result = await db.runAsync(
-      "INSERT INTO merchants (name, created_at) VALUES (?, ?)",
-      [merchantName.trim(), new Date().toISOString()],
+      `INSERT INTO merchants (name, phone, user_id, created_at, needs_sync) 
+     VALUES (?, ?, ?, ?, 1)`,
+      [
+        merchantName.trim(),
+        phone.trim() || null,
+        user.id,
+        new Date().toISOString(),
+      ],
     );
 
-    return result.lastInsertRowId;
+    const newId = result.lastInsertRowId;
+    console.log("🆕 Nouveau commerçant créé, ID:", newId);
+
+    // 🔥 Vérifier immédiatement que l'insertion a réussi
+    const check = await db.getFirstAsync<any>(
+      "SELECT * FROM merchants WHERE id = ?",
+      [newId],
+    );
+    console.log("✅ Vérification insertion:", check);
+
+    return newId;
   };
 
   const handleSave = async () => {
@@ -259,59 +274,53 @@ export default function AddDelivery() {
       const deliveryFeeNum = deliveryFee
         ? Number(deliveryFee.replace(",", ".") || 0)
         : 0;
-      const merchantIdValue = await getOrCreateMerchant();
 
-      // 🔥 CALCUL DES MONTANTS SELON LE TYPE DE PAIEMENT
-      let amountCollected = 0; // Montant que le livreur encaisse chez le client
-      let amountToReturn = 0; // Montant à reverser au commerçant
-      let profit = 0; // Profit du livreur
+      // 🔥 LOG POUR VÉRIFIER
+      const merchantIdValue = await getOrCreateMerchant();
+      console.log("🏪 Merchant ID final:", merchantIdValue);
+
+      let amountCollected = 0;
+      let amountToReturn = 0;
+      let profit = 0;
 
       switch (paymentType) {
         case "CLIENT_PAYE_TOUT":
-          // Client paie colis + livraison
-          amountCollected = parcelValueNum + deliveryFeeNum; // Encaissement total
-          amountToReturn = parcelValueNum; // À reverser au commerçant
-          profit = deliveryFeeNum; // Profit du livreur
+          amountCollected = parcelValueNum + deliveryFeeNum;
+          amountToReturn = parcelValueNum;
+          profit = deliveryFeeNum;
           break;
-
         case "CLIENT_PAYE_LIVRAISON":
-          // Client paie livraison seulement (colis déjà payé)
-          amountCollected = deliveryFeeNum; // Encaissement = frais de livraison
-          amountToReturn = 0; // Rien à reverser (colis déjà payé)
-          profit = deliveryFeeNum; // Profit = frais de livraison
+          amountCollected = deliveryFeeNum;
+          amountToReturn = 0;
+          profit = deliveryFeeNum;
           break;
-
         case "LIVRAISON_DEJA_PAYEE":
-          // 🔥 NOUVEAU: Livraison déjà payée, client paie le colis seulement
-          amountCollected = parcelValueNum; // Encaissement = valeur du colis
-          amountToReturn = parcelValueNum; // À reverser au commerçant
-          profit = 0; // Pas de profit (livraison déjà payée)
+          amountCollected = parcelValueNum;
+          amountToReturn = parcelValueNum;
+          profit = 0;
           break;
-
         case "COLIS_DEJA_PAYE":
-          // Tout est déjà payé (colis + livraison)
-          amountCollected = 0; // Rien à encaisser
-          amountToReturn = 0; // Rien à reverser
-          profit = 0; // Pas de profit
+          amountCollected = 0;
+          amountToReturn = 0;
+          profit = 0;
           break;
       }
 
       if (isEditing) {
-        // Mode édition
         await db.runAsync(
           `UPDATE deliveries SET
-          recipient_name = ?,
-          phone = ?,
-          address = ?,
-          parcel_value = ?,
-          delivery_fee = ?,
-          merchant_id = ?,
-          payment_type = ?,
-          amount_collected = ?,
-          amount_to_return = ?,
-          profit = ?,
-          needs_sync = 1
-        WHERE id = ?`,
+            recipient_name = ?,
+            phone = ?,
+            address = ?,
+            parcel_value = ?,
+            delivery_fee = ?,
+            merchant_id = ?,
+            payment_type = ?,
+            amount_collected = ?,
+            amount_to_return = ?,
+            profit = ?,
+            needs_sync = 1
+          WHERE id = ?`,
           [
             recipientName.trim(),
             phone.trim(),
@@ -330,13 +339,12 @@ export default function AddDelivery() {
         await markAndSync("deliveries", Number(id));
         showSuccess("Succès", "Livraison modifiée avec succès");
       } else {
-        // Mode création
         const result = await db.runAsync(
           `INSERT INTO deliveries (
-          recipient_name, phone, address, parcel_value, delivery_fee,
-          merchant_id, payment_type, amount_collected, amount_to_return,
-          profit, status, user_id, created_at, needs_sync
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+            recipient_name, phone, address, parcel_value, delivery_fee,
+            merchant_id, payment_type, amount_collected, amount_to_return,
+            profit, status, user_id, created_at, needs_sync
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
           [
             recipientName.trim(),
             phone.trim(),
@@ -365,6 +373,17 @@ export default function AddDelivery() {
       showError("Erreur", "Impossible d'enregistrer la livraison");
     } finally {
       setIsSaving(false);
+    }
+
+    const merchantIdValue = await getOrCreateMerchant();
+    console.log("🏪 Merchant ID final:", merchantIdValue);
+
+    // 🔥 FORCER la synchronisation du commerçant IMMÉDIATEMENT
+    if (merchantIdValue && !isEditing) {
+      console.log("🔄 Synchronisation forcée du commerçant...");
+      await markAndSync("merchants", merchantIdValue);
+      // Petit délai pour laisser le temps à la sync
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   };
 
@@ -395,15 +414,12 @@ export default function AddDelivery() {
   ) => {
     const cleaned = text.replace(/[^\d,.]/g, "");
     const withComma = cleaned.replace(".", ",");
-
     if (!withComma) {
       setter("");
       return;
     }
-
     const commaCount = (withComma.match(/,/g) || []).length;
     if (commaCount > 1) return;
-
     if (withComma.includes(",")) {
       const [whole, decimal] = withComma.split(",");
       if (decimal && decimal.length > 2) {
@@ -411,7 +427,6 @@ export default function AddDelivery() {
         return;
       }
     }
-
     setter(withComma);
   };
 
@@ -429,7 +444,6 @@ export default function AddDelivery() {
     const deliveryNum = deliveryFee
       ? Number(deliveryFee.replace(",", ".") || 0)
       : 0;
-
     switch (paymentType) {
       case "CLIENT_PAYE_TOUT":
         return (parcelNum + deliveryNum).toLocaleString("fr-FR", {
@@ -441,7 +455,7 @@ export default function AddDelivery() {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         });
-      case "LIVRAISON_DEJA_PAYEE": // 🔥 NOUVEAU
+      case "LIVRAISON_DEJA_PAYEE":
         return parcelNum.toLocaleString("fr-FR", {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
@@ -474,8 +488,6 @@ export default function AddDelivery() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-
-      {/* En-tête */}
       <BlurView intensity={95} style={addDeliveryStyles.header}>
         <TouchableOpacity
           onPress={handleCancel}
@@ -483,11 +495,9 @@ export default function AddDelivery() {
         >
           <Text style={addDeliveryStyles.cancelButtonText}>Annuler</Text>
         </TouchableOpacity>
-
         <Text style={addDeliveryStyles.headerTitle}>
           {isEditing ? "Modifier la Livraison" : "Ajouter une Livraison"}
         </Text>
-
         <TouchableOpacity
           onPress={handleSave}
           style={addDeliveryStyles.saveButtonHeader}
@@ -509,9 +519,7 @@ export default function AddDelivery() {
           <Text style={addDeliveryStyles.sectionTitle}>
             Informations de livraison
           </Text>
-
           <View style={commonStyles.card}>
-            {/* Nom du destinataire */}
             <View
               style={[
                 addDeliveryStyles.inputGroup,
@@ -540,7 +548,6 @@ export default function AddDelivery() {
               )}
             </View>
 
-            {/* Téléphone */}
             <View
               style={[
                 addDeliveryStyles.inputGroup,
@@ -569,7 +576,6 @@ export default function AddDelivery() {
               )}
             </View>
 
-            {/* Adresse de livraison */}
             <View
               style={[
                 addDeliveryStyles.inputGroup,
@@ -612,7 +618,6 @@ export default function AddDelivery() {
         {/* Section Commerçant */}
         <View style={commonStyles.section}>
           <Text style={addDeliveryStyles.sectionTitle}>Commerçant</Text>
-
           <View style={commonStyles.card}>
             <View
               style={[
@@ -642,22 +647,20 @@ export default function AddDelivery() {
                     if (
                       merchantName.trim().length > 0 &&
                       filteredMerchants.length > 0
-                    ) {
+                    )
                       setShowSuggestions(true);
-                    }
                   }}
                   autoCapitalize="words"
                   editable={!isSaving}
                 />
-
                 {merchantName.length > 0 && !isSaving && (
                   <TouchableOpacity
                     style={addDeliveryStyles.clearButton}
                     onPress={() => {
-                      setMerchantName(""); // Vide le texte
-                      setMerchantId(null); // Supprime l'ID du commerçant sélectionné
-                      setShowSuggestions(false); // Ferme la liste
-                      setFilteredMerchants([]); // Vide la liste filtrée
+                      setMerchantName("");
+                      setMerchantId(null);
+                      setShowSuggestions(false);
+                      setFilteredMerchants([]);
                     }}
                   >
                     <MaterialIcons
@@ -668,8 +671,6 @@ export default function AddDelivery() {
                   </TouchableOpacity>
                 )}
               </View>
-
-              {/* Liste des suggestions */}
               {showSuggestions && !isSaving && (
                 <View style={addDeliveryStyles.suggestionsContainer}>
                   {filteredMerchants.map((item) => (
@@ -704,13 +705,11 @@ export default function AddDelivery() {
                   ))}
                 </View>
               )}
-
               {errors.merchantName && (
                 <Text style={addDeliveryStyles.errorText}>
                   Ce champ est obligatoire
                 </Text>
               )}
-
               {merchantId && (
                 <View style={addDeliveryStyles.selectedMerchantInfo}>
                   <MaterialIcons
@@ -730,9 +729,7 @@ export default function AddDelivery() {
         {/* Section Détails financiers */}
         <View style={commonStyles.section}>
           <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
-
           <View style={addDeliveryStyles.financialGrid}>
-            {/* Valeur du colis - optionnelle selon paymentType */}
             <View
               style={[
                 addDeliveryStyles.financialCard,
@@ -747,10 +744,6 @@ export default function AddDelivery() {
                   paymentType === "LIVRAISON_DEJA_PAYEE") && (
                   <Text style={addDeliveryStyles.required}>*</Text>
                 )}
-                {paymentType !== "CLIENT_PAYE_TOUT" &&
-                  paymentType !== "LIVRAISON_DEJA_PAYEE" && (
-                    <Text style={addDeliveryStyles.optional}></Text>
-                  )}
               </Text>
               <View style={addDeliveryStyles.currencyInput}>
                 <Text
@@ -789,7 +782,6 @@ export default function AddDelivery() {
               )}
             </View>
 
-            {/* Frais de livraison - obligatoire sauf pour COLIS_DEJA_PAYE */}
             <View
               style={[
                 addDeliveryStyles.financialCard,
@@ -801,12 +793,10 @@ export default function AddDelivery() {
             >
               <Text style={addDeliveryStyles.inputLabel}>
                 Frais de livraison{" "}
-                {paymentType !== "COLIS_DEJA_PAYE" && paymentType !== "LIVRAISON_DEJA_PAYEE" && (
-                  <Text style={addDeliveryStyles.required}>*</Text>
-                )}
-                {paymentType === "COLIS_DEJA_PAYE" && (
-                  <Text style={addDeliveryStyles.optional}></Text>
-                )}
+                {paymentType !== "COLIS_DEJA_PAYE" &&
+                  paymentType !== "LIVRAISON_DEJA_PAYEE" && (
+                    <Text style={addDeliveryStyles.required}>*</Text>
+                  )}
               </Text>
               <View style={addDeliveryStyles.currencyInput}>
                 <Text
@@ -845,7 +835,6 @@ export default function AddDelivery() {
 
           <View style={commonStyles.section}>
             <Text style={addDeliveryStyles.sectionTitle}>Paiement</Text>
-
             <View style={commonStyles.card}>
               {[
                 {
@@ -860,7 +849,7 @@ export default function AddDelivery() {
                     "Le colis est déjà payé, client paie la livraison",
                 },
                 {
-                  key: "LIVRAISON_DEJA_PAYEE", // ✅ Correction ici
+                  key: "LIVRAISON_DEJA_PAYEE",
                   label: "Livraison déjà payée",
                   description:
                     "Frais de livraison déjà payés, client paie le colis",
@@ -899,7 +888,6 @@ export default function AddDelivery() {
             </View>
           </View>
 
-          {/* Total */}
           <View style={addDeliveryStyles.netIncomeCard}>
             <View style={addDeliveryStyles.netIncomeContent}>
               <Text style={addDeliveryStyles.netIncomeLabel}>TOTAL</Text>
@@ -908,7 +896,7 @@ export default function AddDelivery() {
                   ? "Déjà payé"
                   : paymentType === "CLIENT_PAYE_LIVRAISON"
                     ? "Frais de livraison uniquement"
-                    : paymentType === "LIVRAISON_DEJA_PAYEE" // 🔥 NOUVEAU
+                    : paymentType === "LIVRAISON_DEJA_PAYEE"
                       ? "Colis uniquement (livraison déjà payée)"
                       : "Valeur + Frais"}
               </Text>
@@ -919,11 +907,9 @@ export default function AddDelivery() {
           </View>
         </View>
 
-        {/* Espace pour le bouton flottant */}
         <View style={addDeliveryStyles.bottomSpacer} />
       </ScrollView>
 
-      {/* Bouton d'action */}
       <BlurView style={addDeliveryStyles.actionButtons}>
         <TouchableOpacity
           style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.7 }]}

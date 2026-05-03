@@ -9,23 +9,18 @@ import NavigationTabs from "../components/NavigationTabs";
 import { initializeDatabase } from "../src/database/db";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { ModalProvider } from "../providers/ModalProvider";
-// import { cleanDatabase } from '../src/clean-db';
 import {
   setupNotifications,
   setupBackgroundTask,
   scheduleInactivityReminders,
 } from "../src/services/notification.service";
-import { syncService } from "../src/services/sync.service";
-// 🔥 IMPORT MANQUANT
 import { addFirebaseColumns } from "../src/database/migrations/add_firebase_columns";
 
-// 🔥 Écran de chargement amélioré
+// 🔥 Écran de chargement avec timeout
 const LoadingScreen = ({ message = "Chargement..." }) => (
   <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC" }}>
     <ActivityIndicator size="large" color="#2563EB" />
-    <Text style={{ marginTop: 15, color: "#64748B", fontWeight: "500" }}>
-      {message}
-    </Text>
+    <Text style={{ marginTop: 15, color: "#64748B", fontWeight: "500" }}>{message}</Text>
   </View>
 );
 
@@ -34,32 +29,34 @@ function RootLayoutNav() {
   const [servicesReady, setServicesReady] = useState(false);
   const router = useRouter();
   
-  // 🔥 DÉCLARATION DES REFS MANQUANTES
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
-  
-  // 🔥 État pour le message de chargement
   const [loadingMessage, setLoadingMessage] = useState("Initialisation...");
 
+  // 🔥 TIMEOUT de sécurité : forcage après 5 secondes
   useEffect(() => {
-    // Écouteur de CLIC
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        const data = response.notification.request.content.data;
-        if (data.type === "delivery_progress" || data.type === "pending_reminder" || data.type === "delivery_created") {
-          router.push("/deliveries");
-        } else if (data.type === "inactivity_reminder") {
-          router.push("/dashboard");
-        }
+    const timeout = setTimeout(() => {
+      if (!servicesReady) {
+        console.log("⏱️ Timeout dépassé, démarrage forcé");
+        setServicesReady(true);
       }
-    );
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [servicesReady]);
 
-    // Écouteur de RÉCEPTION
-    notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log("🔔 Notification reçue en direct:", notification.request.content.title);
+  useEffect(() => {
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      if (data.type === "delivery_progress" || data.type === "pending_reminder" || data.type === "delivery_created") {
+        router.push("/deliveries");
+      } else if (data.type === "inactivity_reminder") {
+        router.push("/dashboard");
       }
-    );
+    });
+
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      console.log("🔔 Notification reçue en direct:", notification.request.content.title);
+    });
 
     return () => {
       if (notificationListener.current) notificationListener.current.remove();
@@ -76,12 +73,10 @@ function RootLayoutNav() {
         await setupNotifications();
         
         if (isAuthenticated && user) {
-          setLoadingMessage("Préparation de la synchronisation...");
-          // 🔥 Lancer en parallèle, ne pas attendre
-          Promise.all([
-            setupBackgroundTask().catch(e => console.log("⚠️ BackgroundTask:", e)),
-            scheduleInactivityReminders(user.id).catch(e => console.log("⚠️ Reminders:", e))
-          ]);
+          setLoadingMessage("Préparation...");
+          // 🔥 Exécution en parallèle SANS AWAIT pour ne pas bloquer
+          setupBackgroundTask().catch(e => console.log("⚠️ BackgroundTask:", e));
+          scheduleInactivityReminders(user.id).catch(e => console.log("⚠️ Reminders:", e));
         }
       } catch (e) {
         console.error("❌ Erreur services:", e);
@@ -93,7 +88,6 @@ function RootLayoutNav() {
     initServices();
   }, [authReady, isAuthenticated, user]);
 
-  // 🔥 Afficher l'écran de chargement avec message
   if (!authReady || !servicesReady) {
     return <LoadingScreen message={loadingMessage} />;
   }
@@ -112,18 +106,34 @@ export default function Layout() {
   const [dbReady, setDbReady] = useState(false);
   const [initMessage, setInitMessage] = useState("Préparation de la base de données...");
 
+  // 🔥 TIMEOUT de sécurité pour la base de données
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!dbReady) {
+        console.log("⏱️ Timeout DB, démarrage forcé");
+        setDbReady(true);
+      }
+    }, 8000);
+    return () => clearTimeout(timeout);
+  }, [dbReady]);
+
   useEffect(() => {
     const initApp = async () => {
       try {
         setInitMessage("Initialisation de la base de données...");
-        await initializeDatabase();
-        // await cleanDatabase();
+        await Promise.race([
+          initializeDatabase(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("DB Timeout")), 5000))
+        ]);
+        
         setInitMessage("Mise à jour de la structure...");
         await addFirebaseColumns();
         
         setDbReady(true);
       } catch (error) {
         console.error("❌ Erreur critique initialisation:", error);
+        // 🔥 FORCER le démarrage même en cas d'erreur
+        setDbReady(true);
       }
     };
     initApp();

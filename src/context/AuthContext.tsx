@@ -78,64 +78,65 @@ export const AuthProvider = ({
   }, [isDbReady]);
 
   // 2. Charger l'utilisateur local
-  const loadLocalUser = async (firebaseUid: string) => {
-    try {
-      console.log("📦 Chargement utilisateur local...");
 
-      let localUser = await sqliteDb.getFirstAsync<any>(
-        "SELECT * FROM user WHERE firebase_uid = ?",
-        [firebaseUid],
-      );
+const loadLocalUser = async (firebaseUid: string) => {
+  try {
+    console.log("📦 Chargement utilisateur local...");
 
-      if (!localUser) {
-        console.log("🆕 Création utilisateur local...");
-        const fbUser = auth.currentUser;
+    // 🔥 SUPPRIMER TOUTES LES ANCIENNES DONNÉES DE CET UTILISATEUR
+    await sqliteDb.runAsync("DELETE FROM deliveries WHERE user_id = ?", [firebaseUid]);
+    await sqliteDb.runAsync("DELETE FROM merchants WHERE user_id = ?", [firebaseUid]);
 
-        if (fbUser) {
-          // Supprimer tout utilisateur avec le même email ou téléphone
-          await sqliteDb.runAsync(
-            "DELETE FROM user WHERE email = ? OR phone = ?",
-            [fbUser.email || "", fbUser.phoneNumber || ""],
-          );
+    let localUser = await sqliteDb.getFirstAsync<any>(
+      "SELECT * FROM user WHERE firebase_uid = ?",
+      [firebaseUid],
+    );
 
-          const result = await sqliteDb.runAsync(
-            `INSERT INTO user (name, email, phone, firebase_uid, password, created_at, daily_goal)
+    if (!localUser) {
+      console.log("🆕 Création utilisateur local...");
+      const fbUser = auth.currentUser;
+
+      if (fbUser) {
+        await sqliteDb.runAsync(
+          "DELETE FROM user WHERE email = ? OR phone = ?",
+          [fbUser.email || "", fbUser.phoneNumber || ""],
+        );
+
+        const result = await sqliteDb.runAsync(
+          `INSERT INTO user (name, email, phone, firebase_uid, password, created_at, daily_goal)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-              fbUser.displayName || "Livreur",
-              fbUser.email || "",
-              fbUser.phoneNumber || "",
-              firebaseUid,
-              "firebase_managed",
-              new Date().toISOString(),
-              15000,
-            ],
-          );
+          [
+            fbUser.displayName || "Livreur",
+            fbUser.email || "",
+            fbUser.phoneNumber || "",
+            firebaseUid,
+            "firebase_managed",
+            new Date().toISOString(),
+            15000,
+          ],
+        );
 
-          localUser = await sqliteDb.getFirstAsync<any>(
-            "SELECT * FROM user WHERE id = ?",
-            [result.lastInsertRowId],
-          );
-        }
+        localUser = await sqliteDb.getFirstAsync<any>(
+          "SELECT * FROM user WHERE id = ?",
+          [result.lastInsertRowId],
+        );
       }
-
-      if (localUser) {
-        console.log("✅ Utilisateur local chargé:", localUser.name);
-        setUser(localUser);
-        setIsAuthenticated(true);
-        await SecureStore.setItemAsync(USER_KEY, String(localUser.id));
-
-        // 🔥 IMPORTANT: Lancer l'import en arrière-plan
-        setTimeout(() => {
-          syncService
-            .importFromFirebase()
-            .catch((e) => console.log("⚠️ Import Firebase différé:", e));
-        }, 1000);
-      }
-    } catch (error) {
-      console.error("❌ Erreur chargement utilisateur local:", error);
     }
-  };
+
+    if (localUser) {
+      console.log("✅ Utilisateur local chargé:", localUser.name);
+      setUser(localUser);
+      setIsAuthenticated(true);
+      await SecureStore.setItemAsync(USER_KEY, String(localUser.id));
+
+      // Synchroniser les données après connexion
+      setLoadingMessage("Synchronisation des données...");
+      await syncService.importFromFirebase();
+    }
+  } catch (error) {
+    console.error("❌ Erreur chargement utilisateur local:", error);
+  }
+};
 
   // 3. Vérification initiale
   const checkAuth = async () => {
@@ -360,3 +361,7 @@ export const useAuth = () => {
     throw new Error("useAuth doit être utilisé dans un AuthProvider");
   return context;
 };
+function setLoadingMessage(message: string) {
+  console.log("⏳", message);
+}
+

@@ -6,8 +6,9 @@ import {
   StatusBar,
   TextInput,
   Modal,
+  RefreshControl,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { db } from "../src/database/db";
 import { COLORS } from "../styles/colors";
 import { BlurView } from "expo-blur";
@@ -22,6 +23,10 @@ import {
   endOfMonth,
   isSameDay,
   isToday,
+  eachMonthOfInterval,
+  subMonths,
+  getYear,
+  getMonth,
 } from "date-fns";
 import { fr } from "date-fns/locale";
 import { merchantAccountingStyles } from "../styles/merchantAccountingStyles";
@@ -48,6 +53,18 @@ type Merchant = {
   address?: string;
 };
 
+// Nouveau type pour les données regroupées par mois
+type MonthlyData = {
+  monthKey: string;
+  monthName: string;
+  year: number;
+  totalEncaisse: number;
+  totalAReverser: number;
+  totalProfit: number;
+  totalDeliveries: number;
+  merchants: MerchantSummary[];
+};
+
 type MerchantSummary = {
   merchant_id: number;
   merchant_name: string;
@@ -61,212 +78,242 @@ type MerchantSummary = {
   deliveries: Delivery[];
 };
 
-type PeriodType = "today" | "week" | "month" | "custom";
-type TabType = "EN_COURS" | "AUJOURDHUI" | "CLOTUREES";
+type PeriodType = "month" | "custom";
+type ViewMode = "monthly" | "merchant";
 
 export default function MerchantAccounting() {
-  const [summaries, setSummaries] = useState<MerchantSummary[]>([]);
-  const [filteredSummaries, setFilteredSummaries] = useState<MerchantSummary[]>([]);
+  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [filteredMonthlyData, setFilteredMonthlyData] = useState<MonthlyData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<TabType>("EN_COURS");
+  const [viewMode, setViewMode] = useState<ViewMode>("monthly");
+  const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
+  const [expandedMerchants, setExpandedMerchants] = useState<number[]>([]);
   const { showConfirm, showSuccess, showError } = useModal();
+  const [refreshing, setRefreshing] = useState(false);
   
   // États pour les filtres
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [dateFilterEnabled, setDateFilterEnabled] = useState(false);
-  const [activePeriod, setActivePeriod] = useState<PeriodType>("today");
+  const [activePeriod, setActivePeriod] = useState<PeriodType>("month");
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [deliveryDates, setDeliveryDates] = useState<Date[]>([]);
-  
-  // États pour les cards pliables
-  const [expandedCards, setExpandedCards] = useState<number[]>([]);
 
+  // Charger les données groupées par mois
   const loadAccounting = async () => {
     try {
-      // Récupérer toutes les livraisons livrées
-      let query = "SELECT * FROM deliveries WHERE status = 'LIVREE'";
+      let query = `
+        SELECT 
+          d.*,
+          strftime('%Y-%m', d.delivered_at) as month_key,
+          strftime('%Y', d.delivered_at) as year,
+          strftime('%m', d.delivered_at) as month
+        FROM deliveries d
+        WHERE d.status = 'LIVREE'
+      `;
       let params: any[] = [];
 
       // Appliquer les filtres de date si activés
       if (dateFilterEnabled && selectedDate) {
         switch (activePeriod) {
-          case "today":
-            const todayStr = selectedDate.toISOString().split("T")[0];
-            query += " AND date(delivered_at) = ?";
-            params = [todayStr];
-            break;
-
-          case "week":
-            const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
-            const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
-            const weekStartStr = weekStart.toISOString().split("T")[0];
-            const weekEndStr = weekEnd.toISOString().split("T")[0];
-            query += " AND date(delivered_at) BETWEEN ? AND ?";
-            params = [weekStartStr, weekEndStr];
-            break;
-
           case "month":
             const monthStart = startOfMonth(selectedDate);
             const monthEnd = endOfMonth(selectedDate);
             const monthStartStr = monthStart.toISOString().split("T")[0];
             const monthEndStr = monthEnd.toISOString().split("T")[0];
-            query += " AND date(delivered_at) BETWEEN ? AND ?";
+            query += " AND date(d.delivered_at) BETWEEN ? AND ?";
             params = [monthStartStr, monthEndStr];
             break;
 
           case "custom":
             if (selectedEndDate) {
-              const customStartStr = selectedDate.toISOString().split("T")[0];
+              const customStartStr = selectedDate!.toISOString().split("T")[0];
               const customEndStr = selectedEndDate.toISOString().split("T")[0];
-              query += " AND date(delivered_at) BETWEEN ? AND ?";
+              query += " AND date(d.delivered_at) BETWEEN ? AND ?";
               params = [customStartStr, customEndStr];
             } else {
-              const customStr = selectedDate.toISOString().split("T")[0];
-              query += " AND date(delivered_at) = ?";
+              const customStr = selectedDate!.toISOString().split("T")[0];
+              query += " AND date(d.delivered_at) = ?";
               params = [customStr];
             }
             break;
         }
       }
 
-      query += " ORDER BY delivered_at DESC";
+      query += " ORDER BY d.delivered_at DESC";
 
-      const deliveries = await db.getAllAsync<Delivery>(query, params);
+      const deliveries = await db.getAllAsync<Delivery & { month_key: string; year: string; month: string }>(query, params);
 
       // Récupérer tous les commerçants
       const merchants = await db.getAllAsync<Merchant>(
         "SELECT * FROM merchants ORDER BY name ASC"
       );
 
-      const merchantMap: Record<number, MerchantSummary> = {};
-
-      // Initialiser la map avec tous les commerçants
+      const merchantMap: Record<number, Merchant> = {};
       merchants.forEach((merchant) => {
-        merchantMap[merchant.id] = {
-          merchant_id: merchant.id,
-          merchant_name: merchant.name,
-          merchant_phone: merchant.phone,
-          merchant_address: merchant.address,
-          totalDeliveries: 0,
-          totalEncaisse: 0,
-          totalAReverser: 0,
-          totalProfit: 0,
-          isClosed: true,
-          deliveries: [],
-        };
+        merchantMap[merchant.id] = merchant;
       });
 
-      // Agréger les données des livraisons
+      // Grouper par mois
+      const monthlyGroups: Record<string, {
+        monthName: string;
+        year: number;
+        merchants: Record<number, MerchantSummary>;
+      }> = {};
+
       deliveries.forEach((delivery) => {
         const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
-        const montantEncaisse =
-          delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+        const montantEncaisse = delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
         const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
         const profit = delivery.delivery_fee;
+        
+        const deliveryDate = new Date(delivery.delivered_at || delivery.created_at);
+        const monthKey = format(deliveryDate, "yyyy-MM");
+        const monthName = format(deliveryDate, "MMMM yyyy", { locale: fr });
+        const year = deliveryDate.getFullYear();
 
-        if (merchantMap[delivery.merchant_id]) {
-          merchantMap[delivery.merchant_id].totalDeliveries += 1;
-          merchantMap[delivery.merchant_id].totalEncaisse += montantEncaisse;
-          merchantMap[delivery.merchant_id].totalAReverser += montantAReverser;
-          merchantMap[delivery.merchant_id].totalProfit += profit;
-          merchantMap[delivery.merchant_id].deliveries.push(delivery);
-          
-          // Vérifier si au moins une livraison n'est pas reversée
-          if (delivery.reversed !== 1) {
-            merchantMap[delivery.merchant_id].isClosed = false;
-          }
+        if (!monthlyGroups[monthKey]) {
+          monthlyGroups[monthKey] = {
+            monthName,
+            year,
+            merchants: {},
+          };
+        }
+
+        if (!monthlyGroups[monthKey].merchants[delivery.merchant_id]) {
+          monthlyGroups[monthKey].merchants[delivery.merchant_id] = {
+            merchant_id: delivery.merchant_id,
+            merchant_name: merchantMap[delivery.merchant_id]?.name || "Inconnu",
+            merchant_phone: merchantMap[delivery.merchant_id]?.phone,
+            merchant_address: merchantMap[delivery.merchant_id]?.address,
+            totalDeliveries: 0,
+            totalEncaisse: 0,
+            totalAReverser: 0,
+            totalProfit: 0,
+            isClosed: true,
+            deliveries: [],
+          };
+        }
+
+        const merchantData = monthlyGroups[monthKey].merchants[delivery.merchant_id];
+        merchantData.totalDeliveries += 1;
+        merchantData.totalEncaisse += montantEncaisse;
+        merchantData.totalAReverser += montantAReverser;
+        merchantData.totalProfit += profit;
+        merchantData.deliveries.push(delivery);
+        
+        if (delivery.reversed !== 1) {
+          merchantData.isClosed = false;
         }
       });
 
-      // Ne garder que les commerçants qui ont des livraisons
-      let summariesArray = Object.values(merchantMap).filter(
-        (summary) => summary.totalDeliveries > 0
-      );
+      // Convertir en tableau pour l'affichage (tri par date décroissante)
+      const monthlyDataArray: MonthlyData[] = Object.entries(monthlyGroups)
+        .map(([monthKey, data]) => ({
+          monthKey,
+          monthName: data.monthName,
+          year: data.year,
+          totalEncaisse: Object.values(data.merchants).reduce((sum, m) => sum + m.totalEncaisse, 0),
+          totalAReverser: Object.values(data.merchants).reduce((sum, m) => sum + m.totalAReverser, 0),
+          totalProfit: Object.values(data.merchants).reduce((sum, m) => sum + m.totalProfit, 0),
+          totalDeliveries: Object.values(data.merchants).reduce((sum, m) => sum + m.totalDeliveries, 0),
+          merchants: Object.values(data.merchants),
+        }))
+        .sort((a, b) => b.monthKey.localeCompare(a.monthKey)); // Tri décroissant
 
-      // Filtrer par onglet
-      summariesArray = summariesArray.filter((summary) => {
-        switch (activeTab) {
-          case "EN_COURS":
-            return !summary.isClosed;
-          case "CLOTUREES":
-            return summary.isClosed;
-          case "AUJOURDHUI":
-            return summary.deliveries.some((delivery) => 
-              isToday(new Date(delivery.delivered_at || delivery.created_at))
-            );
-          default:
-            return true;
-        }
-      });
-
-      setSummaries(summariesArray);
-      setFilteredSummaries(summariesArray);
+      setMonthlyData(monthlyDataArray);
+      setFilteredMonthlyData(monthlyDataArray);
     } catch (error) {
-      console.error("Erreur lors du chargement de la comptabilité:", error);
+      console.error("Erreur lors du chargement:", error);
       showError("Erreur", "Impossible de charger les données");
     }
   };
 
-  // Charger les dates des livraisons pour le calendrier
   const loadDeliveryDates = async () => {
     try {
       const result = await db.getAllAsync<{ delivered_at: string }>(
         "SELECT DISTINCT date(delivered_at) as delivered_at FROM deliveries WHERE status = 'LIVREE' ORDER BY delivered_at DESC",
       );
-
       const dates = result.map((item) => new Date(item.delivered_at));
       setDeliveryDates(dates);
     } catch (error) {
-      console.error("Erreur lors du chargement des dates de livraison:", error);
+      console.error("Erreur lors du chargement des dates:", error);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadAccounting();
+    setRefreshing(false);
+  }, []);
 
   useEffect(() => {
     loadAccounting();
     loadDeliveryDates();
   }, []);
 
-  // Recharger quand les filtres changent
   useEffect(() => {
-    loadAccounting();
-  }, [dateFilterEnabled, selectedDate, selectedEndDate, activePeriod, activeTab]);
+    if (dateFilterEnabled && (selectedDate || selectedEndDate)) {
+      loadAccounting();
+    }
+  }, [dateFilterEnabled, selectedDate, selectedEndDate, activePeriod]);
 
-  // Filtrer les commerçants par recherche
+  // Filtrer par recherche
   useEffect(() => {
     if (searchQuery.trim()) {
-      const filtered = summaries.filter((summary) =>
-        summary.merchant_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        summary.merchant_phone?.includes(searchQuery) ||
-        summary.merchant_address?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredSummaries(filtered);
+      const filtered = monthlyData.map(month => ({
+        ...month,
+        merchants: month.merchants.filter(merchant =>
+          merchant.merchant_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          merchant.merchant_phone?.includes(searchQuery) ||
+          merchant.merchant_address?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      })).filter(month => month.merchants.length > 0);
+      setFilteredMonthlyData(filtered);
     } else {
-      setFilteredSummaries(summaries);
+      setFilteredMonthlyData(monthlyData);
     }
-  }, [searchQuery, summaries]);
+  }, [searchQuery, monthlyData]);
 
-  const toggleCard = (merchantId: number) => {
-    setExpandedCards((prev) =>
+  const toggleMonth = (monthKey: string) => {
+    setExpandedMonths((prev) =>
+      prev.includes(monthKey)
+        ? prev.filter((m) => m !== monthKey)
+        : [...prev, monthKey]
+    );
+  };
+
+  const toggleMerchant = (merchantId: number) => {
+    setExpandedMerchants((prev) =>
       prev.includes(merchantId)
         ? prev.filter((id) => id !== merchantId)
         : [...prev, merchantId]
     );
   };
 
-  const handleCloseMerchant = (merchantId: number, merchantName: string) => {
+  const handleCloseMerchant = async (merchantId: number, merchantName: string, monthKey: string) => {
     showConfirm(
       "Clôturer le commerçant",
-      `Voulez-vous marquer toutes les livraisons de ${merchantName} comme reversées ?`,
+      `Voulez-vous marquer toutes les livraisons de ${merchantName} pour cette période comme reversées ?`,
       async () => {
         try {
+          // Récupérer les dates du mois
+          const [year, month] = monthKey.split("-");
+          const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+          const endDate = new Date(parseInt(year), parseInt(month), 0);
+          const startStr = startDate.toISOString().split("T")[0];
+          const endStr = endDate.toISOString().split("T")[0];
+
           await db.runAsync(
-            "UPDATE deliveries SET reversed = 1 WHERE merchant_id = ? AND status = 'LIVREE'",
-            [merchantId]
+            `UPDATE deliveries SET reversed = 1 
+             WHERE merchant_id = ? 
+             AND status = 'LIVREE'
+             AND date(delivered_at) BETWEEN ? AND ?`,
+            [merchantId, startStr, endStr]
           );
 
-          showSuccess("Succès", `Comptabilité de ${merchantName} clôturée`);
+          showSuccess("Succès", `Comptabilité de ${merchantName} clôturée pour cette période`);
           loadAccounting();
         } catch (error) {
           console.error("Erreur lors de la clôture:", error);
@@ -278,39 +325,40 @@ export default function MerchantAccounting() {
     );
   };
 
+  // Calcul des totaux globaux
+  const totalGlobalEncaisse = filteredMonthlyData.reduce(
+    (sum, month) => sum + month.totalEncaisse, 0
+  );
+  const totalGlobalAReverser = filteredMonthlyData.reduce(
+    (sum, month) => sum + month.totalAReverser, 0
+  );
+  const totalGlobalProfit = filteredMonthlyData.reduce(
+    (sum, month) => sum + month.totalProfit, 0
+  );
+  const totalGlobalDeliveries = filteredMonthlyData.reduce(
+    (sum, month) => sum + month.totalDeliveries, 0
+  );
+
   const formatDateForDisplay = () => {
     if (!dateFilterEnabled || !selectedDate) return "Aucun filtre actif";
 
     switch (activePeriod) {
-      case "today":
-        return `Aujourd'hui (${format(selectedDate, "dd/MM/yyyy")})`;
-
-      case "week":
-        const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
-        const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
-        return `Semaine du ${format(weekStart, "dd/MM")} au ${format(weekEnd, "dd/MM/yyyy")}`;
-
       case "month":
-        const monthStart = startOfMonth(selectedDate);
-        const monthEnd = endOfMonth(selectedDate);
-        return `${format(selectedDate, "MMMM yyyy", { locale: fr })} (${format(monthStart, "dd/MM")} - ${format(monthEnd, "dd/MM")})`;
-
+        return format(selectedDate, "MMMM yyyy", { locale: fr });
       case "custom":
         if (selectedEndDate) {
-          return `${format(selectedDate!, "dd/MM/yyyy")} - ${format(selectedEndDate, "dd/MM/yyyy")}`;
-        } else {
-          return format(selectedDate!, "dd MMMM yyyy", { locale: fr });
+          return `${format(selectedDate, "dd/MM/yyyy")} - ${format(selectedEndDate, "dd/MM/yyyy")}`;
         }
-
+        return format(selectedDate, "dd MMMM yyyy", { locale: fr });
       default:
-        return format(selectedDate!, "dd/MM/yyyy");
+        return format(selectedDate, "dd/MM/yyyy");
     }
   };
 
   const clearDateFilter = () => {
     setSelectedDate(new Date());
     setSelectedEndDate(null);
-    setActivePeriod("today");
+    setActivePeriod("month");
     setDateFilterEnabled(false);
     setCalendarDate(new Date());
     setShowFilterModal(false);
@@ -321,27 +369,12 @@ export default function MerchantAccounting() {
     setActivePeriod(period);
 
     switch (period) {
-      case "today":
+      case "month":
         setSelectedDate(today);
         setSelectedEndDate(null);
         setDateFilterEnabled(true);
         setShowFilterModal(false);
         break;
-
-      case "week":
-        setSelectedDate(startOfWeek(today, { weekStartsOn: 1 }));
-        setSelectedEndDate(endOfWeek(today, { weekStartsOn: 1 }));
-        setDateFilterEnabled(true);
-        setShowFilterModal(false);
-        break;
-
-      case "month":
-        setSelectedDate(startOfMonth(today));
-        setSelectedEndDate(endOfMonth(today));
-        setDateFilterEnabled(true);
-        setShowFilterModal(false);
-        break;
-
       case "custom":
         setSelectedDate(today);
         setSelectedEndDate(null);
@@ -383,16 +416,16 @@ export default function MerchantAccounting() {
       const date = new Date(year, month, i);
       const hasDeliveries = hasDeliveriesOnDate(date);
       const isSelected = selectedDate && isSameDay(selectedDate, date);
-      const isToday = isSameDay(date, new Date());
+      const isTodayDate = isSameDay(date, new Date());
 
       days.push(
         <TouchableOpacity
           key={`day-${i}`}
           style={[
             merchantAccountingStyles.calendarDay,
-            isToday && merchantAccountingStyles.calendarDayToday,
+            isTodayDate && merchantAccountingStyles.calendarDayToday,
             isSelected && merchantAccountingStyles.calendarDaySelected,
-            hasDeliveries && merchantAccountingStyles.calendarDayHasDeliveries,
+            hasDeliveries && !isSelected && merchantAccountingStyles.calendarDayHasDeliveries,
           ]}
           onPress={() => {
             setSelectedDate(date);
@@ -403,13 +436,13 @@ export default function MerchantAccounting() {
           <Text
             style={[
               merchantAccountingStyles.calendarDayText,
-              isToday && merchantAccountingStyles.calendarDayTextToday,
+              isTodayDate && merchantAccountingStyles.calendarDayTextToday,
               isSelected && merchantAccountingStyles.calendarDayTextSelected,
             ]}
           >
             {i}
           </Text>
-          {hasDeliveries && <View style={merchantAccountingStyles.deliveryIndicator} />}
+          {hasDeliveries && !isSelected && <View style={merchantAccountingStyles.deliveryIndicator} />}
         </TouchableOpacity>,
       );
     }
@@ -428,24 +461,6 @@ export default function MerchantAccounting() {
     return days;
   };
 
-  // Calcul des totaux pour l'onglet actif
-  const totalGlobalEncaisse = filteredSummaries.reduce(
-    (sum, summary) => sum + summary.totalEncaisse,
-    0
-  );
-  const totalGlobalAReverser = filteredSummaries.reduce(
-    (sum, summary) => sum + summary.totalAReverser,
-    0
-  );
-  const totalGlobalProfit = filteredSummaries.reduce(
-    (sum, summary) => sum + summary.totalProfit,
-    0
-  );
-  const totalGlobalDeliveries = filteredSummaries.reduce(
-    (sum, summary) => sum + summary.totalDeliveries,
-    0
-  );
-
   return (
     <View style={merchantAccountingStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
@@ -459,7 +474,7 @@ export default function MerchantAccounting() {
           >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
           </TouchableOpacity>
-          <Text style={merchantAccountingStyles.headerTitle}>Comptabilité Commerçants</Text>
+          <Text style={merchantAccountingStyles.headerTitle}>Comptabilité</Text>
           <View style={{ width: 40 }} />
         </View>
       </BlurView>
@@ -502,11 +517,7 @@ export default function MerchantAccounting() {
       {dateFilterEnabled && (
         <View style={merchantAccountingStyles.dateFilterContainer}>
           <View style={merchantAccountingStyles.dateFilterContent}>
-            <MaterialIcons
-              name="calendar-today"
-              size={16}
-              color={COLORS.primary}
-            />
+            <MaterialIcons name="calendar-today" size={16} color={COLORS.primary} />
             <Text style={merchantAccountingStyles.dateFilterText}>
               {formatDateForDisplay()}
             </Text>
@@ -517,38 +528,51 @@ export default function MerchantAccounting() {
         </View>
       )}
 
-      {/* Onglets */}
-      <View style={merchantAccountingStyles.tabsContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={merchantAccountingStyles.tabsScroll}
+      {/* Switch de mode d'affichage */}
+      <View style={merchantAccountingStyles.modeSwitchContainer}>
+        <TouchableOpacity
+          style={[
+            merchantAccountingStyles.modeButton,
+            viewMode === "monthly" && merchantAccountingStyles.modeButtonActive,
+          ]}
+          onPress={() => setViewMode("monthly")}
         >
-          {(["EN_COURS", "AUJOURDHUI", "CLOTUREES"] as TabType[]).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={[merchantAccountingStyles.tab, activeTab === tab && merchantAccountingStyles.activeTab]}
-              onPress={() => setActiveTab(tab)}
-            >
-              <Text
-                style={[
-                  merchantAccountingStyles.tabText,
-                  activeTab === tab && merchantAccountingStyles.activeTabText,
-                ]}
-              >
-                {tab === "EN_COURS" && "En cours"}
-                {tab === "AUJOURDHUI" && "Aujourd'hui"}
-                {tab === "CLOTUREES" && "Clôturées"}
-              </Text>
-              <View
-                style={[
-                  merchantAccountingStyles.tabIndicator,
-                  activeTab === tab && merchantAccountingStyles.activeTabIndicator,
-                ]}
-              />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+          <MaterialIcons
+            name="calendar-view-month"
+            size={20}
+            color={viewMode === "monthly" ? COLORS.background : COLORS.muted}
+          />
+          <Text
+            style={[
+              merchantAccountingStyles.modeButtonText,
+              viewMode === "monthly" && merchantAccountingStyles.modeButtonTextActive,
+            ]}
+          >
+            Par mois
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            merchantAccountingStyles.modeButton,
+            viewMode === "merchant" && merchantAccountingStyles.modeButtonActive,
+          ]}
+          onPress={() => setViewMode("merchant")}
+        >
+          <MaterialIcons
+            name="store"
+            size={20}
+            color={viewMode === "merchant" ? COLORS.background : COLORS.muted}
+          />
+          <Text
+            style={[
+              merchantAccountingStyles.modeButtonText,
+              viewMode === "merchant" && merchantAccountingStyles.modeButtonTextActive,
+            ]}
+          >
+            Par commerçant
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Résumé global */}
@@ -581,161 +605,191 @@ export default function MerchantAccounting() {
         style={merchantAccountingStyles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={merchantAccountingStyles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+        }
       >
-        {filteredSummaries.length > 0 ? (
-          filteredSummaries.map((summary) => {
-            const isExpanded = expandedCards.includes(summary.merchant_id);
+        {filteredMonthlyData.length > 0 ? (
+          filteredMonthlyData.map((month) => {
+            const isMonthExpanded = expandedMonths.includes(month.monthKey);
             
             return (
-              <View 
-                key={summary.merchant_id} 
-                style={[
-                  merchantAccountingStyles.merchantCard,
-                  summary.isClosed && merchantAccountingStyles.merchantCardClosed
-                ]}
-              >
-                {/* En-tête du commerçant - Toujours visible */}
-                <TouchableOpacity 
-                  style={merchantAccountingStyles.merchantHeader}
-                  onPress={() => toggleCard(summary.merchant_id)}
+              <View key={month.monthKey} style={merchantAccountingStyles.monthCard}>
+                {/* En-tête du mois */}
+                <TouchableOpacity
+                  style={merchantAccountingStyles.monthHeader}
+                  onPress={() => toggleMonth(month.monthKey)}
                   activeOpacity={0.7}
                 >
-                  <View style={merchantAccountingStyles.merchantAvatar}>
-                    <Text style={merchantAccountingStyles.merchantInitial}>
-                      {summary.merchant_name.charAt(0).toUpperCase()}
+                  <View style={merchantAccountingStyles.monthHeaderLeft}>
+                    <MaterialIcons
+                      name="calendar-today"
+                      size={20}
+                      color={COLORS.primary}
+                    />
+                    <Text style={merchantAccountingStyles.monthName}>
+                      {month.monthName}
                     </Text>
                   </View>
-                  <View style={merchantAccountingStyles.merchantInfo}>
-                    <View style={merchantAccountingStyles.merchantNameContainer}>
-                      <Text style={merchantAccountingStyles.merchantName}>
-                        {summary.merchant_name}
-                      </Text>
-                      {summary.isClosed && (
-                        <View style={merchantAccountingStyles.closedBadge}>
-                          <MaterialIcons name="check-circle" size={14} color={COLORS.success} />
-                          <Text style={merchantAccountingStyles.closedBadgeText}>Clôturé</Text>
-                        </View>
-                      )}
-                    </View>
-                    {summary.merchant_phone && (
-                      <View style={merchantAccountingStyles.merchantContact}>
-                        <MaterialIcons name="phone" size={12} color={COLORS.muted} />
-                        <Text style={merchantAccountingStyles.merchantContactText}>
-                          {summary.merchant_phone}
-                        </Text>
-                      </View>
-                    )}
-                    {summary.merchant_address && (
-                      <View style={merchantAccountingStyles.merchantContact}>
-                        <MaterialIcons name="location-on" size={12} color={COLORS.muted} />
-                        <Text style={merchantAccountingStyles.merchantContactText} numberOfLines={1}>
-                          {summary.merchant_address}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={merchantAccountingStyles.deliveryCount}>
-                    <Text style={merchantAccountingStyles.deliveryCountNumber}>
-                      {summary.totalDeliveries}
+                  <View style={merchantAccountingStyles.monthStats}>
+                    <Text style={merchantAccountingStyles.monthTotalEncaisse}>
+                      {month.totalEncaisse.toLocaleString("fr-FR")} FCFA
                     </Text>
-                    <Text style={merchantAccountingStyles.deliveryCountLabel}>
-                      livraison{summary.totalDeliveries > 1 ? "s" : ""}
-                    </Text>
+                    <MaterialIcons
+                      name={isMonthExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                      size={24}
+                      color={COLORS.muted}
+                    />
                   </View>
-                  <MaterialIcons 
-                    name={isExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"} 
-                    size={24} 
-                    color={COLORS.muted} 
-                  />
                 </TouchableOpacity>
 
-                {/* Contenu pliable - Visible seulement si déplié */}
-                {isExpanded && (
-                  <View style={merchantAccountingStyles.expandedContent}>
-                    {/* Détails financiers */}
-                    <View style={merchantAccountingStyles.financialSection}>
-                      <View style={merchantAccountingStyles.financialRow}>
-                        <Text style={merchantAccountingStyles.financialLabel}>Total encaissé</Text>
-                        <Text style={merchantAccountingStyles.financialValue}>
-                          {summary.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                {/* Détails du mois */}
+                {isMonthExpanded && (
+                  <View style={merchantAccountingStyles.monthDetails}>
+                    {/* Résumé du mois */}
+                    <View style={merchantAccountingStyles.monthSummary}>
+                      <View style={merchantAccountingStyles.monthSummaryItem}>
+                        <Text style={merchantAccountingStyles.monthSummaryLabel}>Livraisons</Text>
+                        <Text style={merchantAccountingStyles.monthSummaryValue}>
+                          {month.totalDeliveries}
                         </Text>
                       </View>
-
-                      <View style={merchantAccountingStyles.financialRow}>
-                        <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.warning }]}>
-                          À reverser
-                        </Text>
-                        <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.warning }]}>
-                          {summary.totalAReverser.toLocaleString("fr-FR")} FCFA
+                      <View style={merchantAccountingStyles.monthSummaryItem}>
+                        <Text style={merchantAccountingStyles.monthSummaryLabel}>À reverser</Text>
+                        <Text style={[merchantAccountingStyles.monthSummaryValue, { color: COLORS.warning }]}>
+                          {month.totalAReverser.toLocaleString("fr-FR")} FCFA
                         </Text>
                       </View>
-
-                      <View style={merchantAccountingStyles.financialRow}>
-                        <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.success }]}>
-                          Profit réalisé
-                        </Text>
-                        <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.success }]}>
-                          {summary.totalProfit.toLocaleString("fr-FR")} FCFA
+                      <View style={merchantAccountingStyles.monthSummaryItem}>
+                        <Text style={merchantAccountingStyles.monthSummaryLabel}>Profit</Text>
+                        <Text style={[merchantAccountingStyles.monthSummaryValue, { color: COLORS.success }]}>
+                          {month.totalProfit.toLocaleString("fr-FR")} FCFA
                         </Text>
                       </View>
                     </View>
 
-                    {/* Aperçu des dernières livraisons */}
-                    {summary.deliveries.length > 0 && (
-                      <View style={merchantAccountingStyles.recentDeliveries}>
-                        <Text style={merchantAccountingStyles.recentDeliveriesTitle}>
-                          Dernières livraisons
-                        </Text>
-                        {summary.deliveries.slice(0, 3).map((delivery) => (
+                    {/* Liste des commerçants du mois */}
+                    {month.merchants.map((merchant) => {
+                      const isMerchantExpanded = expandedMerchants.includes(merchant.merchant_id);
+                      
+                      return (
+                        <View key={merchant.merchant_id} style={merchantAccountingStyles.merchantCard}>
                           <TouchableOpacity
-                            key={delivery.id}
-                            style={merchantAccountingStyles.deliveryPreview}
-                            onPress={() => router.push(`/delivery/${delivery.id}`)}
+                            style={merchantAccountingStyles.merchantHeader}
+                            onPress={() => toggleMerchant(merchant.merchant_id)}
+                            activeOpacity={0.7}
                           >
-                            <View style={merchantAccountingStyles.deliveryPreviewHeader}>
-                              <Text style={merchantAccountingStyles.deliveryPreviewName}>
-                                {delivery.recipient_name}
-                              </Text>
-                              <Text style={merchantAccountingStyles.deliveryPreviewDate}>
-                                {format(new Date(delivery.delivered_at || delivery.created_at), "dd/MM/yyyy")}
+                            <View style={merchantAccountingStyles.merchantAvatar}>
+                              <Text style={merchantAccountingStyles.merchantInitial}>
+                                {merchant.merchant_name.charAt(0).toUpperCase()}
                               </Text>
                             </View>
-                            <Text style={merchantAccountingStyles.deliveryPreviewAddress} numberOfLines={1}>
-                              {delivery.address}
-                            </Text>
-                            <View style={merchantAccountingStyles.deliveryPreviewFooter}>
-                              <Text style={merchantAccountingStyles.deliveryPreviewFee}>
-                                +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
+                            <View style={merchantAccountingStyles.merchantInfo}>
+                              <Text style={merchantAccountingStyles.merchantName}>
+                                {merchant.merchant_name}
                               </Text>
-                              {delivery.reversed === 1 && (
-                                <View style={merchantAccountingStyles.reversedBadge}>
-                                  <MaterialIcons name="check-circle" size={12} color={COLORS.success} />
-                                  <Text style={merchantAccountingStyles.reversedBadgeText}>Reversé</Text>
+                              <View style={merchantAccountingStyles.merchantStats}>
+                                <Text style={merchantAccountingStyles.merchantStatText}>
+                                  {merchant.totalDeliveries} livraison(s)
+                                </Text>
+                                <Text style={merchantAccountingStyles.merchantStatAmount}>
+                                  {merchant.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                                </Text>
+                              </View>
+                            </View>
+                            <MaterialIcons
+                              name={isMerchantExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                              size={20}
+                              color={COLORS.muted}
+                            />
+                          </TouchableOpacity>
+
+                          {isMerchantExpanded && (
+                            <View style={merchantAccountingStyles.merchantDetails}>
+                              <View style={merchantAccountingStyles.financialSection}>
+                                <View style={merchantAccountingStyles.financialRow}>
+                                  <Text style={merchantAccountingStyles.financialLabel}>Total encaissé</Text>
+                                  <Text style={merchantAccountingStyles.financialValue}>
+                                    {merchant.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                                  </Text>
+                                </View>
+                                <View style={merchantAccountingStyles.financialRow}>
+                                  <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.warning }]}>
+                                    À reverser
+                                  </Text>
+                                  <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.warning }]}>
+                                    {merchant.totalAReverser.toLocaleString("fr-FR")} FCFA
+                                  </Text>
+                                </View>
+                                <View style={merchantAccountingStyles.financialRow}>
+                                  <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.success }]}>
+                                    Profit réalisé
+                                  </Text>
+                                  <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.success }]}>
+                                    {merchant.totalProfit.toLocaleString("fr-FR")} FCFA
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {merchant.deliveries.length > 0 && (
+                                <View style={merchantAccountingStyles.recentDeliveries}>
+                                  <Text style={merchantAccountingStyles.recentDeliveriesTitle}>
+                                    Livraisons
+                                  </Text>
+                                  {merchant.deliveries.slice(0, 3).map((delivery) => (
+                                    <TouchableOpacity
+                                      key={delivery.id}
+                                      style={merchantAccountingStyles.deliveryPreview}
+                                      onPress={() => router.push(`/delivery/${delivery.id}`)}
+                                    >
+                                      <View style={merchantAccountingStyles.deliveryPreviewHeader}>
+                                        <Text style={merchantAccountingStyles.deliveryPreviewName}>
+                                          {delivery.recipient_name}
+                                        </Text>
+                                        <Text style={merchantAccountingStyles.deliveryPreviewDate}>
+                                          {format(new Date(delivery.delivered_at || delivery.created_at), "dd/MM/yyyy")}
+                                        </Text>
+                                      </View>
+                                      <Text style={merchantAccountingStyles.deliveryPreviewAddress} numberOfLines={1}>
+                                        {delivery.address}
+                                      </Text>
+                                      <View style={merchantAccountingStyles.deliveryPreviewFooter}>
+                                        <Text style={merchantAccountingStyles.deliveryPreviewFee}>
+                                          +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
+                                        </Text>
+                                        {delivery.reversed === 1 && (
+                                          <View style={merchantAccountingStyles.reversedBadge}>
+                                            <MaterialIcons name="check-circle" size={12} color={COLORS.success} />
+                                            <Text style={merchantAccountingStyles.reversedBadgeText}>Reversé</Text>
+                                          </View>
+                                        )}
+                                      </View>
+                                    </TouchableOpacity>
+                                  ))}
+                                  {merchant.deliveries.length > 3 && (
+                                    <Text style={merchantAccountingStyles.moreDeliveries}>
+                                      +{merchant.deliveries.length - 3} autres livraisons
+                                    </Text>
+                                  )}
                                 </View>
                               )}
-                            </View>
-                          </TouchableOpacity>
-                        ))}
-                        {summary.deliveries.length > 3 && (
-                          <Text style={merchantAccountingStyles.moreDeliveries}>
-                            +{summary.deliveries.length - 3} autres livraisons
-                          </Text>
-                        )}
-                      </View>
-                    )}
 
-                    {/* Bouton de clôture - Visible seulement si non clôturé */}
-                    {!summary.isClosed && (
-                      <TouchableOpacity
-                        style={merchantAccountingStyles.closeButton}
-                        onPress={() => handleCloseMerchant(summary.merchant_id, summary.merchant_name)}
-                      >
-                        <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
-                        <Text style={merchantAccountingStyles.closeButtonText}>
-                          Clôturer la comptabilité
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                              {!merchant.isClosed && (
+                                <TouchableOpacity
+                                  style={merchantAccountingStyles.closeButton}
+                                  onPress={() => handleCloseMerchant(merchant.merchant_id, merchant.merchant_name, month.monthKey)}
+                                >
+                                  <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
+                                  <Text style={merchantAccountingStyles.closeButtonText}>
+                                    Clôturer pour ce mois
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })}
                   </View>
                 )}
               </View>
@@ -743,11 +797,7 @@ export default function MerchantAccounting() {
           })
         ) : (
           <View style={merchantAccountingStyles.emptyState}>
-            <MaterialIcons
-              name="store"
-              size={48}
-              color={COLORS.muted}
-            />
+            <MaterialIcons name="store" size={48} color={COLORS.muted} />
             <Text style={merchantAccountingStyles.emptyStateTitle}>
               Aucune donnée disponible
             </Text>
@@ -756,11 +806,7 @@ export default function MerchantAccounting() {
                 ? "Aucun commerçant ne correspond à votre recherche"
                 : dateFilterEnabled
                   ? `Aucune livraison pour ${formatDateForDisplay().toLowerCase()}`
-                  : activeTab === "EN_COURS"
-                    ? "Aucun commerçant en cours"
-                    : activeTab === "AUJOURDHUI"
-                      ? "Aucune livraison aujourd'hui"
-                      : "Aucun commerçant clôturé"}
+                  : "Aucune livraison trouvée"}
             </Text>
           </View>
         )}
@@ -804,40 +850,6 @@ export default function MerchantAccounting() {
                   <TouchableOpacity
                     style={[
                       merchantAccountingStyles.periodButton,
-                      activePeriod === "today" && merchantAccountingStyles.periodButtonActive,
-                    ]}
-                    onPress={() => selectPeriod("today")}
-                  >
-                    <Text
-                      style={[
-                        merchantAccountingStyles.periodButtonText,
-                        activePeriod === "today" && merchantAccountingStyles.periodButtonTextActive,
-                      ]}
-                    >
-                      Aujourd'hui
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      merchantAccountingStyles.periodButton,
-                      activePeriod === "week" && merchantAccountingStyles.periodButtonActive,
-                    ]}
-                    onPress={() => selectPeriod("week")}
-                  >
-                    <Text
-                      style={[
-                        merchantAccountingStyles.periodButtonText,
-                        activePeriod === "week" && merchantAccountingStyles.periodButtonTextActive,
-                      ]}
-                    >
-                      Cette semaine
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      merchantAccountingStyles.periodButton,
                       activePeriod === "month" && merchantAccountingStyles.periodButtonActive,
                     ]}
                     onPress={() => selectPeriod("month")}
@@ -860,11 +872,7 @@ export default function MerchantAccounting() {
                     ]}
                     onPress={() => selectPeriod("custom")}
                   >
-                    <MaterialIcons
-                      name="calendar-today"
-                      size={16}
-                      color={COLORS.primary}
-                    />
+                    <MaterialIcons name="calendar-today" size={16} color={COLORS.primary} />
                     <Text style={merchantAccountingStyles.periodButtonCustomText}>
                       Personnalisé
                     </Text>
@@ -881,11 +889,7 @@ export default function MerchantAccounting() {
                           setCalendarDate(prevMonth);
                         }}
                       >
-                        <MaterialIcons
-                          name="chevron-left"
-                          size={20}
-                          color={COLORS.muted}
-                        />
+                        <MaterialIcons name="chevron-left" size={20} color={COLORS.muted} />
                       </TouchableOpacity>
 
                       <Text style={merchantAccountingStyles.calendarTitle}>
@@ -899,11 +903,7 @@ export default function MerchantAccounting() {
                           setCalendarDate(nextMonth);
                         }}
                       >
-                        <MaterialIcons
-                          name="chevron-right"
-                          size={20}
-                          color={COLORS.muted}
-                        />
+                        <MaterialIcons name="chevron-right" size={20} color={COLORS.muted} />
                       </TouchableOpacity>
                     </View>
 

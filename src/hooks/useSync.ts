@@ -14,6 +14,10 @@ export const useSync = () => {
     
     console.log(`🏷️ Marquage ${table} #${id} pour synchronisation`);
     await syncService.markForSync(table, id);
+        if (table === 'merchants') {
+      console.log(`🔄 Synchronisation immédiate du commerçant ${id}`);
+      await syncService.syncMerchantNow(id);
+    }
   };
 
   return { markAndSync };

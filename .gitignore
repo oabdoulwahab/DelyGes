@@ -41,3 +41,14 @@ app-example
 # generated native folders
 /ios
 /android
+
+# generated web folders
+y
+skills-lock.json
+firebase.json
+.firebaserc
+firestore.indexes.json
+.agents
+.continue
+.claude
+.windsurf

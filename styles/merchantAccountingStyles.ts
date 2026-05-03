@@ -629,4 +629,116 @@ export const merchantAccountingStyles = StyleSheet.create({
     fontWeight: "bold",
     color: COLORS.background,
   },
+
+  modeSwitchContainer: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 12,
+    backgroundColor: COLORS.background,
+  },
+  modeButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  modeButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  modeButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.muted,
+  },
+  modeButtonTextActive: {
+    color: COLORS.background,
+  },
+  monthCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    overflow: "hidden",
+  },
+  monthHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    backgroundColor: COLORS.card,
+  },
+  monthHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  monthName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.white,
+  },
+  monthStats: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  monthTotalEncaisse: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: COLORS.primary,
+  },
+  monthDetails: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    padding: 12,
+  },
+  monthSummary: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingBottom: 12,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  monthSummaryItem: {
+    alignItems: "center",
+  },
+  monthSummaryLabel: {
+    fontSize: 12,
+    color: COLORS.muted,
+    marginBottom: 4,
+  },
+  monthSummaryValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: COLORS.white,
+  },
+  merchantStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  merchantStatText: {
+    fontSize: 12,
+    color: COLORS.muted,
+  },
+  merchantStatAmount: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+  merchantDetails: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    padding: 12,
+  },
 });
