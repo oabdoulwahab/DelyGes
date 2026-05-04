@@ -9,7 +9,7 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -67,6 +67,7 @@ export default function AddDelivery() {
 
   const [loading, setLoading] = useState(isEditing);
   const [isSaving, setIsSaving] = useState(false);
+  const [savingProgress, setSavingProgress] = useState("");
   const [errors, setErrors] = useState({
     recipientName: false,
     phone: false,
@@ -79,6 +80,11 @@ export default function AddDelivery() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filteredMerchants, setFilteredMerchants] = useState<Merchant[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // 🔥 Ref pour éviter les doubles soumissions
+  const isSubmitting = useRef(false);
+  // 🔥 Ref pour stocker la promesse de synchronisation en cours
+  const syncPromiseRef = useRef<Promise<any> | null>(null);
 
   useEffect(() => {
     if (isEditing) {
@@ -142,7 +148,6 @@ export default function AddDelivery() {
   };
 
   useEffect(() => {
-    
     if (merchantName.trim().length > 0) {
       const filtered = merchants.filter((merchant) =>
         merchant.name.toLowerCase().includes(merchantName.toLowerCase()),
@@ -203,58 +208,79 @@ export default function AddDelivery() {
     setErrors(newErrors);
     return !Object.values(newErrors).some((error) => error);
   };
-  const getOrCreateMerchant = async () => {
-    if (!merchantName.trim()) {
-      console.log("⚠️ Pas de nom de commerçant, merchant_id sera null");
-      return null;
+const getOrCreateMerchant = async () => {
+  if (!merchantName.trim()) {
+    console.log("⚠️ Pas de nom de commerçant, merchant_id sera null");
+    return null;
+  }
+
+  if (!user?.id) {
+    console.log("⚠️ Pas d'utilisateur connecté");
+    return null;
+  }
+
+  // 🔥 Récupérer l'UID Firebase de l'utilisateur connecté
+  const { auth } = require("../src/config/firebase");
+  const firebaseUid = auth.currentUser?.uid;
+  
+  if (!firebaseUid) {
+    console.log("⚠️ Pas d'UID Firebase, utilisation de l'ID local");
+  }
+
+  // 🔥 Chercher par nom ET par l'identifiant Firebase (ou local si pas Firebase)
+  const existingMerchant = await db.getFirstAsync<any>(
+    "SELECT * FROM merchants WHERE name = ? AND user_id = ?",
+    [merchantName.trim(), firebaseUid || user.id.toString()],
+  );
+
+  if (existingMerchant) {
+    console.log("✅ Commerçant existant trouvé:", {
+      id: existingMerchant.id,
+      name: existingMerchant.name,
+      firebase_id: existingMerchant.firebase_id,
+      user_id: existingMerchant.user_id,
+    });
+    
+    if (!existingMerchant.firebase_id) {
+      console.log("⚠️ Commerçant sans firebase_id, synchronisation en arrière-plan...");
+      markAndSync("merchants", existingMerchant.id).catch(e => 
+        console.log("⚠️ Sync différée commerçant:", e)
+      );
     }
+    
+    return existingMerchant.id;
+  }
 
-    if (!user?.id) {
-      console.log("⚠️ Pas d'utilisateur connecté");
-      return null;
-    }
-
-    // 🔥 Chercher par nom ET par user_id
-    const existingMerchant = await db.getFirstAsync<any>(
-      "SELECT * FROM merchants WHERE name = ? AND user_id = ?",
-      [merchantName.trim(), user.id],
-    );
-
-    if (existingMerchant) {
-      console.log("✅ Commerçant existant trouvé:", {
-        id: existingMerchant.id,
-        name: existingMerchant.name,
-        firebase_id: existingMerchant.firebase_id,
-      });
-      return existingMerchant.id;
-    }
-
-    // 🔥 Créer un nouveau commerçant avec user_id
-    const result = await db.runAsync(
-      `INSERT INTO merchants (name, phone, user_id, created_at, needs_sync) 
+  // 🔥 Créer un nouveau commerçant avec l'UID Firebase comme user_id
+  const result = await db.runAsync(
+    `INSERT INTO merchants (name, phone, user_id, created_at, needs_sync) 
      VALUES (?, ?, ?, ?, 1)`,
-      [
-        merchantName.trim(),
-        phone.trim() || null,
-        user.id,
-        new Date().toISOString(),
-      ],
-    );
+    [
+      merchantName.trim(),
+      phone.trim() || null,
+      firebaseUid || user.id.toString(), // UID Firebase prioritaire
+      new Date().toISOString(),
+    ],
+  );
 
-    const newId = result.lastInsertRowId;
-    console.log("🆕 Nouveau commerçant créé, ID:", newId);
+  const newId = result.lastInsertRowId;
+  console.log("🆕 Nouveau commerçant créé, ID:", newId, "user_id:", firebaseUid);
 
-    // 🔥 Vérifier immédiatement que l'insertion a réussi
-    const check = await db.getFirstAsync<any>(
-      "SELECT * FROM merchants WHERE id = ?",
-      [newId],
-    );
-    console.log("✅ Vérification insertion:", check);
+  // Lancer la synchronisation en arrière-plan
+  markAndSync("merchants", newId).catch(e => 
+    console.log("⚠️ Sync différée nouveau commerçant:", e)
+  );
 
-    return newId;
-  };
+  return newId;
+};
 
   const handleSave = async () => {
+    // 🔥 Empêcher les doubles soumissions
+    if (isSubmitting.current) {
+      console.log("⚠️ Soumission déjà en cours, ignorée");
+      return;
+    }
+
     if (!validateForm()) {
       showError("Erreur", "Veuillez remplir tous les champs obligatoires");
       return;
@@ -265,7 +291,10 @@ export default function AddDelivery() {
       return;
     }
 
+    // 🔥 Marquer comme en cours de soumission
+    isSubmitting.current = true;
     setIsSaving(true);
+    setSavingProgress("Enregistrement...");
 
     try {
       const parcelValueNum = parcelValue
@@ -275,10 +304,12 @@ export default function AddDelivery() {
         ? Number(deliveryFee.replace(",", ".") || 0)
         : 0;
 
-      // 🔥 LOG POUR VÉRIFIER
+      // 🔥 Créer/récupérer le commerçant (la sync est lancée en arrière-plan)
+      setSavingProgress("Préparation du commerçant...");
       const merchantIdValue = await getOrCreateMerchant();
-      console.log("🏪 Merchant ID final:", merchantIdValue);
+      console.log("🏪 Merchant ID local:", merchantIdValue);
 
+      // Calculer les montants
       let amountCollected = 0;
       let amountToReturn = 0;
       let profit = 0;
@@ -305,6 +336,8 @@ export default function AddDelivery() {
           profit = 0;
           break;
       }
+
+      setSavingProgress("Sauvegarde...");
 
       if (isEditing) {
         await db.runAsync(
@@ -336,7 +369,11 @@ export default function AddDelivery() {
           ],
         );
 
-        await markAndSync("deliveries", Number(id));
+        // 🔥 Lancer la synchronisation en arrière-plan
+        markAndSync("deliveries", Number(id)).catch(e => 
+          console.log("⚠️ Sync différée livraison:", e)
+        );
+        
         showSuccess("Succès", "Livraison modifiée avec succès");
       } else {
         const result = await db.runAsync(
@@ -362,32 +399,38 @@ export default function AddDelivery() {
           ],
         );
 
-        await markAndSync("deliveries", result.lastInsertRowId);
-        await sendDeliveryCreatedNotification(user.id, 1);
+        // 🔥 Lancer la synchronisation en arrière-plan (ne pas attendre)
+        markAndSync("deliveries", result.lastInsertRowId).catch(e => 
+          console.log("⚠️ Sync différée livraison:", e)
+        );
+
+        // 🔥 Notification en arrière-plan
+        sendDeliveryCreatedNotification(user.id, 1).catch(e => 
+          console.log("⚠️ Notification différée:", e)
+        );
+        
         showSuccess("Succès", "Livraison ajoutée avec succès");
       }
 
-      setTimeout(() => router.back(), 1000);
+      // 🔥 Retour immédiat, ne pas attendre
+      setSavingProgress("");
+      router.back();
     } catch (error: any) {
       console.error("❌ Erreur:", error);
       showError("Erreur", "Impossible d'enregistrer la livraison");
-    } finally {
       setIsSaving(false);
-    }
-
-    const merchantIdValue = await getOrCreateMerchant();
-    console.log("🏪 Merchant ID final:", merchantIdValue);
-
-    // 🔥 FORCER la synchronisation du commerçant IMMÉDIATEMENT
-    if (merchantIdValue && !isEditing) {
-      console.log("🔄 Synchronisation forcée du commerçant...");
-      await markAndSync("merchants", merchantIdValue);
-      // Petit délai pour laisser le temps à la sync
-      await new Promise(resolve => setTimeout(resolve, 500));
+      setSavingProgress("");
+    } finally {
+      // 🔥 Réinitialiser le flag de soumission après un court délai
+      setTimeout(() => {
+        isSubmitting.current = false;
+      }, 500);
     }
   };
 
   const handleCancel = () => {
+    if (isSaving) return; // Empêcher d'annuler pendant la sauvegarde
+    
     if (
       recipientName ||
       phone ||
@@ -492,8 +535,14 @@ export default function AddDelivery() {
         <TouchableOpacity
           onPress={handleCancel}
           style={addDeliveryStyles.cancelButton}
+          disabled={isSaving}
         >
-          <Text style={addDeliveryStyles.cancelButtonText}>Annuler</Text>
+          <Text style={[
+            addDeliveryStyles.cancelButtonText,
+            isSaving && { opacity: 0.5 }
+          ]}>
+            Annuler
+          </Text>
         </TouchableOpacity>
         <Text style={addDeliveryStyles.headerTitle}>
           {isEditing ? "Modifier la Livraison" : "Ajouter une Livraison"}
@@ -503,9 +552,13 @@ export default function AddDelivery() {
           style={addDeliveryStyles.saveButtonHeader}
           disabled={isSaving}
         >
-          <Text style={addDeliveryStyles.saveButtonHeaderText}>
-            {isSaving ? "..." : "Enregistrer"}
-          </Text>
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={addDeliveryStyles.saveButtonHeaderText}>
+              Enregistrer
+            </Text>
+          )}
         </TouchableOpacity>
       </BlurView>
 
@@ -916,13 +969,18 @@ export default function AddDelivery() {
           onPress={handleSave}
           disabled={isSaving}
         >
-          <Text style={addDeliveryStyles.saveButtonText}>
-            {isSaving
-              ? "Enregistrement..."
-              : isEditing
-                ? "Modifier la livraison"
-                : "Enregistrer la livraison"}
-          </Text>
+          {isSaving ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={addDeliveryStyles.saveButtonText}>
+                {savingProgress || "Enregistrement..."}
+              </Text>
+            </View>
+          ) : (
+            <Text style={addDeliveryStyles.saveButtonText}>
+              {isEditing ? "Modifier la livraison" : "Enregistrer la livraison"}
+            </Text>
+          )}
         </TouchableOpacity>
       </BlurView>
     </KeyboardAvoidingView>

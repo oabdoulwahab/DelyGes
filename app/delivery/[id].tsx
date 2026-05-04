@@ -21,6 +21,8 @@ import { useModal } from "../../providers/ModalProvider";
 import { useAuth } from "../../src/hooks/useAuth";
 import { sendDeliveryCompletedNotification } from "../../src/services/notification.service";
 import { useSync } from "../../src/hooks/useSync";
+// 🔥 Importer le service de synchronisation
+import { syncService } from "../../src/services/sync.service";
 
 type Delivery = {
   id: number;
@@ -34,6 +36,7 @@ type Delivery = {
   status: string;
   created_at: string;
   delivered_at?: string;
+  firebase_id?: string; // 🔥 Ajouter firebase_id
 };
 
 type Merchant = {
@@ -49,6 +52,7 @@ export default function DeliveryDetail() {
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // 🔥 Nouvel état pour la suppression
   const { showConfirm, showSuccess, showError, showAlert } = useModal();
   const { goBack, goToDeliveries } = useNavigation();
   const { user } = useAuth();
@@ -96,7 +100,7 @@ export default function DeliveryDetail() {
             await sendDeliveryCompletedNotification(
               user.id,
               delivery.delivery_fee,
-            );
+            ).catch(e => console.log("⚠️ Notification error:", e));
           }
 
           const updatedDelivery = await db.getFirstAsync<Delivery>(
@@ -121,22 +125,51 @@ export default function DeliveryDetail() {
     );
   };
 
+  // 🔥 MODIFIÉ : Suppression avec synchronisation Firebase
   const handleDelete = () => {
     showConfirm(
       "Supprimer la livraison",
       "Êtes-vous sûr de vouloir supprimer cette livraison ? Cette action est irréversible.",
       async () => {
-        // 🔥 Pour Firebase, on ne supprime pas directement, on marque comme à supprimer
-        // Ou on peut simplement supprimer en local et laisser la sync gérer
-        await db.runAsync("DELETE FROM deliveries WHERE id = ?", [Number(id)]);
+        setIsDeleting(true);
+        try {
+          // 🔥 1. Récupérer le firebase_id avant de supprimer
+          const deliveryToDelete = await db.getFirstAsync<{ firebase_id: string }>(
+            "SELECT firebase_id FROM deliveries WHERE id = ?",
+            [Number(id)]
+          );
 
-        // Si tu veux aussi supprimer de Firebase, il faudra une logique spéciale
-        // Pour l'instant, on synchronise juste l'absence de l'ID local
+          console.log("🗑️ Suppression livraison:", {
+            localId: id,
+            firebaseId: deliveryToDelete?.firebase_id,
+          });
 
-        showSuccess("Succès", "Livraison supprimée");
-        goToDeliveries();
+          // 🔥 2. Supprimer de Firebase d'abord (si firebase_id existe)
+          if (deliveryToDelete?.firebase_id) {
+            try {
+              await syncService.deleteFromFirebase("deliveries", deliveryToDelete.firebase_id);
+              console.log("✅ Livraison supprimée de Firebase");
+            } catch (firebaseError) {
+              console.error("⚠️ Erreur suppression Firebase:", firebaseError);
+              // On continue quand même la suppression locale
+            }
+          }
+
+          // 🔥 3. Supprimer de la base locale
+          await db.runAsync("DELETE FROM deliveries WHERE id = ?", [Number(id)]);
+          console.log("✅ Livraison supprimée localement");
+
+          showSuccess("Succès", "Livraison supprimée");
+          goToDeliveries();
+        } catch (error) {
+          console.error("❌ Erreur suppression:", error);
+          showError("Erreur", "Impossible de supprimer la livraison");
+        } finally {
+          setIsDeleting(false);
+        }
       },
       "Supprimer",
+      "Annuler",
     );
   };
 
@@ -332,7 +365,7 @@ export default function DeliveryDetail() {
             Livraison #{delivery.id.toString().padStart(4, "0")}
           </Text>
 
-          {/* Badge de statut - devient cliquable si la livraison peut être marquée comme livrée */}
+          {/* Badge de statut */}
           {statusConfig.isClickable ? (
             <TouchableOpacity
               style={[
@@ -703,7 +736,6 @@ export default function DeliveryDetail() {
 
       {/* Actions - Affichage conditionnel selon le statut */}
       {isEditable ? (
-        // Mode édition : Afficher tous les boutons (sans le bouton "Marquer comme livrée" car il est dans le header)
         <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
           <TouchableOpacity
             style={deliveryDetailStyles.primaryButton}
@@ -722,32 +754,74 @@ export default function DeliveryDetail() {
               <Text style={deliveryDetailStyles.editButtonText}>Modifier</Text>
             </TouchableOpacity>
 
+            {/* 🔥 Bouton supprimer avec indicateur de chargement */}
             <TouchableOpacity
-              style={deliveryDetailStyles.dangerButton}
+              style={[deliveryDetailStyles.dangerButton, isDeleting && { opacity: 0.7 }]}
               onPress={handleDelete}
+              disabled={isDeleting}
             >
-              <MaterialIcons name="delete" size={20} color={COLORS.danger} />
-              <Text style={deliveryDetailStyles.dangerButtonText}>
-                Supprimer
-              </Text>
+              {isDeleting ? (
+                <ActivityIndicator size="small" color={COLORS.danger} />
+              ) : (
+                <>
+                  <MaterialIcons name="delete" size={20} color={COLORS.danger} />
+                  <Text style={deliveryDetailStyles.dangerButtonText}>
+                    Supprimer
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </BlurView>
       ) : (
-        // Mode lecture seule : Afficher seulement le bouton supprimer
         <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
           <View style={deliveryDetailStyles.actionButtonsRow}>
             <TouchableOpacity
-              style={deliveryDetailStyles.dangerButton}
+              style={[deliveryDetailStyles.dangerButton, isDeleting && { opacity: 0.7 }]}
               onPress={handleDelete}
+              disabled={isDeleting}
             >
-              <MaterialIcons name="delete" size={20} color={COLORS.danger} />
-              <Text style={deliveryDetailStyles.dangerButtonText}>
-                Supprimer
-              </Text>
+              {isDeleting ? (
+                <ActivityIndicator size="small" color={COLORS.danger} />
+              ) : (
+                <>
+                  <MaterialIcons name="delete" size={20} color={COLORS.danger} />
+                  <Text style={deliveryDetailStyles.dangerButtonText}>
+                    Supprimer
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </BlurView>
+      )}
+
+      {/* 🔥 Overlay de chargement pendant la suppression */}
+      {isDeleting && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+        }}>
+          <View style={{
+            backgroundColor: COLORS.white,
+            padding: 24,
+            borderRadius: 16,
+            alignItems: 'center',
+            gap: 12,
+          }}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
+            <Text style={{ color: COLORS.white, fontWeight: '500' }}>
+              Suppression en cours...
+            </Text>
+          </View>
+        </View>
       )}
     </View>
   );

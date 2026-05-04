@@ -173,24 +173,46 @@ class SyncService {
   }
 
   // Traiter un lot de commerçants
+
   private async processMerchantBatch(
     batch: Array<{ firebaseId: string; data: any }>,
   ) {
-    const queries = batch.map((item) =>
-      db.runAsync(
-        `INSERT INTO merchants 
+    const queries = batch.map(async (item) => {
+      // 🔥 Vérifier si la colonne address existe avant d'essayer de l'insérer
+      const schema = await db.getAllAsync<any>("PRAGMA table_info(merchants)");
+      const hasAddress = schema.some((col) => col.name === "address");
+
+      if (hasAddress) {
+        return db.runAsync(
+          `INSERT INTO merchants 
          (name, phone, address, firebase_id, user_id, created_at, needs_sync) 
          VALUES (?, ?, ?, ?, ?, ?, 0)`,
-        [
-          item.data.name || "",
-          item.data.phone || "",
-          item.data.address || "",
-          item.firebaseId,
-          auth.currentUser?.uid,
-          item.data.created_at || new Date().toISOString(),
-        ],
-      ),
-    );
+          [
+            item.data.name || "",
+            item.data.phone || "",
+            item.data.address || "",
+            item.firebaseId,
+            auth.currentUser?.uid,
+            item.data.created_at || new Date().toISOString(),
+          ],
+        );
+      } else {
+        // 🔥 Sans la colonne address
+        return db.runAsync(
+          `INSERT INTO merchants 
+         (name, phone, firebase_id, user_id, created_at, needs_sync) 
+         VALUES (?, ?, ?, ?, ?, 0)`,
+          [
+            item.data.name || "",
+            item.data.phone || "",
+            item.firebaseId,
+            auth.currentUser?.uid,
+            item.data.created_at || new Date().toISOString(),
+          ],
+        );
+      }
+    });
+
     await Promise.all(queries);
   }
 
@@ -280,6 +302,8 @@ class SyncService {
     }, this.SYNC_DEBOUNCE);
   }
 
+  // Dans sync.service.ts, modifiez syncMerchantNow :
+
   async syncMerchantNow(merchantId: number) {
     if (!this.isOnline || !auth.currentUser) {
       console.log("⏭️ Sync commerçant ignorée: hors ligne");
@@ -289,15 +313,24 @@ class SyncService {
     try {
       console.log(`🔄 Synchronisation forcée du commerçant ${merchantId}...`);
 
+      // 🔥 CORRECTION : Ne pas filtrer par user_id car le user_id peut être différent
+      // (ID local vs UID Firebase). On cherche uniquement par l'ID du commerçant.
       const merchant = await db.getFirstAsync<any>(
-        "SELECT * FROM merchants WHERE id = ? AND user_id = ?",
-        [merchantId, auth.currentUser.uid],
+        "SELECT * FROM merchants WHERE id = ?",
+        [merchantId],
       );
 
       if (!merchant) {
-        console.log("❌ Commerçant non trouvé");
+        console.log(`❌ Commerçant ${merchantId} non trouvé`);
         return null;
       }
+
+      console.log("✅ Commerçant trouvé:", {
+        id: merchant.id,
+        name: merchant.name,
+        user_id: merchant.user_id,
+        firebase_id: merchant.firebase_id,
+      });
 
       // Si déjà synchronisé, retourner l'ID Firebase
       if (merchant.firebase_id) {
@@ -307,23 +340,40 @@ class SyncService {
         return merchant.firebase_id;
       }
 
+      // 🔥 IMPORTANT : Utiliser auth.currentUser.uid comme user_id dans Firebase
+      // Peu importe ce qui est stocké dans la colonne user_id locale
+      const firebaseUid = auth.currentUser.uid;
+
+      // Mettre à jour le user_id local avec l'UID Firebase si différent
+      if (merchant.user_id !== firebaseUid) {
+        console.log(
+          `🔄 Mise à jour user_id local: ${merchant.user_id} -> ${firebaseUid}`,
+        );
+        await db.runAsync("UPDATE merchants SET user_id = ? WHERE id = ?", [
+          firebaseUid,
+          merchantId,
+        ]);
+      }
+
       // Créer dans Firebase
       const firestoreData = {
         name: merchant.name,
-        phone: merchant.phone,
-        address: merchant.address,
-        user_id: auth.currentUser.uid,
+        phone: merchant.phone || null,
+        address: merchant.address || null,
+        user_id: firebaseUid,
         created_at: merchant.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
+
+      console.log("📤 Création commerçant dans Firebase:", firestoreData);
 
       const docRef = doc(collection(firestore, "merchants"));
       await setDoc(docRef, firestoreData);
 
       // Mettre à jour le firebase_id local
       await db.runAsync(
-        `UPDATE merchants SET firebase_id = ?, needs_sync = 0 WHERE id = ?`,
-        [docRef.id, merchant.id],
+        `UPDATE merchants SET firebase_id = ?, needs_sync = 0, user_id = ? WHERE id = ?`,
+        [docRef.id, firebaseUid, merchantId],
       );
 
       console.log(`✅ Commerçant synchronisé avec Firebase ID: ${docRef.id}`);
@@ -363,7 +413,7 @@ class SyncService {
         item.merchant_id,
       );
 
-      // 🔥 Si un merchant_id existe mais pas de firebase_id, le synchroniser d'abord
+      // 🔥 Si un merchant_id existe, obtenir ou créer son firebase_id
       let merchantFirebaseId = null;
       if (item.merchant_id) {
         const merchant = await db.getFirstAsync<{ firebase_id: string }>(
@@ -371,14 +421,26 @@ class SyncService {
           [item.merchant_id],
         );
 
-        if (merchant && !merchant.firebase_id) {
-          // 🔥 Le commerçant n'est pas encore synchronisé, le faire maintenant
-          console.log(
-            `⚠️ Commerçant ${item.merchant_id} non synchronisé, synchronisation forcée...`,
-          );
-          merchantFirebaseId = await this.syncMerchantNow(item.merchant_id);
+        if (merchant) {
+          if (!merchant.firebase_id) {
+            // 🔥 Le commerçant n'est pas encore synchronisé, le faire maintenant
+            console.log(
+              `⚠️ Commerçant ${item.merchant_id} non synchronisé, synchronisation forcée...`,
+            );
+            merchantFirebaseId = await this.syncMerchantNow(item.merchant_id);
+
+            if (!merchantFirebaseId) {
+              console.error(
+                `❌ Échec synchronisation commerçant ${item.merchant_id}`,
+              );
+            }
+          } else {
+            merchantFirebaseId = merchant.firebase_id;
+          }
         } else {
-          merchantFirebaseId = merchant?.firebase_id;
+          console.log(
+            `❌ Commerçant ${item.merchant_id} non trouvé localement`,
+          );
         }
 
         console.log(
@@ -426,7 +488,9 @@ class SyncService {
           [docRef.id, item.id],
         );
       }
-      console.log(`✅ Livraison ${item.id} synchronisée`);
+      console.log(
+        `✅ Livraison ${item.id} synchronisée avec merchant_id: ${merchantFirebaseId}`,
+      );
     } catch (error) {
       console.error(`❌ Erreur sync livraison ${item.id}:`, error);
     }
@@ -451,16 +515,19 @@ class SyncService {
 
   private async syncSingleMerchant(item: any) {
     try {
-      const firestoreData = {
+      const firestoreData: any = {
         name: item.name,
         phone: item.phone,
-        address: item.address,
         user_id: auth.currentUser?.uid,
         updated_at: new Date().toISOString(),
       };
 
+      // 🔥 N'ajouter address que si elle existe
+      if (item.address) {
+        firestoreData.address = item.address;
+      }
+
       if (item.firebase_id) {
-        // Mise à jour
         await updateDoc(
           doc(firestore, "merchants", item.firebase_id),
           firestoreData,
@@ -469,7 +536,6 @@ class SyncService {
           item.id,
         ]);
       } else {
-        // Nouveau commerçant
         const docRef = doc(collection(firestore, "merchants"));
         await setDoc(docRef, {
           ...firestoreData,

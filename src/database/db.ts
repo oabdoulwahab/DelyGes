@@ -1,5 +1,4 @@
 import * as SQLite from "expo-sqlite";
-import { DatabaseMigration } from "../utils/databaseMigration";
 
 // ===============================
 // OUVERTURE DB
@@ -26,7 +25,7 @@ export const initDB = async (): Promise<void> => {
       )
     `);
 
-    // ===== TABLE NOTIFICATIONS  =====
+    // ===== TABLE NOTIFICATIONS =====
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS notifications (
         id TEXT PRIMARY KEY,
@@ -40,13 +39,14 @@ export const initDB = async (): Promise<void> => {
       )
     `);
 
-    // ===== TABLE MERCHANTS =====
+    // ===== TABLE MERCHANTS (🔥 AJOUT de address) =====
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS merchants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         contact_name TEXT,
         phone TEXT,
+        address TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -99,13 +99,41 @@ export const migrateFromOldDB = async (): Promise<void> => {
   try {
     console.log("🔍 Vérification du schéma...");
 
+    // ----- MERCHANTS (🔥 AJOUTÉ - colonnes manquantes) -----
+    const merchantsSchema = await db.getAllAsync<any>(
+      "PRAGMA table_info(merchants)",
+    );
+
+    const merchantColumnsToAdd = [
+      { name: "address", type: "TEXT" },
+      { name: "user_id", type: "TEXT" },
+      { name: "firebase_id", type: "TEXT" },
+      { name: "needs_sync", type: "INTEGER DEFAULT 0" },
+    ];
+
+    for (const column of merchantColumnsToAdd) {
+      const exists = merchantsSchema.some((col) => col.name === column.name);
+      if (!exists) {
+        console.log(`➕ Ajout colonne merchants.${column.name}`);
+        await db.execAsync(
+          `ALTER TABLE merchants ADD COLUMN ${column.name} ${column.type}`,
+        );
+      }
+    }
+
     // ----- USER -----
     const userSchema = await db.getAllAsync<any>("PRAGMA table_info(user)");
 
     const userColumnsToAdd = [
       { name: "password", type: "TEXT" },
+      { name: "firebase_uid", type: "TEXT" },
+      { name: "daily_goal", type: "REAL DEFAULT 15000" },
+      { name: "monthly_goal", type: "REAL DEFAULT 0" },
+      { name: "reminder_notifications", type: "INTEGER DEFAULT 1" },
+      { name: "payment_notifications", type: "INTEGER DEFAULT 1" },
       { name: "delivery_created_notifications", type: "INTEGER DEFAULT 1" },
       { name: "daily_summary_notifications", type: "INTEGER DEFAULT 0" },
+      { name: "daily_goal_notifications", type: "INTEGER DEFAULT 1" },
     ];
 
     for (const column of userColumnsToAdd) {
@@ -113,14 +141,14 @@ export const migrateFromOldDB = async (): Promise<void> => {
       if (!exists) {
         console.log(`➕ Ajout colonne user.${column.name}`);
         await db.execAsync(
-          `ALTER TABLE user ADD COLUMN ${column.name} ${column.type}`
+          `ALTER TABLE user ADD COLUMN ${column.name} ${column.type}`,
         );
       }
     }
 
     // ----- DELIVERIES -----
     const deliveriesSchema = await db.getAllAsync<any>(
-      "PRAGMA table_info(deliveries)"
+      "PRAGMA table_info(deliveries)",
     );
 
     const deliveryColumnsToAdd = [
@@ -133,6 +161,8 @@ export const migrateFromOldDB = async (): Promise<void> => {
       { name: "is_settled", type: "INTEGER DEFAULT 0" },
       { name: "settled_at", type: "DATETIME" },
       { name: "reversed", type: "INTEGER DEFAULT 0" },
+      { name: "firebase_id", type: "TEXT" },
+      { name: "needs_sync", type: "INTEGER DEFAULT 0" },
     ];
 
     for (const column of deliveryColumnsToAdd) {
@@ -140,7 +170,7 @@ export const migrateFromOldDB = async (): Promise<void> => {
       if (!exists) {
         console.log(`➕ Ajout colonne deliveries.${column.name}`);
         await db.execAsync(
-          `ALTER TABLE deliveries ADD COLUMN ${column.name} ${column.type}`
+          `ALTER TABLE deliveries ADD COLUMN ${column.name} ${column.type}`,
         );
       }
     }
@@ -158,23 +188,25 @@ export const migrateFromOldDB = async (): Promise<void> => {
 export const createIndexes = async (): Promise<void> => {
   try {
     await db.execAsync(
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_user_id ON deliveries(user_id)"
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_user_id ON deliveries(user_id)",
     );
-
     await db.execAsync(
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status)"
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(status)",
     );
-
     await db.execAsync(
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_created_at ON deliveries(created_at)"
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_created_at ON deliveries(created_at)",
     );
-
     await db.execAsync(
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_merchant_id ON deliveries(merchant_id)"
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_merchant_id ON deliveries(merchant_id)",
     );
-
     await db.execAsync(
-      "CREATE INDEX IF NOT EXISTS idx_deliveries_is_settled ON deliveries(is_settled)"
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_is_settled ON deliveries(is_settled)",
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_merchants_user_id ON merchants(user_id)",
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_merchants_firebase_id ON merchants(firebase_id)",
     );
 
     console.log("📌 Index créés");
@@ -208,7 +240,7 @@ export const DatabaseService = {
 
   async execute(
     sql: string,
-    params: any[] = []
+    params: any[] = [],
   ): Promise<{ lastInsertRowId?: number; changes?: number }> {
     return await db.runAsync(sql, params);
   },
