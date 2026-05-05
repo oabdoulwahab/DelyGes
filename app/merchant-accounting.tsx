@@ -71,7 +71,9 @@ type ViewMode = "monthly" | "merchant" | "pending";
 
 export default function MerchantAccounting() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [filteredMonthlyData, setFilteredMonthlyData] = useState<MonthlyData[]>([]);
+  const [filteredMonthlyData, setFilteredMonthlyData] = useState<MonthlyData[]>(
+    [],
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("monthly");
   const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
@@ -91,9 +93,11 @@ export default function MerchantAccounting() {
   const [selectedEndDate, setSelectedEndDate] = useState<Date | null>(null);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [deliveryDates, setDeliveryDates] = useState<Date[]>([]);
-  
+
   // 🔥 State pour les commerçants en attente (non reversés)
-  const [pendingMerchants, setPendingMerchants] = useState<MerchantSummary[]>([]);
+  const [pendingMerchants, setPendingMerchants] = useState<MerchantSummary[]>(
+    [],
+  );
 
   // ============================================================
   // CHARGEMENT DES DONNÉES REVERSÉES (vues "Par mois" et "Par commerçant")
@@ -164,11 +168,14 @@ export default function MerchantAccounting() {
       deliveries.forEach((delivery) => {
         const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
         const montantEncaisse =
-          delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+          delivery.delivery_fee +
+          (isClientPaysTout ? delivery.parcel_value : 0);
         const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
         const profit = delivery.delivery_fee;
 
-        const deliveryDate = new Date(delivery.delivered_at || delivery.created_at);
+        const deliveryDate = new Date(
+          delivery.delivered_at || delivery.created_at,
+        );
         const monthKey = format(deliveryDate, "yyyy-MM");
         const monthName = format(deliveryDate, "MMMM yyyy", { locale: fr });
         const year = deliveryDate.getFullYear();
@@ -268,7 +275,8 @@ export default function MerchantAccounting() {
       deliveries.forEach((delivery) => {
         const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
         const montantEncaisse =
-          delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+          delivery.delivery_fee +
+          (isClientPaysTout ? delivery.parcel_value : 0);
         const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
         const profit = delivery.delivery_fee;
 
@@ -395,16 +403,20 @@ export default function MerchantAccounting() {
           const startStr = startDate.toISOString().split("T")[0];
           const endStr = endDate.toISOString().split("T")[0];
 
+          // 🔥 Mettre à jour reversed ET needs_sync pour la synchronisation Firebase
           await db.runAsync(
-            `UPDATE deliveries SET reversed = 1 
-             WHERE merchant_id = ? 
-             AND status = 'LIVREE'
-             AND date(delivered_at) BETWEEN ? AND ?`,
+            `UPDATE deliveries SET reversed = 1, needs_sync = 1 
+           WHERE merchant_id = ? 
+           AND status = 'LIVREE'
+           AND date(delivered_at) BETWEEN ? AND ?`,
             [merchantId, startStr, endStr],
           );
 
-          showSuccess("Succès", `Comptabilité de ${merchantName} clôturée pour cette période`);
-          
+          showSuccess(
+            "Succès",
+            `Comptabilité de ${merchantName} clôturée pour cette période`,
+          );
+
           // 🔥 Recharger TOUT
           await Promise.all([loadAccounting(), loadPendingMerchants()]);
           setExpandedMerchants([]);
@@ -425,16 +437,55 @@ export default function MerchantAccounting() {
       `Voulez-vous marquer TOUTES les livraisons non reversées de ${merchantName} (tous mois confondus) comme reversées ?`,
       async () => {
         try {
-          await db.runAsync(
-            `UPDATE deliveries SET reversed = 1 
+          const handleCloseAllMerchant = (
+            merchantId: number,
+            merchantName: string,
+          ) => {
+            showConfirm(
+              "Clôturer le commerçant",
+              `Voulez-vous marquer TOUTES les livraisons non reversées de ${merchantName} (tous mois confondus) comme reversées ?`,
+              async () => {
+                try {
+                  await db.runAsync(
+                    `UPDATE deliveries SET reversed = 1 
              WHERE merchant_id = ? 
              AND status = 'LIVREE'
              AND reversed != 1`,
+                    [merchantId],
+                  );
+
+                  showSuccess(
+                    "Succès",
+                    `Toutes les livraisons de ${merchantName} ont été marquées comme reversées`,
+                  );
+
+                  // 🔥 Recharger TOUT
+                  await Promise.all([loadAccounting(), loadPendingMerchants()]);
+                  setExpandedMerchants([]);
+                  setExpandedMonths([]);
+                } catch (error) {
+                  console.error("Erreur lors de la clôture:", error);
+                  showError("Erreur", "Impossible de clôturer la comptabilité");
+                }
+              },
+              "Oui, tout clôturer",
+              "Annuler",
+            );
+          };
+          // 🔥 Mettre à jour reversed ET needs_sync pour la synchronisation Firebase
+          await db.runAsync(
+            `UPDATE deliveries SET reversed = 1, needs_sync = 1 
+           WHERE merchant_id = ? 
+           AND status = 'LIVREE'
+           AND reversed != 1`,
             [merchantId],
           );
 
-          showSuccess("Succès", `Toutes les livraisons de ${merchantName} ont été marquées comme reversées`);
-          
+          showSuccess(
+            "Succès",
+            `Toutes les livraisons de ${merchantName} ont été marquées comme reversées`,
+          );
+
           // 🔥 Recharger TOUT
           await Promise.all([loadAccounting(), loadPendingMerchants()]);
           setExpandedMerchants([]);
@@ -463,16 +514,31 @@ export default function MerchantAccounting() {
     if (viewMode === "pending") {
       return {
         encaisse: pendingMerchants.reduce((sum, m) => sum + m.totalEncaisse, 0),
-        aReverser: pendingMerchants.reduce((sum, m) => sum + m.totalAReverser, 0),
+        aReverser: pendingMerchants.reduce(
+          (sum, m) => sum + m.totalAReverser,
+          0,
+        ),
         profit: pendingMerchants.reduce((sum, m) => sum + m.totalProfit, 0),
-        deliveries: pendingMerchants.reduce((sum, m) => sum + m.totalDeliveries, 0),
+        deliveries: pendingMerchants.reduce(
+          (sum, m) => sum + m.totalDeliveries,
+          0,
+        ),
       };
     }
     return {
-      encaisse: filteredMonthlyData.reduce((sum, m) => sum + m.totalEncaisse, 0),
-      aReverser: filteredMonthlyData.reduce((sum, m) => sum + m.totalAReverser, 0),
+      encaisse: filteredMonthlyData.reduce(
+        (sum, m) => sum + m.totalEncaisse,
+        0,
+      ),
+      aReverser: filteredMonthlyData.reduce(
+        (sum, m) => sum + m.totalAReverser,
+        0,
+      ),
       profit: filteredMonthlyData.reduce((sum, m) => sum + m.totalProfit, 0),
-      deliveries: filteredMonthlyData.reduce((sum, m) => sum + m.totalDeliveries, 0),
+      deliveries: filteredMonthlyData.reduce(
+        (sum, m) => sum + m.totalDeliveries,
+        0,
+      ),
     };
   };
 
@@ -545,7 +611,10 @@ export default function MerchantAccounting() {
     for (let i = 0; i < startDay; i++) {
       const date = new Date(year, month, -i);
       days.push(
-        <View key={`prev-${i}`} style={merchantAccountingStyles.calendarDayInactive}>
+        <View
+          key={`prev-${i}`}
+          style={merchantAccountingStyles.calendarDayInactive}
+        >
           <Text style={merchantAccountingStyles.calendarDayTextInactive}>
             {date.getDate()}
           </Text>
@@ -566,7 +635,9 @@ export default function MerchantAccounting() {
             merchantAccountingStyles.calendarDay,
             isTodayDate && merchantAccountingStyles.calendarDayToday,
             isSelected && merchantAccountingStyles.calendarDaySelected,
-            hasDeliveries && !isSelected && merchantAccountingStyles.calendarDayHasDeliveries,
+            hasDeliveries &&
+              !isSelected &&
+              merchantAccountingStyles.calendarDayHasDeliveries,
           ]}
           onPress={() => {
             setSelectedDate(date);
@@ -595,7 +666,10 @@ export default function MerchantAccounting() {
 
     for (let i = 1; i <= remainingCells; i++) {
       days.push(
-        <View key={`next-${i}`} style={merchantAccountingStyles.calendarDayInactive}>
+        <View
+          key={`next-${i}`}
+          style={merchantAccountingStyles.calendarDayInactive}
+        >
           <Text style={merchantAccountingStyles.calendarDayTextInactive}>
             {i}
           </Text>
@@ -624,7 +698,10 @@ export default function MerchantAccounting() {
           )}
         </Text>
       </View>
-      <Text style={merchantAccountingStyles.deliveryPreviewAddress} numberOfLines={1}>
+      <Text
+        style={merchantAccountingStyles.deliveryPreviewAddress}
+        numberOfLines={1}
+      >
         {delivery.address}
       </Text>
       <View style={merchantAccountingStyles.deliveryPreviewFooter}>
@@ -633,21 +710,31 @@ export default function MerchantAccounting() {
         </Text>
         {delivery.reversed === 1 ? (
           <View style={merchantAccountingStyles.reversedBadge}>
-            <MaterialIcons name="check-circle" size={12} color={COLORS.success} />
-            <Text style={merchantAccountingStyles.reversedBadgeText}>Reversé</Text>
+            <MaterialIcons
+              name="check-circle"
+              size={12}
+              color={COLORS.success}
+            />
+            <Text style={merchantAccountingStyles.reversedBadgeText}>
+              Reversé
+            </Text>
           </View>
         ) : (
-          <View style={{
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: COLORS.warning + "20",
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-            borderRadius: 12,
-            gap: 4,
-          }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: COLORS.warning + "20",
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderRadius: 12,
+              gap: 4,
+            }}
+          >
             <MaterialIcons name="pending" size={12} color={COLORS.warning} />
-            <Text style={{ fontSize: 11, color: COLORS.warning, fontWeight: "500" }}>
+            <Text
+              style={{ fontSize: 11, color: COLORS.warning, fontWeight: "500" }}
+            >
               En attente
             </Text>
           </View>
@@ -657,11 +744,17 @@ export default function MerchantAccounting() {
   );
 
   // Rendu d'une carte commerçant dans la vue "Par mois"
-  const renderMerchantCardInMonth = (merchant: MerchantSummary, monthKey: string) => {
+  const renderMerchantCardInMonth = (
+    merchant: MerchantSummary,
+    monthKey: string,
+  ) => {
     const isMerchantExpanded = expandedMerchants.includes(merchant.merchant_id);
 
     return (
-      <View key={merchant.merchant_id} style={merchantAccountingStyles.merchantCard}>
+      <View
+        key={merchant.merchant_id}
+        style={merchantAccountingStyles.merchantCard}
+      >
         <TouchableOpacity
           style={merchantAccountingStyles.merchantHeader}
           onPress={() => toggleMerchant(merchant.merchant_id)}
@@ -686,9 +779,15 @@ export default function MerchantAccounting() {
             </View>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <MaterialIcons name="check-circle" size={16} color={COLORS.success} />
             <MaterialIcons
-              name={isMerchantExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+              name="check-circle"
+              size={16}
+              color={COLORS.success}
+            />
+            <MaterialIcons
+              name={
+                isMerchantExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"
+              }
               size={20}
               color={COLORS.muted}
             />
@@ -699,24 +798,46 @@ export default function MerchantAccounting() {
           <View style={merchantAccountingStyles.merchantDetails}>
             <View style={merchantAccountingStyles.financialSection}>
               <View style={merchantAccountingStyles.financialRow}>
-                <Text style={merchantAccountingStyles.financialLabel}>Total encaissé</Text>
+                <Text style={merchantAccountingStyles.financialLabel}>
+                  Total encaissé
+                </Text>
                 <Text style={merchantAccountingStyles.financialValue}>
                   {merchant.totalEncaisse.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
               <View style={merchantAccountingStyles.financialRow}>
-                <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.warning }]}>
+                <Text
+                  style={[
+                    merchantAccountingStyles.financialLabel,
+                    { color: COLORS.warning },
+                  ]}
+                >
                   À reverser
                 </Text>
-                <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.warning }]}>
+                <Text
+                  style={[
+                    merchantAccountingStyles.financialValue,
+                    { color: COLORS.warning },
+                  ]}
+                >
                   {merchant.totalAReverser.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
               <View style={merchantAccountingStyles.financialRow}>
-                <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.success }]}>
+                <Text
+                  style={[
+                    merchantAccountingStyles.financialLabel,
+                    { color: COLORS.success },
+                  ]}
+                >
                   Profit réalisé
                 </Text>
-                <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.success }]}>
+                <Text
+                  style={[
+                    merchantAccountingStyles.financialValue,
+                    { color: COLORS.success },
+                  ]}
+                >
                   {merchant.totalProfit.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
@@ -727,7 +848,9 @@ export default function MerchantAccounting() {
                 <Text style={merchantAccountingStyles.recentDeliveriesTitle}>
                   Livraisons reversées
                 </Text>
-                {merchant.deliveries.map((delivery) => renderDeliveryItem(delivery))}
+                {merchant.deliveries.map((delivery) =>
+                  renderDeliveryItem(delivery),
+                )}
               </View>
             )}
           </View>
@@ -759,7 +882,12 @@ export default function MerchantAccounting() {
       {/* Barre de recherche et filtre */}
       <View style={merchantAccountingStyles.searchContainer}>
         <View style={merchantAccountingStyles.searchInputContainer}>
-          <MaterialIcons name="search" size={20} color={COLORS.muted} style={merchantAccountingStyles.searchIcon} />
+          <MaterialIcons
+            name="search"
+            size={20}
+            color={COLORS.muted}
+            style={merchantAccountingStyles.searchIcon}
+          />
           <TextInput
             style={merchantAccountingStyles.searchInput}
             placeholder="Rechercher un commerçant..."
@@ -769,11 +897,20 @@ export default function MerchantAccounting() {
           />
         </View>
         <TouchableOpacity
-          style={[merchantAccountingStyles.filterButton, dateFilterEnabled && merchantAccountingStyles.filterButtonActive]}
+          style={[
+            merchantAccountingStyles.filterButton,
+            dateFilterEnabled && merchantAccountingStyles.filterButtonActive,
+          ]}
           onPress={() => setShowFilterModal(true)}
         >
-          <MaterialIcons name="filter-list" size={20} color={dateFilterEnabled ? COLORS.primary : COLORS.muted} />
-          {dateFilterEnabled && <View style={merchantAccountingStyles.filterIndicator} />}
+          <MaterialIcons
+            name="filter-list"
+            size={20}
+            color={dateFilterEnabled ? COLORS.primary : COLORS.muted}
+          />
+          {dateFilterEnabled && (
+            <View style={merchantAccountingStyles.filterIndicator} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -781,8 +918,14 @@ export default function MerchantAccounting() {
       {dateFilterEnabled && (
         <View style={merchantAccountingStyles.dateFilterContainer}>
           <View style={merchantAccountingStyles.dateFilterContent}>
-            <MaterialIcons name="calendar-today" size={16} color={COLORS.primary} />
-            <Text style={merchantAccountingStyles.dateFilterText}>{formatDateForDisplay()}</Text>
+            <MaterialIcons
+              name="calendar-today"
+              size={16}
+              color={COLORS.primary}
+            />
+            <Text style={merchantAccountingStyles.dateFilterText}>
+              {formatDateForDisplay()}
+            </Text>
             <TouchableOpacity onPress={clearDateFilter}>
               <MaterialIcons name="close" size={16} color={COLORS.danger} />
             </TouchableOpacity>
@@ -793,43 +936,83 @@ export default function MerchantAccounting() {
       {/* Switch de mode d'affichage */}
       <View style={merchantAccountingStyles.modeSwitchContainer}>
         <TouchableOpacity
-          style={[merchantAccountingStyles.modeButton, viewMode === "pending" && merchantAccountingStyles.modeButtonActive]}
+          style={[
+            merchantAccountingStyles.modeButton,
+            viewMode === "pending" && merchantAccountingStyles.modeButtonActive,
+          ]}
           onPress={() => {
             setViewMode("pending");
             setShowOnlyPending(true);
             setShowOnlyClosed(false);
           }}
         >
-          <MaterialIcons name="pending-actions" size={20} color={viewMode === "pending" ? COLORS.background : COLORS.warning} />
-          <Text style={[merchantAccountingStyles.modeButtonText, viewMode === "pending" && merchantAccountingStyles.modeButtonTextActive]}>
+          <MaterialIcons
+            name="pending-actions"
+            size={20}
+            color={viewMode === "pending" ? COLORS.background : COLORS.warning}
+          />
+          <Text
+            style={[
+              merchantAccountingStyles.modeButtonText,
+              viewMode === "pending" &&
+                merchantAccountingStyles.modeButtonTextActive,
+            ]}
+          >
             En cours
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[merchantAccountingStyles.modeButton, viewMode === "merchant" && merchantAccountingStyles.modeButtonActive]}
+          style={[
+            merchantAccountingStyles.modeButton,
+            viewMode === "merchant" &&
+              merchantAccountingStyles.modeButtonActive,
+          ]}
           onPress={() => {
             setViewMode("merchant");
             setShowOnlyPending(false);
             setShowOnlyClosed(false);
           }}
         >
-          <MaterialIcons name="store" size={20} color={viewMode === "merchant" ? COLORS.background : COLORS.muted} />
-          <Text style={[merchantAccountingStyles.modeButtonText, viewMode === "merchant" && merchantAccountingStyles.modeButtonTextActive]}>
+          <MaterialIcons
+            name="store"
+            size={20}
+            color={viewMode === "merchant" ? COLORS.background : COLORS.muted}
+          />
+          <Text
+            style={[
+              merchantAccountingStyles.modeButtonText,
+              viewMode === "merchant" &&
+                merchantAccountingStyles.modeButtonTextActive,
+            ]}
+          >
             Par commerçant
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[merchantAccountingStyles.modeButton, viewMode === "monthly" && merchantAccountingStyles.modeButtonActive]}
+          style={[
+            merchantAccountingStyles.modeButton,
+            viewMode === "monthly" && merchantAccountingStyles.modeButtonActive,
+          ]}
           onPress={() => {
             setViewMode("monthly");
             setShowOnlyPending(false);
             setShowOnlyClosed(false);
           }}
         >
-          <MaterialIcons name="calendar-view-month" size={20} color={viewMode === "monthly" ? COLORS.background : COLORS.muted} />
-          <Text style={[merchantAccountingStyles.modeButtonText, viewMode === "monthly" && merchantAccountingStyles.modeButtonTextActive]}>
+          <MaterialIcons
+            name="calendar-view-month"
+            size={20}
+            color={viewMode === "monthly" ? COLORS.background : COLORS.muted}
+          />
+          <Text
+            style={[
+              merchantAccountingStyles.modeButtonText,
+              viewMode === "monthly" &&
+                merchantAccountingStyles.modeButtonTextActive,
+            ]}
+          >
             Par mois
           </Text>
         </TouchableOpacity>
@@ -839,21 +1022,35 @@ export default function MerchantAccounting() {
       <View style={merchantAccountingStyles.globalSummary}>
         <View style={merchantAccountingStyles.globalCard}>
           <Text style={merchantAccountingStyles.globalLabel}>Livraisons</Text>
-          <Text style={merchantAccountingStyles.globalValue}>{totals.deliveries}</Text>
+          <Text style={merchantAccountingStyles.globalValue}>
+            {totals.deliveries}
+          </Text>
         </View>
         <View style={merchantAccountingStyles.globalCard}>
           <Text style={merchantAccountingStyles.globalLabel}>Encaissé</Text>
-          <Text style={merchantAccountingStyles.globalValue}>{totals.encaisse.toLocaleString("fr-FR")} FCFA</Text>
+          <Text style={merchantAccountingStyles.globalValue}>
+            {totals.encaisse.toLocaleString("fr-FR")} FCFA
+          </Text>
         </View>
         <View style={merchantAccountingStyles.globalCard}>
           <Text style={merchantAccountingStyles.globalLabel}>À reverser</Text>
-          <Text style={[merchantAccountingStyles.globalValue, { color: COLORS.warning }]}>
+          <Text
+            style={[
+              merchantAccountingStyles.globalValue,
+              { color: COLORS.warning },
+            ]}
+          >
             {totals.aReverser.toLocaleString("fr-FR")} FCFA
           </Text>
         </View>
         <View style={merchantAccountingStyles.globalCard}>
           <Text style={merchantAccountingStyles.globalLabel}>Profit</Text>
-          <Text style={[merchantAccountingStyles.globalValue, { color: COLORS.success }]}>
+          <Text
+            style={[
+              merchantAccountingStyles.globalValue,
+              { color: COLORS.success },
+            ]}
+          >
             {totals.profit.toLocaleString("fr-FR")} FCFA
           </Text>
         </View>
@@ -864,32 +1061,49 @@ export default function MerchantAccounting() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={merchantAccountingStyles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+          />
         }
       >
         {/* ========== VUE "EN COURS" ========== */}
-        {viewMode === "pending" && (
-          pendingMerchants.length > 0 ? (
+        {viewMode === "pending" &&
+          (pendingMerchants.length > 0 ? (
             <>
-              <View style={{
-                backgroundColor: COLORS.warning + "10",
-                padding: 12,
-                marginHorizontal: 16,
-                marginBottom: 12,
-                borderRadius: 8,
-                borderLeftWidth: 3,
-                borderLeftColor: COLORS.warning,
-              }}>
-                <Text style={{ fontSize: 13, color: COLORS.warning, fontWeight: "500" }}>
-                  Ces commerçants ont des livraisons qui n'ont pas encore été reversées. 
-                  Clôturez-les une fois le reversement effectué.
+              <View
+                style={{
+                  backgroundColor: COLORS.warning + "10",
+                  padding: 12,
+                  marginHorizontal: 16,
+                  marginBottom: 12,
+                  borderRadius: 8,
+                  borderLeftWidth: 3,
+                  borderLeftColor: COLORS.warning,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: COLORS.warning,
+                    fontWeight: "500",
+                  }}
+                >
+                  Ces commerçants ont des livraisons qui n'ont pas encore été
+                  reversées. Clôturez-les une fois le reversement effectué.
                 </Text>
               </View>
 
               {pendingMerchants.map((merchant) => {
-                const isMerchantExpanded = expandedMerchants.includes(merchant.merchant_id);
+                const isMerchantExpanded = expandedMerchants.includes(
+                  merchant.merchant_id,
+                );
                 return (
-                  <View key={`pending-${merchant.merchant_id}`} style={merchantAccountingStyles.merchantCard}>
+                  <View
+                    key={`pending-${merchant.merchant_id}`}
+                    style={merchantAccountingStyles.merchantCard}
+                  >
                     <TouchableOpacity
                       style={merchantAccountingStyles.merchantHeader}
                       onPress={() => toggleMerchant(merchant.merchant_id)}
@@ -901,19 +1115,46 @@ export default function MerchantAccounting() {
                         </Text>
                       </View>
                       <View style={merchantAccountingStyles.merchantInfo}>
-                        <Text style={merchantAccountingStyles.merchantName}>{merchant.merchant_name}</Text>
-                        <Text style={{ fontSize: 12, color: COLORS.warning, marginTop: 2 }}>
-                          {merchant.totalDeliveries} livraison(s) en attente de reversement
+                        <Text style={merchantAccountingStyles.merchantName}>
+                          {merchant.merchant_name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: COLORS.warning,
+                            marginTop: 2,
+                          }}
+                        >
+                          {merchant.totalDeliveries} livraison(s) en attente de
+                          reversement
                         </Text>
                       </View>
                       <View style={{ alignItems: "flex-end" }}>
-                        <Text style={{ fontSize: 16, fontWeight: "700", color: COLORS.warning }}>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "700",
+                            color: COLORS.warning,
+                          }}
+                        >
                           {merchant.totalAReverser.toLocaleString("fr-FR")} FCFA
                         </Text>
-                        <Text style={{ fontSize: 11, color: COLORS.muted, marginTop: 2 }}>à reverser</Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: COLORS.muted,
+                            marginTop: 2,
+                          }}
+                        >
+                          à reverser
+                        </Text>
                       </View>
                       <MaterialIcons
-                        name={isMerchantExpanded ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                        name={
+                          isMerchantExpanded
+                            ? "keyboard-arrow-up"
+                            : "keyboard-arrow-down"
+                        }
                         size={20}
                         color={COLORS.muted}
                       />
@@ -923,35 +1164,75 @@ export default function MerchantAccounting() {
                       <View style={merchantAccountingStyles.merchantDetails}>
                         <View style={merchantAccountingStyles.financialSection}>
                           <View style={merchantAccountingStyles.financialRow}>
-                            <Text style={merchantAccountingStyles.financialLabel}>Total encaissé</Text>
-                            <Text style={merchantAccountingStyles.financialValue}>
-                              {merchant.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                            <Text
+                              style={merchantAccountingStyles.financialLabel}
+                            >
+                              Total encaissé
+                            </Text>
+                            <Text
+                              style={merchantAccountingStyles.financialValue}
+                            >
+                              {merchant.totalEncaisse.toLocaleString("fr-FR")}{" "}
+                              FCFA
                             </Text>
                           </View>
                           <View style={merchantAccountingStyles.financialRow}>
-                            <Text style={[merchantAccountingStyles.financialLabel, { color: COLORS.warning }]}>
+                            <Text
+                              style={[
+                                merchantAccountingStyles.financialLabel,
+                                { color: COLORS.warning },
+                              ]}
+                            >
                               À reverser
                             </Text>
-                            <Text style={[merchantAccountingStyles.financialValue, { color: COLORS.warning }]}>
-                              {merchant.totalAReverser.toLocaleString("fr-FR")} FCFA
+                            <Text
+                              style={[
+                                merchantAccountingStyles.financialValue,
+                                { color: COLORS.warning },
+                              ]}
+                            >
+                              {merchant.totalAReverser.toLocaleString("fr-FR")}{" "}
+                              FCFA
                             </Text>
                           </View>
                         </View>
 
                         <View style={merchantAccountingStyles.recentDeliveries}>
-                          <Text style={merchantAccountingStyles.recentDeliveriesTitle}>
+                          <Text
+                            style={
+                              merchantAccountingStyles.recentDeliveriesTitle
+                            }
+                          >
                             Livraisons en attente ({merchant.deliveries.length})
                           </Text>
-                          {merchant.deliveries.map((delivery) => renderDeliveryItem(delivery))}
+                          {merchant.deliveries.map((delivery) =>
+                            renderDeliveryItem(delivery),
+                          )}
                         </View>
 
                         <TouchableOpacity
-                          style={[merchantAccountingStyles.closeButton, { marginTop: 16 }]}
-                          onPress={() => handleCloseAllMerchant(merchant.merchant_id, merchant.merchant_name)}
+                          style={[
+                            merchantAccountingStyles.closeButton,
+                            { marginTop: 16 },
+                          ]}
+                          onPress={() =>
+                            handleCloseAllMerchant(
+                              merchant.merchant_id,
+                              merchant.merchant_name,
+                            )
+                          }
                         >
-                          <MaterialIcons name="check-circle" size={18} color="#FFFFFF" />
-                          <Text style={merchantAccountingStyles.closeButtonText}>
-                            Tout clôturer ({merchant.totalAReverser.toLocaleString("fr-FR")} FCFA)
+                          <MaterialIcons
+                            name="check-circle"
+                            size={18}
+                            color="#FFFFFF"
+                          />
+                          <Text
+                            style={merchantAccountingStyles.closeButtonText}
+                          >
+                            Tout clôturer (
+                            {merchant.totalAReverser.toLocaleString("fr-FR")}{" "}
+                            FCFA)
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -962,17 +1243,22 @@ export default function MerchantAccounting() {
             </>
           ) : (
             <View style={merchantAccountingStyles.emptyState}>
-              <MaterialIcons name="check-circle" size={48} color={COLORS.success} />
-              <Text style={merchantAccountingStyles.emptyStateTitle}>Tout est clôturé !</Text>
+              <MaterialIcons
+                name="check-circle"
+                size={48}
+                color={COLORS.success}
+              />
+              <Text style={merchantAccountingStyles.emptyStateTitle}>
+                Tout est clôturé !
+              </Text>
               <Text style={merchantAccountingStyles.emptyStateText}>
                 Toutes les livraisons ont été reversées
               </Text>
             </View>
-          )
-        )}
+          ))}
 
         {/* ========== VUE "PAR COMMERÇANT" ========== */}
-          {viewMode === "merchant" &&
+        {viewMode === "merchant" &&
           (() => {
             const allMerchantsMap = new Map<
               number,
@@ -1243,7 +1529,7 @@ export default function MerchantAccounting() {
           })()}
 
         {/* ========== VUE "PAR MOIS" ========== */}
-         {viewMode === "monthly" &&
+        {viewMode === "monthly" &&
           (filteredMonthlyData.length > 0 ? (
             filteredMonthlyData.map((month) => {
               const isMonthExpanded = expandedMonths.includes(month.monthKey);
