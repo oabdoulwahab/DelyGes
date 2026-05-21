@@ -39,7 +39,7 @@ export const initDB = async (): Promise<void> => {
       )
     `);
 
-    // ===== TABLE MERCHANTS (🔥 AJOUT de address) =====
+    // ===== TABLE MERCHANTS =====
     await db.execAsync(`
       CREATE TABLE IF NOT EXISTS merchants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,7 +47,11 @@ export const initDB = async (): Promise<void> => {
         contact_name TEXT,
         phone TEXT,
         address TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        user_id TEXT,
+        firebase_id TEXT,
+        needs_sync INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `);
 

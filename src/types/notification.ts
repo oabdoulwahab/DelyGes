@@ -13,7 +13,7 @@ export interface Notification {
   type: NotificationType;
   title: string;
   body: string;
-  data?: any;
+  data?: Record<string, unknown>;
   read: boolean;
   createdAt: string;
   userId: number;

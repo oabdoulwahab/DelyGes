@@ -64,7 +64,7 @@ export default function Deliveries() {
 
   const loadDeliveries = async () => {
     let query = "";
-    let params: any[] = [];
+    let params: (string | number | boolean | null)[] = [];
 
     switch (activeTab) {
       case "A_LIVRER":
@@ -289,7 +289,7 @@ export default function Deliveries() {
     return { morning, afternoon, evening };
   };
 
-  const onDateChange = (event: any, date?: Date) => {
+  const onDateChange = (event: object, date?: Date) => {
     setShowDatePicker(false);
     if (date) {
       setSelectedDate(date);
@@ -527,7 +527,7 @@ export default function Deliveries() {
                 ]}
               >
                 <MaterialIcons
-                  name={statusConfig.icon as any}
+                  name={statusConfig.icon as keyof typeof MaterialIcons.glyphMap}
                   size={12}
                   color={statusConfig.textColor}
                 />

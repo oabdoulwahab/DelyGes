@@ -819,7 +819,7 @@ const getOrCreateMerchant = async () => {
                       addDeliveryStyles.paymentSelected,
                   ]}
                   onPress={() => {
-                    setPaymentType(item.key as any);
+                    setPaymentType(item.key as PaymentType);
                     setErrors((prev) => ({
                       ...prev,
                       parcelValue: false,

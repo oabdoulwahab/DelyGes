@@ -151,6 +151,21 @@ export type RegisterData = {
   acceptCGU: boolean;
 };
 
+// Type pour le résumé du tableau de bord
+export type DashboardSummary = {
+  todayEarnings: number;
+  weekEarnings: number;
+  monthEarnings: number;
+  monthGoal: number;
+  monthProgress: number;
+  todayDeliveries: Record<string, Delivery[]>;
+  stats: {
+    completed: number;
+    pending: number;
+    cancelled: number;
+  };
+};
+
 // Types pour les réponses d'API (si ajout backend plus tard)
 export type ApiResponse<T> = {
   success: boolean;

@@ -1,6 +1,6 @@
 // src/store/delivery.store.ts
 import { create } from 'zustand';
-import { Delivery, DeliveryFilters, DeliveryStatus } from '../types';
+import { Delivery, DeliveryFilters, DeliveryStatus, DeliveryCreateDTO, DeliveryUpdateDTO, DashboardSummary } from '../types';
 import { DeliveryService } from '../services/delivery.service';
 
 interface DeliveryState {
@@ -10,13 +10,13 @@ interface DeliveryState {
   isLoading: boolean;
   error: string | null;
   filters: DeliveryFilters;
-  stats: any;
+  stats: DashboardSummary | null;
   
   // Actions
   loadDeliveries: (filters?: DeliveryFilters) => Promise<void>;
   loadStats: () => Promise<void>;
-  addDelivery: (data: any) => Promise<Delivery>;
-  updateDelivery: (id: number, data: any) => Promise<Delivery>;
+  addDelivery: (data: Omit<DeliveryCreateDTO, 'user_id'>) => Promise<Delivery>;
+  updateDelivery: (id: number, data: DeliveryUpdateDTO) => Promise<Delivery>;
   deleteDelivery: (id: number) => Promise<void>;
   markAsDelivered: (id: number) => Promise<Delivery>;
   cancelDelivery: (id: number) => Promise<Delivery>;
