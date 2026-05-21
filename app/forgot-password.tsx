@@ -17,7 +17,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { Image } from "react-native";
 import { BlurView } from "expo-blur";
 
-import { db } from "../src/database/db";
+import { UserRepository } from "../src/repositories/user.repository";
 import * as yup from "yup";
 import { COLORS } from "../styles/colors";
 import { forgotPasswordStyles } from "../styles/forgotPasswordStyles";
@@ -57,10 +57,7 @@ export default function ForgotPassword() {
 
     try {
       // Vérifier si l'utilisateur existe
-      const user = await db.getFirstAsync<any>(
-        "SELECT id, name, email, phone FROM user WHERE email = ? OR phone = ?",
-        [data.emailOrPhone, data.emailOrPhone]
-      );
+      const user = await UserRepository.findByEmailOrPhone(data.emailOrPhone);
 
       if (!user) {
         showError(

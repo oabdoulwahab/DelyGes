@@ -15,31 +15,13 @@ import {
   View,
 } from "react-native";
 import { useModal } from "../providers/ModalProvider";
-import { db } from "../src/database/db";
 import { COLORS } from "../styles/colors";
 import { merchantAccountingStyles } from "../styles/merchantAccountingStyles";
+import { DeliveryRepository } from "../src/repositories/delivery.repository";
+import { MerchantRepository } from "../src/repositories/merchant.repository";
+import { Delivery, Merchant } from "../src/types";
 
-type Delivery = {
-  id: number;
-  merchant_id: number;
-  delivery_fee: number;
-  parcel_value: number;
-  payment_type: string;
-  created_at: string;
-  delivered_at?: string;
-  recipient_name: string;
-  address: string;
-  phone?: string;
-  status: string;
-  reversed?: number;
-};
-
-type Merchant = {
-  id: number;
-  name: string;
-  phone?: string;
-  address?: string;
-};
+type DeliveryAccounting = Delivery & { month_key: string; year: string; month: string };
 
 type MonthlyData = {
   monthKey: string;
@@ -104,52 +86,29 @@ export default function MerchantAccounting() {
   // ============================================================
   const loadAccounting = async () => {
     try {
-      let query = `
-        SELECT 
-          d.*,
-          strftime('%Y-%m', d.delivered_at) as month_key,
-          strftime('%Y', d.delivered_at) as year,
-          strftime('%m', d.delivered_at) as month
-        FROM deliveries d
-        WHERE d.status = 'LIVREE'
-        AND d.reversed = 1
-      `;
-      let params: any[] = [];
+      let dateFrom: string | undefined;
+      let dateTo: string | undefined;
 
       if (dateFilterEnabled && selectedDate) {
         switch (activePeriod) {
           case "month":
-            const monthStart = startOfMonth(selectedDate);
-            const monthEnd = endOfMonth(selectedDate);
-            const monthStartStr = monthStart.toISOString().split("T")[0];
-            const monthEndStr = monthEnd.toISOString().split("T")[0];
-            query += " AND date(d.delivered_at) BETWEEN ? AND ?";
-            params = [monthStartStr, monthEndStr];
+            dateFrom = startOfMonth(selectedDate).toISOString().split("T")[0];
+            dateTo = endOfMonth(selectedDate).toISOString().split("T")[0];
             break;
           case "custom":
             if (selectedEndDate) {
-              const customStartStr = selectedDate!.toISOString().split("T")[0];
-              const customEndStr = selectedEndDate.toISOString().split("T")[0];
-              query += " AND date(d.delivered_at) BETWEEN ? AND ?";
-              params = [customStartStr, customEndStr];
+              dateFrom = selectedDate.toISOString().split("T")[0];
+              dateTo = selectedEndDate.toISOString().split("T")[0];
             } else {
-              const customStr = selectedDate!.toISOString().split("T")[0];
-              query += " AND date(d.delivered_at) = ?";
-              params = [customStr];
+              dateFrom = selectedDate.toISOString().split("T")[0];
             }
             break;
         }
       }
 
-      query += " ORDER BY d.delivered_at DESC";
+      const deliveries = await DeliveryRepository.findReversedWithDates(dateFrom, dateTo);
 
-      const deliveries = await db.getAllAsync<
-        Delivery & { month_key: string; year: string; month: string }
-      >(query, params);
-
-      const merchants = await db.getAllAsync<Merchant>(
-        "SELECT * FROM merchants ORDER BY name ASC",
-      );
+      const merchants = await MerchantRepository.findAll();
 
       const merchantMap: Record<number, Merchant> = {};
       merchants.forEach((merchant) => {
@@ -169,8 +128,8 @@ export default function MerchantAccounting() {
         const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
         const montantEncaisse =
           delivery.delivery_fee +
-          (isClientPaysTout ? delivery.parcel_value : 0);
-        const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
+          (isClientPaysTout ? (delivery.parcel_value ?? 0) : 0);
+        const montantAReverser = isClientPaysTout ? (delivery.parcel_value ?? 0) : 0;
         const profit = delivery.delivery_fee;
 
         const deliveryDate = new Date(
@@ -188,14 +147,14 @@ export default function MerchantAccounting() {
           };
         }
 
-        const merchantKey = delivery.merchant_id;
+        const merchantId = delivery.merchant_id ?? 0;
 
-        if (!monthlyGroups[monthKey].merchants[merchantKey]) {
-          monthlyGroups[monthKey].merchants[merchantKey] = {
-            merchant_id: delivery.merchant_id,
-            merchant_name: merchantMap[delivery.merchant_id]?.name || "Inconnu",
-            merchant_phone: merchantMap[delivery.merchant_id]?.phone,
-            merchant_address: merchantMap[delivery.merchant_id]?.address,
+        if (!monthlyGroups[monthKey].merchants[merchantId]) {
+          monthlyGroups[monthKey].merchants[merchantId] = {
+            merchant_id: merchantId,
+            merchant_name: merchantMap[merchantId]?.name || "Inconnu",
+            merchant_phone: merchantMap[merchantId]?.phone,
+            merchant_address: merchantMap[merchantId]?.address,
             totalDeliveries: 0,
             totalEncaisse: 0,
             totalAReverser: 0,
@@ -205,7 +164,7 @@ export default function MerchantAccounting() {
           };
         }
 
-        const merchantData = monthlyGroups[monthKey].merchants[merchantKey];
+        const merchantData = monthlyGroups[monthKey].merchants[merchantId];
         merchantData.totalDeliveries += 1;
         merchantData.totalEncaisse += montantEncaisse;
         merchantData.totalAReverser += montantAReverser;
@@ -251,19 +210,9 @@ export default function MerchantAccounting() {
   // ============================================================
   const loadPendingMerchants = async () => {
     try {
-      const query = `
-        SELECT d.*
-        FROM deliveries d
-        WHERE d.status = 'LIVREE'
-        AND d.reversed != 1
-        ORDER BY d.delivered_at DESC
-      `;
+      const deliveries = await DeliveryRepository.findPendingReversal();
 
-      const deliveries = await db.getAllAsync<Delivery>(query);
-
-      const merchants = await db.getAllAsync<Merchant>(
-        "SELECT * FROM merchants ORDER BY name ASC",
-      );
+      const merchants = await MerchantRepository.findAll();
 
       const merchantMap: Record<number, Merchant> = {};
       merchants.forEach((merchant) => {
@@ -276,16 +225,17 @@ export default function MerchantAccounting() {
         const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
         const montantEncaisse =
           delivery.delivery_fee +
-          (isClientPaysTout ? delivery.parcel_value : 0);
-        const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
+          (isClientPaysTout ? (delivery.parcel_value ?? 0) : 0);
+        const montantAReverser = isClientPaysTout ? (delivery.parcel_value ?? 0) : 0;
         const profit = delivery.delivery_fee;
 
-        if (!allMerchants.has(delivery.merchant_id)) {
-          allMerchants.set(delivery.merchant_id, {
-            merchant_id: delivery.merchant_id,
-            merchant_name: merchantMap[delivery.merchant_id]?.name || "Inconnu",
-            merchant_phone: merchantMap[delivery.merchant_id]?.phone,
-            merchant_address: merchantMap[delivery.merchant_id]?.address,
+        const merchantId = delivery.merchant_id ?? 0;
+        if (!allMerchants.has(merchantId)) {
+          allMerchants.set(merchantId, {
+            merchant_id: merchantId,
+            merchant_name: merchantMap[merchantId]?.name || "Inconnu",
+            merchant_phone: merchantMap[merchantId]?.phone,
+            merchant_address: merchantMap[merchantId]?.address,
             totalDeliveries: 0,
             totalEncaisse: 0,
             totalAReverser: 0,
@@ -295,7 +245,7 @@ export default function MerchantAccounting() {
           });
         }
 
-        const merchantData = allMerchants.get(delivery.merchant_id)!;
+        const merchantData = allMerchants.get(merchantId)!;
         merchantData.totalDeliveries += 1;
         merchantData.totalEncaisse += montantEncaisse;
         merchantData.totalAReverser += montantAReverser;
@@ -315,11 +265,8 @@ export default function MerchantAccounting() {
 
   const loadDeliveryDates = async () => {
     try {
-      const result = await db.getAllAsync<{ delivered_at: string }>(
-        "SELECT DISTINCT date(delivered_at) as delivered_at FROM deliveries WHERE status = 'LIVREE' ORDER BY delivered_at DESC",
-      );
-      const dates = result.map((item) => new Date(item.delivered_at));
-      setDeliveryDates(dates);
+      const dates = await DeliveryRepository.getDeliveredDates();
+      setDeliveryDates(dates.map((d) => new Date(d)));
     } catch (error) {
       console.error("Erreur lors du chargement des dates:", error);
     }
@@ -403,21 +350,13 @@ export default function MerchantAccounting() {
           const startStr = startDate.toISOString().split("T")[0];
           const endStr = endDate.toISOString().split("T")[0];
 
-          // 🔥 Mettre à jour reversed ET needs_sync pour la synchronisation Firebase
-          await db.runAsync(
-            `UPDATE deliveries SET reversed = 1, needs_sync = 1 
-           WHERE merchant_id = ? 
-           AND status = 'LIVREE'
-           AND date(delivered_at) BETWEEN ? AND ?`,
-            [merchantId, startStr, endStr],
-          );
+          await DeliveryRepository.markReversedByMerchant(merchantId, startStr, endStr);
 
           showSuccess(
             "Succès",
             `Comptabilité de ${merchantName} clôturée pour cette période`,
           );
 
-          // 🔥 Recharger TOUT
           await Promise.all([loadAccounting(), loadPendingMerchants()]);
           setExpandedMerchants([]);
           setExpandedMonths([]);
@@ -437,56 +376,13 @@ export default function MerchantAccounting() {
       `Voulez-vous marquer TOUTES les livraisons non reversées de ${merchantName} (tous mois confondus) comme reversées ?`,
       async () => {
         try {
-          const handleCloseAllMerchant = (
-            merchantId: number,
-            merchantName: string,
-          ) => {
-            showConfirm(
-              "Clôturer le commerçant",
-              `Voulez-vous marquer TOUTES les livraisons non reversées de ${merchantName} (tous mois confondus) comme reversées ?`,
-              async () => {
-                try {
-                  await db.runAsync(
-                    `UPDATE deliveries SET reversed = 1 
-             WHERE merchant_id = ? 
-             AND status = 'LIVREE'
-             AND reversed != 1`,
-                    [merchantId],
-                  );
-
-                  showSuccess(
-                    "Succès",
-                    `Toutes les livraisons de ${merchantName} ont été marquées comme reversées`,
-                  );
-
-                  // 🔥 Recharger TOUT
-                  await Promise.all([loadAccounting(), loadPendingMerchants()]);
-                  setExpandedMerchants([]);
-                  setExpandedMonths([]);
-                } catch (error) {
-                  console.error("Erreur lors de la clôture:", error);
-                  showError("Erreur", "Impossible de clôturer la comptabilité");
-                }
-              },
-              "Oui, tout clôturer",
-              "Annuler",
-            );
-          };
-          // 🔥 Mettre à jour reversed ET needs_sync pour la synchronisation Firebase
-          await db.runAsync(
-            `UPDATE deliveries SET reversed = 1, needs_sync = 1 
-           WHERE merchant_id = ? 
-           AND status = 'LIVREE'
-           AND reversed != 1`,
-            [merchantId],
-          );
+          await DeliveryRepository.markReversedByMerchant(merchantId);
 
           showSuccess(
             "Succès",
             `Toutes les livraisons de ${merchantName} ont été marquées comme reversées`,
           );
 
-          // 🔥 Recharger TOUT
           await Promise.all([loadAccounting(), loadPendingMerchants()]);
           setExpandedMerchants([]);
           setExpandedMonths([]);

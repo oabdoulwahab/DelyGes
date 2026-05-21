@@ -4,7 +4,7 @@ import { Security } from '../utils/security';
 import { Validators } from '../utils/validators';
 import { AuthError, ValidationError, NotFoundError } from '../utils/errors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LoginCredentials, RegisterData } from '../types';
+import { LoginCredentials, RegisterData, User } from '../types';
 
 type AppError = AuthError | ValidationError | NotFoundError;
 
@@ -15,8 +15,7 @@ const STORAGE_KEYS = {
 };
 
 export class AuthService {
-  // Connexion
-  static async login(credentials: LoginCredentials): Promise<{ user: any; token: string }> {
+  static async login(credentials: LoginCredentials): Promise<{ user: Omit<User, 'password'>; token: string }> {
     try {
       // Validation des identifiants
       if (!credentials.emailOrPhone || !credentials.password) {
@@ -38,20 +37,17 @@ export class AuthService {
       // Générer un token
       const token = Security.generateToken(user.id);
 
-      // Stocker les informations
       await this.storeAuthData(user, token, credentials.rememberMe);
 
-      // Retourner sans le mot de passe
-      const { password, ...userWithoutPassword } = user;
-      return { user: userWithoutPassword, token };
+      const { password: _, ...userWithoutPassword } = user;
+      return { user: userWithoutPassword as Omit<User, 'password'>, token };
     } catch (error) {
       if (error instanceof AuthError || error instanceof ValidationError || error instanceof NotFoundError) throw error;
       throw new AuthError('Erreur lors de la connexion');
     }
   }
 
-  // Inscription
-  static async register(data: RegisterData): Promise<{ user: any; token: string }> {
+  static async register(data: RegisterData): Promise<{ user: Omit<User, 'password'>; token: string }> {
     try {
       // Validation des données
       if (data.password !== data.confirmPassword) {
@@ -85,12 +81,10 @@ export class AuthService {
       // Générer un token
       const token = Security.generateToken(user.id);
 
-      // Stocker les informations
       await this.storeAuthData(user, token, false);
 
-      // Retourner sans le mot de passe
-      const { password, ...userWithoutPassword } = user;
-      return { user: userWithoutPassword, token };
+      const { password: _, ...userWithoutPassword } = user;
+      return { user: userWithoutPassword as Omit<User, 'password'>, token };
     } catch (error) {
       if (error instanceof AuthError || error instanceof ValidationError || error instanceof NotFoundError) throw error;
       throw new Error('Erreur lors de l\'inscription');
@@ -110,8 +104,7 @@ export class AuthService {
     }
   }
 
-  // Vérifier l'authentification
-  static async checkAuth(): Promise<{ user: any; token: string } | null> {
+  static async checkAuth(): Promise<{ user: Omit<User, 'password'>; token: string } | null> {
     try {
       const token = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN);
       const userJson = await AsyncStorage.getItem(STORAGE_KEYS.USER);
@@ -134,8 +127,7 @@ export class AuthService {
         return null;
       }
 
-      // Retourner sans le mot de passe
-      const { password, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user;
       return { user: userWithoutPassword, token };
     } catch (error) {
       console.error('Erreur lors de la vérification de l\'auth:', error);
@@ -143,8 +135,7 @@ export class AuthService {
     }
   }
 
-  // Récupérer l'utilisateur courant
-  static async getCurrentUser(): Promise<any | null> {
+  static async getCurrentUser(): Promise<Omit<User, 'password'> | null> {
     const authData = await this.checkAuth();
     return authData?.user || null;
   }
@@ -177,10 +168,9 @@ export class AuthService {
     }
   }
 
-  // Stocker les données d'authentification
-  private static async storeAuthData(user: any, token: string, rememberMe: boolean = false): Promise<void> {
+  private static async storeAuthData(user: Record<string, unknown>, token: string, rememberMe: boolean = false): Promise<void> {
     try {
-      const { password, ...userWithoutPassword } = user;
+      const { password: _, ...userWithoutPassword } = user;
       
       await AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token);
       await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userWithoutPassword));

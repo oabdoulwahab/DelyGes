@@ -107,7 +107,6 @@ export class DeliveryRepository {
   // Créer une livraison
   static async create(deliveryData: DeliveryCreateDTO): Promise<Delivery> {
     try {
-      // Validation des données
       if (deliveryData.delivery_fee < 0) {
         throw new ValidationError('Les frais de livraison ne peuvent pas être négatifs');
       }
@@ -118,16 +117,24 @@ export class DeliveryRepository {
 
       const result = await DatabaseService.execute(
         `INSERT INTO deliveries 
-         (recipient_name, phone, address, parcel_value, delivery_fee, status, user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+         (recipient_name, phone, address, parcel_value, delivery_fee, 
+          merchant_id, payment_type, amount_collected, amount_to_return,
+          profit, status, user_id, created_at, needs_sync)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           deliveryData.recipient_name,
           deliveryData.phone || null,
           deliveryData.address,
           deliveryData.parcel_value || 0,
           deliveryData.delivery_fee,
+          deliveryData.merchant_id || null,
+          deliveryData.payment_type || 'CLIENT_PAYE_TOUT',
+          deliveryData.amount_collected || 0,
+          deliveryData.amount_to_return || 0,
+          deliveryData.profit || 0,
           'A_LIVRER',
-          deliveryData.user_id
+          deliveryData.user_id,
+          new Date().toISOString(),
         ]
       );
 
@@ -190,7 +197,6 @@ export class DeliveryRepository {
         updates.push('status = ?');
         params.push(deliveryData.status);
 
-        // Si marqué comme livré, ajouter la date de livraison
         if (deliveryData.status === 'LIVREE' && !delivery.delivered_at) {
           updates.push('delivered_at = CURRENT_TIMESTAMP');
         } else if (deliveryData.status !== 'LIVREE') {
@@ -201,6 +207,36 @@ export class DeliveryRepository {
       if (deliveryData.delivered_at) {
         updates.push('delivered_at = ?');
         params.push(deliveryData.delivered_at);
+      }
+
+      if (deliveryData.payment_type) {
+        updates.push('payment_type = ?');
+        params.push(deliveryData.payment_type);
+      }
+
+      if (deliveryData.merchant_id !== undefined) {
+        updates.push('merchant_id = ?');
+        params.push(deliveryData.merchant_id);
+      }
+
+      if (deliveryData.amount_collected !== undefined) {
+        updates.push('amount_collected = ?');
+        params.push(deliveryData.amount_collected);
+      }
+
+      if (deliveryData.amount_to_return !== undefined) {
+        updates.push('amount_to_return = ?');
+        params.push(deliveryData.amount_to_return);
+      }
+
+      if (deliveryData.profit !== undefined) {
+        updates.push('profit = ?');
+        params.push(deliveryData.profit);
+      }
+
+      if (deliveryData.needs_sync !== undefined) {
+        updates.push('needs_sync = ?');
+        params.push(deliveryData.needs_sync);
       }
 
       if (updates.length === 0) {
@@ -222,6 +258,16 @@ export class DeliveryRepository {
       console.error('Erreur update:', error);
       if (error instanceof AppError) throw error;
       throw new DatabaseError('Impossible de mettre à jour la livraison');
+    }
+  }
+
+  // Supprimer les livraisons d'un utilisateur
+  static async deleteByUserId(userId: number): Promise<void> {
+    try {
+      await DatabaseService.execute('DELETE FROM deliveries WHERE user_id = ?', [userId]);
+    } catch (error) {
+      console.error('Erreur deleteByUserId:', error);
+      throw new DatabaseError('Impossible de supprimer les livraisons');
     }
   }
 
@@ -389,6 +435,32 @@ export class DeliveryRepository {
     }
   }
 
+  // Obtenir les dates des livraisons (pour le calendrier)
+  static async getDeliveryDates(): Promise<string[]> {
+    try {
+      const result = await DatabaseService.query<{ created_at: string }>(
+        "SELECT DISTINCT date(created_at) as created_at FROM deliveries ORDER BY created_at DESC",
+      );
+      return result.map((r) => r.created_at);
+    } catch (error) {
+      console.error('Erreur getDeliveryDates:', error);
+      return [];
+    }
+  }
+
+  // Requête flexible pour l'écran des livraisons
+  static async queryDeliveries(
+    sql: string,
+    params: any[] = [],
+  ): Promise<Delivery[]> {
+    try {
+      return await DatabaseService.query<Delivery>(sql, params);
+    } catch (error) {
+      console.error('Erreur queryDeliveries:', error);
+      throw new DatabaseError('Impossible de récupérer les livraisons');
+    }
+  }
+
   // Obtenir les revenus par jour
   static async getDailyEarnings(userId: number, days: number = 7): Promise<Array<{
     date: string;
@@ -419,6 +491,83 @@ export class DeliveryRepository {
     } catch (error) {
       console.error('Erreur getDailyEarnings:', error);
       throw new DatabaseError('Impossible de récupérer les revenus journaliers');
+    }
+  }
+
+  // Livraisons reversées avec computed columns (pour comptabilité)
+  static async findReversedWithDates(dateFrom?: string, dateTo?: string): Promise<(Delivery & { month_key: string; year: string; month: string })[]> {
+    try {
+      let query = `
+        SELECT d.*,
+          strftime('%Y-%m', d.delivered_at) as month_key,
+          strftime('%Y', d.delivered_at) as year,
+          strftime('%m', d.delivered_at) as month
+        FROM deliveries d
+        WHERE d.status = 'LIVREE'
+        AND d.reversed = 1
+      `;
+      const params: any[] = [];
+
+      if (dateFrom && dateTo) {
+        query += ' AND date(d.delivered_at) BETWEEN ? AND ?';
+        params.push(dateFrom, dateTo);
+      } else if (dateFrom) {
+        query += ' AND date(d.delivered_at) = ?';
+        params.push(dateFrom);
+      }
+
+      query += ' ORDER BY d.delivered_at DESC';
+
+      return await DatabaseService.query(query, params);
+    } catch (error) {
+      console.error('Erreur findReversedWithDates:', error);
+      throw new DatabaseError('Impossible de récupérer les livraisons reversées');
+    }
+  }
+
+  // Livraisons livrées mais non reversées
+  static async findPendingReversal(): Promise<Delivery[]> {
+    try {
+      return await DatabaseService.query<Delivery>(
+        `SELECT d.* FROM deliveries d
+         WHERE d.status = 'LIVREE'
+         AND d.reversed != 1
+         ORDER BY d.delivered_at DESC`,
+      );
+    } catch (error) {
+      console.error('Erreur findPendingReversal:', error);
+      throw new DatabaseError('Impossible de récupérer les livraisons en attente');
+    }
+  }
+
+  // Dates distinctes des livraisons livrées
+  static async getDeliveredDates(): Promise<string[]> {
+    try {
+      const result = await DatabaseService.query<{ delivered_at: string }>(
+        `SELECT DISTINCT date(delivered_at) as delivered_at FROM deliveries WHERE status = 'LIVREE' ORDER BY delivered_at DESC`,
+      );
+      return result.map((r) => r.delivered_at);
+    } catch (error) {
+      console.error('Erreur getDeliveredDates:', error);
+      return [];
+    }
+  }
+
+  // Marquer les livraisons d'un commerçant comme reversées (avec date optionnelle)
+  static async markReversedByMerchant(merchantId: number, dateFrom?: string, dateTo?: string): Promise<void> {
+    try {
+      let query = 'UPDATE deliveries SET reversed = 1, needs_sync = 1 WHERE merchant_id = ? AND status = \'LIVREE\'';
+      const params: any[] = [merchantId];
+
+      if (dateFrom && dateTo) {
+        query += ' AND date(delivered_at) BETWEEN ? AND ?';
+        params.push(dateFrom, dateTo);
+      }
+
+      await DatabaseService.execute(query, params);
+    } catch (error) {
+      console.error('Erreur markReversedByMerchant:', error);
+      throw new DatabaseError('Impossible de marquer comme reversé');
     }
   }
 }

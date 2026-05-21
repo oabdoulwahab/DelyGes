@@ -3,11 +3,13 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthService } from '../services/auth.service';
-import { User } from '../types';
+import { User, RegisterData } from '../types';
 import { AuthError, ValidationError } from '../utils/errors';
 
+type SafeUser = Omit<User, 'password'>;
+
 interface AuthState {
-  user: User | null;
+  user: SafeUser | null;
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -15,11 +17,11 @@ interface AuthState {
   
   // Actions
   login: (emailOrPhone: string, password: string, rememberMe?: boolean) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
-  setUser: (user: User | null) => void;
+  setUser: (user: SafeUser | null) => void;
 }
 
 export const useAuthStore = create<AuthState>()(

@@ -1,6 +1,7 @@
 // src/services/stats.service.ts
 import { db } from "../database/db";
 import { auth } from "../config/firebase";
+import { Delivery } from "../types";
 
 export type Period = "day" | "week" | "month" | "year";
 
@@ -78,7 +79,7 @@ export class StatsService {
         period,
       );
 
-      const allDeliveries = await db.getAllAsync<any>(
+      const allDeliveries = await db.getAllAsync<Delivery>(
         "SELECT id, status, delivered_at, delivery_fee, payment_type FROM deliveries",
       );
       console.log("📋 Toutes les livraisons:", allDeliveries);
@@ -97,7 +98,7 @@ export class StatsService {
 
     console.log("🔍 Requête SQL:", `BETWEEN ${startStr} AND ${endStr}`);
 
-    const result = await db.getAllAsync<any>(
+    const result = await db.getAllAsync<Delivery>(
       `SELECT * FROM deliveries 
      WHERE status = 'LIVREE' 
      AND delivered_at BETWEEN ? AND ?
@@ -110,8 +111,8 @@ export class StatsService {
 
   // Calculer toutes les statistiques
   private static calculateStats(
-    current: any[],
-    previous: any[],
+    current: Delivery[],
+    previous: Delivery[],
     period: Period,
   ): StatsData {
     // Revenus totaux (somme des frais de livraison)
@@ -189,7 +190,7 @@ export class StatsService {
 
   // Générer les données du graphique
 
-  private static generateChartData(deliveries: any[], period: Period) {
+  private static generateChartData(deliveries: Delivery[], period: Period) {
     const chartData: number[] = [];
     const chartLabels: string[] = [];
 
@@ -260,7 +261,7 @@ export class StatsService {
   }
 
   // Calculer la répartition par source de revenus
-  private static calculateSources(deliveries: any[]) {
+  private static calculateSources(deliveries: Delivery[]) {
     let clientPayeTout = 0;
     let clientPayeLivraison = 0;
     let colisDejaPaye = 0;
@@ -292,7 +293,7 @@ export class StatsService {
   }
 
   // Calculer les zones top
-  private static calculateTopZones(deliveries: any[]) {
+  private static calculateTopZones(deliveries: Delivery[]) {
     const zoneCount = new Map<string, { count: number; id: number }>();
 
     deliveries.forEach((d) => {

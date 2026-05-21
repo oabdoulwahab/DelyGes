@@ -11,7 +11,9 @@ import {
   query,
   where,
   deleteDoc,
+  type DocumentData,
 } from "firebase/firestore";
+import { Delivery, Merchant } from "../types";
 
 class SyncService {
   private isOnline: boolean = true;
@@ -175,11 +177,12 @@ class SyncService {
   // Traiter un lot de commerçants
 
   private async processMerchantBatch(
-    batch: Array<{ firebaseId: string; data: any }>,
+    batch: Array<{ firebaseId: string; data: DocumentData }>,
   ) {
     const queries = batch.map(async (item) => {
-      // 🔥 Vérifier si la colonne address existe avant d'essayer de l'insérer
-      const schema = await db.getAllAsync<any>("PRAGMA table_info(merchants)");
+      const schema = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(merchants)",
+      );
       const hasAddress = schema.some((col) => col.name === "address");
 
       if (hasAddress) {
@@ -218,7 +221,7 @@ class SyncService {
 
   // Traiter un lot de livraisons
   private async processDeliveryBatch(
-    batch: Array<{ firebaseId: string; data: any }>,
+    batch: Array<{ firebaseId: string; data: DocumentData }>,
   ) {
     const queries = batch.map(async (item) => {
       // 🔥 Trouver l'ID local du commerçant à partir du firebase_id
@@ -315,7 +318,7 @@ class SyncService {
 
       // 🔥 CORRECTION : Ne pas filtrer par user_id car le user_id peut être différent
       // (ID local vs UID Firebase). On cherche uniquement par l'ID du commerçant.
-      const merchant = await db.getFirstAsync<any>(
+      const merchant = await db.getFirstAsync<Merchant>(
         "SELECT * FROM merchants WHERE id = ?",
         [merchantId],
       );
@@ -395,8 +398,8 @@ class SyncService {
   }
 
   private async syncDeliveries() {
-    const items = await db.getAllAsync<any>(
-      `SELECT * FROM deliveries WHERE needs_sync = 1 LIMIT 20`, // Limiter pour performance
+    const items = await db.getAllAsync<Delivery>(
+      `SELECT * FROM deliveries WHERE needs_sync = 1 LIMIT 20`,
     );
 
     if (items.length === 0) return;
@@ -406,7 +409,7 @@ class SyncService {
     await Promise.all(promises);
   }
 
-  private async syncSingleDelivery(item: any) {
+  private async syncSingleDelivery(item: Delivery) {
     try {
       console.log(
         `🔄 Synchronisation livraison ${item.id}, merchant_id local:`,
@@ -500,7 +503,7 @@ class SyncService {
     const userId = auth.currentUser?.uid;
     if (!userId) return;
 
-    const items = await db.getAllAsync<any>(
+    const items = await db.getAllAsync<Merchant>(
       `SELECT * FROM merchants 
        WHERE user_id = ? AND needs_sync = 1`,
       [userId],
@@ -513,16 +516,15 @@ class SyncService {
     await Promise.all(promises);
   }
 
-  private async syncSingleMerchant(item: any) {
+  private async syncSingleMerchant(item: Merchant) {
     try {
-      const firestoreData: any = {
+      const firestoreData: Record<string, unknown> = {
         name: item.name,
         phone: item.phone,
         user_id: auth.currentUser?.uid,
         updated_at: new Date().toISOString(),
       };
 
-      // 🔥 N'ajouter address que si elle existe
       if (item.address) {
         firestoreData.address = item.address;
       }

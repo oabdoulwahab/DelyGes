@@ -4,7 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { NotificationStore } from "../src/services/notification.store";
 import { COLORS } from "../styles/colors";
-import { useAuth } from "../src/hooks/useAuth";
+import { useAuth } from "../src/context/AuthContext";
 
 interface NotificationBadgeProps {
   size?: number;

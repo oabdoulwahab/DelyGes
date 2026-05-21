@@ -15,7 +15,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { commonStyles } from "../styles/common";
 import { notificationsStyles } from "../styles/notificationsStyles";
 import { COLORS } from "../styles/colors";
-import { useAuth } from "../src/hooks/useAuth";
+import { useAuth } from "../src/context/AuthContext";
 import { NotificationStore } from "../src/services/notification.store";
 import { Notification } from "../src/types/notification";
 import { formatDistanceToNow } from "date-fns";

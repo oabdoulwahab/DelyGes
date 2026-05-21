@@ -8,12 +8,12 @@ import {
 import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import { db } from "../src/database/db";
+import { UserRepository } from "../src/repositories/user.repository";
 import { BlurView } from "expo-blur";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
 import { notificationSettingsStyles } from "../styles/notificationSettingsStyles";
-import { useAuth } from "../src/hooks/useAuth";
+import { useAuth } from "../src/context/AuthContext";
 import { useAutoSave } from "../src/hooks/useAutoSave";
 
 type NotificationSettings = {
@@ -45,10 +45,7 @@ export default function NotificationSettings() {
       if (!user) return;
 
       try {
-        const userData = await db.getFirstAsync<any>(
-          "SELECT * FROM user WHERE id = ?",
-          [user.id]
-        );
+        const userData = await UserRepository.findById(user.id);
 
         if (userData) {
           setSettings({

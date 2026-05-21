@@ -14,6 +14,9 @@ import { useState, useEffect } from "react";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { db } from "../src/database/db";
+import { UserRepository } from "../src/repositories/user.repository";
+import { DeliveryRepository } from "../src/repositories/delivery.repository";
+import { MerchantRepository } from "../src/repositories/merchant.repository";
 import { BlurView } from "expo-blur";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
@@ -92,7 +95,7 @@ export default function Settings() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Fonction pour mettre à jour un champ avec auto-save ET Firebase
-  const updateSetting = async (field: keyof UserSettings, value: any) => {
+  const updateSetting = async (field: keyof UserSettings, value: string | number | boolean) => {
     setSettings((prev) => ({ ...prev, [field]: value }));
     autoSave(field, value);
 
@@ -101,7 +104,7 @@ export default function Settings() {
         const userRef = doc(firestore, "users", firebaseUser.uid);
 
         if (field === "name") {
-          await updateProfile(firebaseUser, { displayName: value });
+          await updateProfile(firebaseUser, { displayName: value as string });
         }
 
         await updateDoc(userRef, {
@@ -119,7 +122,7 @@ export default function Settings() {
   // Ajouter les colonnes manquantes à la table user
   const addMissingColumns = async () => {
     try {
-      const userSchema = await db.getAllAsync<any>("PRAGMA table_info(user)");
+      const userSchema = await db.getAllAsync<{ name: string; type: string }>("PRAGMA table_info(user)");
 
       const columnsToAdd = [
         { name: "siret", type: "TEXT" },
@@ -154,63 +157,26 @@ export default function Settings() {
     }
   };
 
-  // Mettre à jour les valeurs par défaut
   const setDefaultValues = async () => {
     if (!user) return;
 
     try {
-      const userData = await db.getFirstAsync<any>(
-        "SELECT * FROM user WHERE id = ?",
-        [user.id],
-      );
+      const userData = await UserRepository.findById(user.id);
+      if (!userData) return;
 
-      const updates: string[] = [];
-      const params: any[] = [];
+      const defaults: Record<string, unknown> = {};
 
-      if (!userData.siret || userData.siret === null) {
-        updates.push("siret = ?");
-        params.push("");
-      }
+      if (!userData.siret) defaults.siret = "";
+      if (!userData.vehicle) defaults.vehicle = "Scooter 125cc";
+      if (userData.is_vat === null) defaults.is_vat = 0;
+      if (userData.daily_goal === null) defaults.daily_goal = 0;
+      if (userData.monthly_goal === null) defaults.monthly_goal = 0;
+      if (userData.reminder_notifications === null) defaults.reminder_notifications = 1;
+      if (userData.payment_notifications === null) defaults.payment_notifications = 1;
+      if (userData.daily_goal_notifications === null) defaults.daily_goal_notifications = 1;
 
-      if (!userData.vehicle || userData.vehicle === null) {
-        updates.push("vehicle = ?");
-        params.push("Scooter 125cc");
-      }
-
-      if (userData.is_vat === null) {
-        updates.push("is_vat = ?");
-        params.push(0);
-      }
-
-      if (userData.daily_goal === null) {
-        updates.push("daily_goal = ?");
-        params.push( );
-      }
-
-      if (userData.monthly_goal === null) {
-        updates.push("monthly_goal = ?");
-        params.push(0);
-      }
-
-      if (userData.reminder_notifications === null) {
-        updates.push("reminder_notifications = ?");
-        params.push(1);
-      }
-
-      if (userData.payment_notifications === null) {
-        updates.push("payment_notifications = ?");
-        params.push(1);
-      }
-
-      if (userData.daily_goal_notifications === null) {
-        updates.push("daily_goal_notifications = ?");
-        params.push(1);
-      }
-
-      if (updates.length > 0) {
-        params.push(user.id);
-        const query = `UPDATE user SET ${updates.join(", ")} WHERE id = ?`;
-        await db.runAsync(query, params);
+      if (Object.keys(defaults).length > 0) {
+        await UserRepository.update(user.id, defaults);
         console.log("✅ Valeurs par défaut mises à jour");
       }
     } catch (error) {
@@ -226,10 +192,7 @@ export default function Settings() {
       await addMissingColumns();
       await setDefaultValues();
 
-      const userData = await db.getFirstAsync<any>(
-        "SELECT * FROM user WHERE id = ?",
-        [user.id],
-      );
+      const userData = await UserRepository.findById(user.id);
 
       if (userData) {
         console.log("📋 Données utilisateur chargées:", userData);
@@ -320,10 +283,8 @@ export default function Settings() {
       await reauthenticateWithCredential(firebaseUser, credential);
       await updatePassword(firebaseUser, passwordData.newPassword);
 
-      await db.runAsync("UPDATE user SET password = ? WHERE id = ?", [
-        "firebase_managed",
-        user.id,
-      ]);
+      if (!user) return;
+      await UserRepository.patchPassword(user.id, "firebase_managed");
 
       showSuccess("Succès", "Mot de passe modifié avec succès");
 
@@ -333,12 +294,13 @@ export default function Settings() {
         confirmPassword: "",
       });
       setPasswordExpanded(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Erreur changement mot de passe:", error);
 
-      if (error.code === "auth/wrong-password") {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === "auth/wrong-password") {
         showError("Erreur", "Mot de passe actuel incorrect");
-      } else if (error.code === "auth/weak-password") {
+      } else if (firebaseError.code === "auth/weak-password") {
         showError("Erreur", "Nouveau mot de passe trop faible");
       } else {
         showError("Erreur", "Impossible de modifier le mot de passe");
@@ -392,10 +354,7 @@ export default function Settings() {
     }
 
     try {
-      const deliveries = await db.getAllAsync<any>(
-        "SELECT * FROM deliveries WHERE user_id = ? ORDER BY created_at DESC",
-        [user.id],
-      );
+      const deliveries = await DeliveryRepository.findByUserId(user.id);
 
       showAlert(
         "Exporter les données",
@@ -446,12 +405,13 @@ export default function Settings() {
       setShowDeleteConfirmModal(true);
       setIsDeleting(false);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Erreur réauthentification:", error);
 
-      if (error.code === "auth/wrong-password") {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === "auth/wrong-password") {
         showError("Erreur", "Mot de passe incorrect");
-      } else if (error.code === "auth/too-many-requests") {
+      } else if (firebaseError.code === "auth/too-many-requests") {
         showError("Erreur", "Trop de tentatives. Réessayez plus tard");
       } else {
         showError("Erreur", "Échec de la vérification");
@@ -465,14 +425,12 @@ export default function Settings() {
     setIsDeleting(true);
 
     try {
-      console.log("🗑️ SUPPRESSION FINALE...");
-
       await deleteDoc(doc(firestore, "users", firebaseUser!.uid));
       console.log("✅ Document utilisateur supprimé");
 
-      await db.runAsync("DELETE FROM deliveries WHERE user_id = ?", [user.id]);
-      await db.runAsync("DELETE FROM merchants WHERE user_id = ?", [user.id]);
-      await db.runAsync("DELETE FROM user WHERE id = ?", [user.id]);
+      await DeliveryRepository.deleteByUserId(user.id);
+      await MerchantRepository.deleteByUserId(user.id);
+      await UserRepository.delete(user.id);
       console.log("✅ Données locales supprimées");
 
       await firebaseUser!.delete();
@@ -485,10 +443,11 @@ export default function Settings() {
 
       await logout();
       router.replace("/register");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Erreur suppression:", error);
 
-      if (error.code === "auth/requires-recent-login") {
+      const firebaseError = error as { code?: string };
+      if (firebaseError.code === "auth/requires-recent-login") {
         showError(
           "Erreur",
           "Session expirée. Veuillez vous reconnecter.",

@@ -11,38 +11,20 @@ import {
 } from "react-native";
 import { useState, useEffect, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
-import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { commonStyles } from "../styles/common";
 import { addDeliveryStyles } from "../styles/addDeliveryStyles";
 import { COLORS } from "../styles/colors";
-import { useAuth } from "../src/hooks/useAuth";
+import { useAuth } from "../src/context/AuthContext";
 import { useModal } from "../providers/ModalProvider";
 import { sendDeliveryCreatedNotification } from "../src/services/notification.service";
 import { useSync } from "../src/hooks/useSync";
-
-type Delivery = {
-  id: number;
-  recipient_name: string;
-  phone: string;
-  address: string;
-  parcel_value: number;
-  delivery_fee: number;
-  payment_type:
-    | "COLIS_DEJA_PAYE"
-    | "CLIENT_PAYE_LIVRAISON"
-    | "CLIENT_PAYE_TOUT"
-    | "LIVRAISON_DEJA_PAYEE";
-  merchant_id?: number;
-  status: string;
-};
-
-type Merchant = {
-  id: number;
-  name: string;
-  phone?: string;
-};
+import { DeliveryRepository } from "../src/repositories/delivery.repository";
+import { MerchantRepository } from "../src/repositories/merchant.repository";
+import { MerchantService } from "../src/services/merchant.service";
+import { FinancialCalculations } from "../src/utils/financialCalculations";
+import { Delivery, Merchant, PaymentType } from "../src/types";
 
 export default function AddDelivery() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,12 +39,7 @@ export default function AddDelivery() {
   const [deliveryFee, setDeliveryFee] = useState("");
   const [merchantName, setMerchantName] = useState("");
   const [merchantId, setMerchantId] = useState<number | null>(null);
-  const [paymentType, setPaymentType] = useState<
-    | "COLIS_DEJA_PAYE"
-    | "CLIENT_PAYE_LIVRAISON"
-    | "CLIENT_PAYE_TOUT"
-    | "LIVRAISON_DEJA_PAYEE"
-  >("CLIENT_PAYE_TOUT");
+  const [paymentType, setPaymentType] = useState<PaymentType>("CLIENT_PAYE_TOUT");
   const { markAndSync } = useSync();
 
   const [loading, setLoading] = useState(isEditing);
@@ -95,10 +72,7 @@ export default function AddDelivery() {
 
   const loadDeliveryData = async () => {
     try {
-      const delivery = await db.getFirstAsync<Delivery>(
-        "SELECT * FROM deliveries WHERE id = ?",
-        [Number(id)],
-      );
+      const delivery = await DeliveryRepository.findById(Number(id));
 
       if (delivery) {
         if (delivery.status === "LIVREE" || delivery.status === "ANNULEE") {
@@ -113,15 +87,12 @@ export default function AddDelivery() {
         setRecipientName(delivery.recipient_name);
         setPhone(delivery.phone || "");
         setAddress(delivery.address);
-        setParcelValue(delivery.parcel_value.toString());
+        setParcelValue((delivery.parcel_value ?? 0).toString());
         setDeliveryFee(delivery.delivery_fee.toString());
         setPaymentType(delivery.payment_type);
 
         if (delivery.merchant_id) {
-          const merchant = await db.getFirstAsync<Merchant>(
-            "SELECT * FROM merchants WHERE id = ?",
-            [delivery.merchant_id],
-          );
+          const merchant = await MerchantRepository.findById(delivery.merchant_id);
           if (merchant) {
             setMerchantName(merchant.name);
             setMerchantId(merchant.id);
@@ -138,9 +109,7 @@ export default function AddDelivery() {
 
   const loadMerchants = async () => {
     try {
-      const result = await db.getAllAsync<Merchant>(
-        "SELECT * FROM merchants ORDER BY name ASC",
-      );
+      const result = await MerchantRepository.findAll();
       setMerchants(result);
     } catch (error) {
       console.error("Erreur chargement merchants:", error);
@@ -209,69 +178,25 @@ export default function AddDelivery() {
     return !Object.values(newErrors).some((error) => error);
   };
 const getOrCreateMerchant = async () => {
-  if (!merchantName.trim()) {
-    console.log("⚠️ Pas de nom de commerçant, merchant_id sera null");
-    return null;
-  }
+  if (!merchantName.trim() || !user?.id) return null;
 
-  if (!user?.id) {
-    console.log("⚠️ Pas d'utilisateur connecté");
-    return null;
-  }
+  try {
+    const merchantId = await MerchantService.getOrCreate(
+      merchantName.trim(),
+      phone.trim() || undefined,
+    );
 
-  // 🔥 Récupérer l'UID Firebase de l'utilisateur connecté
-  const { auth } = require("../src/config/firebase");
-  const firebaseUid = auth.currentUser?.uid;
-  
-  if (!firebaseUid) {
-    console.log("⚠️ Pas d'UID Firebase, utilisation de l'ID local");
-  }
-
-  // 🔥 Chercher par nom ET par l'identifiant Firebase (ou local si pas Firebase)
-  const existingMerchant = await db.getFirstAsync<any>(
-    "SELECT * FROM merchants WHERE name = ? AND user_id = ?",
-    [merchantName.trim(), firebaseUid || user.id.toString()],
-  );
-
-  if (existingMerchant) {
-    console.log("✅ Commerçant existant trouvé:", {
-      id: existingMerchant.id,
-      name: existingMerchant.name,
-      firebase_id: existingMerchant.firebase_id,
-      user_id: existingMerchant.user_id,
-    });
-    
-    if (!existingMerchant.firebase_id) {
-      console.log("⚠️ Commerçant sans firebase_id, synchronisation en arrière-plan...");
-      markAndSync("merchants", existingMerchant.id).catch(e => 
+    if (merchantId) {
+      markAndSync("merchants", merchantId).catch(e =>
         console.log("⚠️ Sync différée commerçant:", e)
       );
     }
-    
-    return existingMerchant.id;
+
+    return merchantId;
+  } catch (error) {
+    console.error("❌ Erreur getOrCreateMerchant:", error);
+    return null;
   }
-
-  // 🔥 Créer un nouveau commerçant avec l'UID Firebase comme user_id
-  const result = await db.runAsync(
-    `INSERT INTO merchants (name, phone, user_id, created_at, needs_sync) 
-     VALUES (?, ?, ?, ?, 1)`,
-    [
-      merchantName.trim(),
-      phone.trim() || null,
-      firebaseUid || user.id.toString(), // UID Firebase prioritaire
-      new Date().toISOString(),
-    ],
-  );
-
-  const newId = result.lastInsertRowId;
-  console.log("🆕 Nouveau commerçant créé, ID:", newId, "user_id:", firebaseUid);
-
-  // Lancer la synchronisation en arrière-plan
-  markAndSync("merchants", newId).catch(e => 
-    console.log("⚠️ Sync différée nouveau commerçant:", e)
-  );
-
-  return newId;
 };
 
   const handleSave = async () => {
@@ -340,71 +265,44 @@ const getOrCreateMerchant = async () => {
       setSavingProgress("Sauvegarde...");
 
       if (isEditing) {
-        await db.runAsync(
-          `UPDATE deliveries SET
-            recipient_name = ?,
-            phone = ?,
-            address = ?,
-            parcel_value = ?,
-            delivery_fee = ?,
-            merchant_id = ?,
-            payment_type = ?,
-            amount_collected = ?,
-            amount_to_return = ?,
-            profit = ?,
-            needs_sync = 1
-          WHERE id = ?`,
-          [
-            recipientName.trim(),
-            phone.trim(),
-            address.trim(),
-            parcelValueNum,
-            deliveryFeeNum,
-            merchantIdValue,
-            paymentType,
-            amountCollected,
-            amountToReturn,
-            profit,
-            Number(id),
-          ],
-        );
+        await DeliveryRepository.update(Number(id), {
+          recipient_name: recipientName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          parcel_value: parcelValueNum,
+          delivery_fee: deliveryFeeNum,
+          merchant_id: merchantIdValue ?? undefined,
+          payment_type: paymentType,
+          amount_collected: amountCollected,
+          amount_to_return: amountToReturn,
+          profit: profit,
+          needs_sync: 1,
+        });
 
-        // 🔥 Lancer la synchronisation en arrière-plan
         markAndSync("deliveries", Number(id)).catch(e => 
           console.log("⚠️ Sync différée livraison:", e)
         );
         
         showSuccess("Succès", "Livraison modifiée avec succès");
       } else {
-        const result = await db.runAsync(
-          `INSERT INTO deliveries (
-            recipient_name, phone, address, parcel_value, delivery_fee,
-            merchant_id, payment_type, amount_collected, amount_to_return,
-            profit, status, user_id, created_at, needs_sync
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-          [
-            recipientName.trim(),
-            phone.trim(),
-            address.trim(),
-            parcelValueNum,
-            deliveryFeeNum,
-            merchantIdValue,
-            paymentType,
-            amountCollected,
-            amountToReturn,
-            profit,
-            "A_LIVRER",
-            user.id,
-            new Date().toISOString(),
-          ],
-        );
+        const newDelivery = await DeliveryRepository.create({
+          recipient_name: recipientName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          parcel_value: parcelValueNum,
+          delivery_fee: deliveryFeeNum,
+          merchant_id: merchantIdValue ?? undefined,
+          payment_type: paymentType,
+          amount_collected: amountCollected,
+          amount_to_return: amountToReturn,
+          profit: profit,
+          user_id: user.id,
+        });
 
-        // 🔥 Lancer la synchronisation en arrière-plan (ne pas attendre)
-        markAndSync("deliveries", result.lastInsertRowId).catch(e => 
+        markAndSync("deliveries", newDelivery.id).catch(e => 
           console.log("⚠️ Sync différée livraison:", e)
         );
 
-        // 🔥 Notification en arrière-plan
         sendDeliveryCreatedNotification(user.id, 1).catch(e => 
           console.log("⚠️ Notification différée:", e)
         );

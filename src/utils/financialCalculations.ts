@@ -1,5 +1,6 @@
 // app/src/utils/financialCalculations.ts
 import { PaymentType, Delivery } from '../types';
+import { db } from '../database/db';
 
 export class FinancialCalculations {
   /**
@@ -38,6 +39,13 @@ export class FinancialCalculations {
         amount_collected = parcel_value + delivery_fee;
         amount_to_return = parcel_value;
         profit = delivery_fee;
+        break;
+
+      case 'LIVRAISON_DEJA_PAYEE':
+        // Livraison déjà payée, client paie seulement le colis
+        amount_collected = parcel_value;
+        amount_to_return = parcel_value;
+        profit = 0;
         break;
 
       default:
@@ -89,8 +97,6 @@ export class FinancialCalculations {
     unsettled_amount: number;
     last_settlement: string | null;
   }> {
-    const { db } = require('../database/db');
-    
     try {
       // Total des livraisons non réglées
       let query = `
@@ -155,8 +161,6 @@ export class FinancialCalculations {
       delivery_count: number;
     }>;
   }> {
-    const { db } = require('../database/db');
-    
     try {
       // Totaux du jour
       const dailyTotals = await db.getFirstAsync<{

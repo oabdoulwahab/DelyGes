@@ -1,7 +1,6 @@
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { useEffect, useState, useCallback } from "react";
 import { router, useFocusEffect } from "expo-router";
-import { db } from "../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { commonStyles } from "../styles/common";
@@ -11,25 +10,8 @@ import { useModal } from "../providers/ModalProvider";
 import NotificationBadge from "../components/NotificationBadge";
 import { sendGoalAchievedNotification } from '../src/services/notification.service';
 import { useAuth } from '../src/context/AuthContext';
-
-// Définition des types
-type User = {
-  name: string;
-  phone?: string;
-  created_at: string;
-};
-
-type Delivery = {
-  id: number;
-  recipient_name: string;
-  phone?: string;
-  address: string;
-  parcel_value?: number;
-  delivery_fee: number;
-  status: string;
-  created_at: string;
-  delivered_at?: string;
-};
+import { DashboardService } from '../src/services/dashboard.service';
+import { Delivery } from '../src/types';
 
 export default function Dashboard() {
   const { user } = useAuth(); // 🔥 Récupérer l'utilisateur connecté
@@ -59,20 +41,13 @@ export default function Dashboard() {
     year: "numeric",
   });
 
-  // Charger le nom de l'utilisateur
   useEffect(() => {
-    const loadUser = async () => {
-      const user = await db.getFirstAsync<User>(
-        "SELECT name FROM user LIMIT 1",
-      );
-      if (user) {
-        setUserName(user.name || "Livreur");
-        const initial = user.name?.trim().charAt(0).toUpperCase() || "?";
-        setUserInitial(initial);
-      }
-    };
-    loadUser();
-  }, []);
+    if (user) {
+      setUserName(user.name || "Livreur");
+      const initial = (user.name || "?").trim().charAt(0).toUpperCase() || "?";
+      setUserInitial(initial);
+    }
+  }, [user]);
 
   // Fonction pour obtenir une couleur basée sur l'initiale
   const getAvatarColor = (initial: string) => {
@@ -90,143 +65,38 @@ export default function Dashboard() {
   };
 
   const loadStats = async () => {
-    const today = new Date().toISOString().split("T")[0];
     const todayDateStr = new Date().toDateString();
 
-    const deliveries = await db.getAllAsync<any>(
-      `SELECT * FROM deliveries 
-       WHERE status = 'LIVREE' 
-       AND delivered_at LIKE ?`,
-      [`${today}%`],
-    );
-
-    let encaisse = 0;
-    let aReverser = 0;
-    let profit = 0;
-
-    deliveries.forEach((delivery) => {
-      const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
-
-      const montantEncaisse =
-        delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
-
-      const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
-
-      encaisse += montantEncaisse;
-      aReverser += montantAReverser;
-      profit += delivery.delivery_fee;
-    });
-
-    setTodayEncaisse(encaisse);
-    setTodayAReverser(aReverser);
-    setTodayProfit(profit);
-    setTodayEarnings(profit);
-    setTodayCount(deliveries.length);
-
-    // 🔥 Détecter si l'objectif vient d'être atteint
-    const wasAchieved = profit >= dailyGoal;
-    
-    if (wasAchieved && !goalAchievedToday && lastGoalCheck !== todayDateStr) {
-      setGoalAchievedToday(true);
-      setLastGoalCheck(todayDateStr);
-      
-      // Envoyer une notification
-      if (user?.id) {
-        await sendGoalAchievedNotification(user.id, profit, dailyGoal);
-      }
-    }
-    
-    // Si on était en dessous de l'objectif, réinitialiser
-    if (!wasAchieved) {
-      setGoalAchievedToday(false);
-    }
-
-    // Calculer la progression
-    setDailyProgress(dailyGoal > 0 ? (profit / dailyGoal) * 100 : 0);
-
-    // Solde total non reversé
-    const pending = await db.getAllAsync<any>(
-      `SELECT * FROM deliveries 
-       WHERE status = 'LIVREE' 
-       AND reversed = 0`,
-    );
-
-    let pendingTotal = 0;
-    pending.forEach((delivery) => {
-      if (delivery.payment_type === "CLIENT_PAYE_TOUT") {
-        pendingTotal += delivery.parcel_value;
-      }
-    });
-    setPendingReversal(pendingTotal);
-
-    // Total hier
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-
-    const yesterdayResult = await db.getFirstAsync<{ total: number }>(
-      `SELECT SUM(delivery_fee) as total FROM deliveries 
-      WHERE status = ? AND delivered_at LIKE ?`,
-      ["LIVREE", `${yesterdayStr}%`],
-    );
-
-    const totalYesterday = yesterdayResult?.total || 0;
-    const variation =
-      totalYesterday === 0
-        ? 0
-        : Math.round(((profit - totalYesterday) / totalYesterday) * 100);
-    setTrendPercent(variation);
-
-    // Revenus de la semaine
-    const weekResult = await db.getFirstAsync<{ total: number }>(
-      `SELECT SUM(delivery_fee) as total 
-       FROM deliveries 
-       WHERE status = 'LIVREE'
-       AND date(delivered_at) >= date('now', '-7 days')`,
-    );
-    setWeekEarnings(weekResult?.total || 0);
-
-    // Revenus du mois
-    const monthResult = await db.getFirstAsync<{ total: number }>(
-      `SELECT SUM(delivery_fee) as total 
-       FROM deliveries 
-       WHERE status = 'LIVREE'
-       AND strftime('%Y-%m', delivered_at) = strftime('%Y-%m', 'now')`,
-    );
-    setMonthEarnings(monthResult?.total || 0);
-
-    // Livraisons du jour
-    const deliveriesResult = await db.getAllAsync<Delivery>(
-      `SELECT * FROM deliveries 
-       WHERE (status = 'A_LIVRER' OR status = 'LIVREE') 
-       AND date(created_at) = date('now')
-       ORDER BY created_at`,
-    );
-    setTodayDeliveries(deliveriesResult || []);
-
-    // Charger l'objectif quotidien
     try {
-      const userGoalResult = await db.getFirstAsync<{ daily_goal: number }>(
-        `SELECT daily_goal FROM user LIMIT 1`,
-      );
-      if (userGoalResult && userGoalResult.daily_goal) {
-        setDailyGoal(userGoalResult.daily_goal);
-        setDailyProgress(profit / userGoalResult.daily_goal * 100);
+      const data = await DashboardService.getDashboardData(user?.id?.toString() || '1');
+
+      setTodayEncaisse(data.todayEncaisse);
+      setTodayAReverser(data.todayAReverser);
+      setTodayProfit(data.todayProfit);
+      setTodayEarnings(data.todayEarnings);
+      setTodayCount(data.todayCount);
+      setWeekEarnings(data.weekEarnings);
+      setMonthEarnings(data.monthEarnings);
+      setMonthGoal(data.monthGoal);
+      setDailyGoal(data.dailyGoal);
+      setDailyProgress(data.dailyProgress);
+      setPendingReversal(data.pendingReversal);
+      setTrendPercent(data.trendPercent);
+      setTodayDeliveries(data.todayDeliveries);
+
+      const wasAchieved = data.goalAchievedToday;
+      if (wasAchieved && !goalAchievedToday && lastGoalCheck !== todayDateStr) {
+        setGoalAchievedToday(true);
+        setLastGoalCheck(todayDateStr);
+        if (user?.id) {
+          await sendGoalAchievedNotification(user.id, data.todayProfit, data.dailyGoal);
+        }
+      }
+      if (!wasAchieved) {
+        setGoalAchievedToday(false);
       }
     } catch (error) {
-      console.log("Objectif quotidien non trouvé, utilisation valeur par défaut");
-    }
-
-    // Objectif mensuel
-    try {
-      const userGoalResult = await db.getFirstAsync<{ monthly_goal: number }>(
-        `SELECT monthly_goal FROM user LIMIT 1`,
-      );
-      if (userGoalResult && userGoalResult.monthly_goal) {
-        setMonthGoal(userGoalResult.monthly_goal);
-      }
-    } catch (error) {
-      console.log("Objectif mensuel non trouvé");
+      console.error('❌ Erreur loadStats:', error);
     }
   };
 

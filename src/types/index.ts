@@ -7,6 +7,17 @@ export type User = {
   password: string; // Hashé
   created_at: string;
   updated_at: string;
+  firebase_uid?: string;
+  siret?: string;
+  vehicle?: string;
+  is_vat?: number;
+  daily_goal?: number;
+  monthly_goal?: number;
+  reminder_notifications?: number;
+  payment_notifications?: number;
+  delivery_created_notifications?: number;
+  daily_summary_notifications?: number;
+  daily_goal_notifications?: number;
 };
 
 export type UserCreateDTO = Omit<User, "id" | "created_at" | "updated_at">;
@@ -21,15 +32,20 @@ export type DeliveryStatus = "A_LIVRER" | "LIVREE" | "ANNULEE";
 export type PaymentType =
   | "COLIS_DEJA_PAYE"
   | "CLIENT_PAYE_LIVRAISON"
-  | "CLIENT_PAYE_TOUT";
+  | "CLIENT_PAYE_TOUT"
+  | "LIVRAISON_DEJA_PAYEE";
 
 export type Merchant = {
   id: number;
-  business_name: string;
+  name: string;
   contact_name?: string;
   phone?: string;
+  address?: string;
   created_at: string;
   updated_at: string;
+  firebase_id?: string;
+  user_id?: string;
+  needs_sync?: number;
 };
 
 export type Settlement = {
@@ -52,14 +68,17 @@ export type Delivery = {
   delivered_at?: string;
   user_id: number;
 
-  // Nouveaux champs
   merchant_id?: number;
   payment_type: PaymentType;
   amount_collected: number;
   amount_to_return: number;
   profit: number;
-  is_settled: number; // 0 ou 1
+  is_settled: number;
   settled_at?: string;
+  reversed?: number;
+  notes?: string;
+  firebase_id?: string;
+  needs_sync?: number;
 };
 
 export type DeliveryCreateDTO = {
@@ -71,6 +90,9 @@ export type DeliveryCreateDTO = {
   user_id: number;
   merchant_id?: number;
   payment_type: PaymentType;
+  amount_collected?: number;
+  amount_to_return?: number;
+  profit?: number;
 };
 
 export type DeliveryUpdateDTO = Partial<{
@@ -81,6 +103,12 @@ export type DeliveryUpdateDTO = Partial<{
   delivery_fee: number;
   status: DeliveryStatus;
   delivered_at?: string;
+  payment_type: PaymentType;
+  merchant_id?: number;
+  amount_collected: number;
+  amount_to_return: number;
+  profit: number;
+  needs_sync: number;
 }>;
 
 export type DeliveryFilters = {

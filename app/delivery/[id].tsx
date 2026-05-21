@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { db } from "../../src/database/db";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { commonStyles } from "../../styles/common";
@@ -18,33 +17,14 @@ import { deliveryDetailStyles } from "../../styles/deliveryDetailStyles";
 import { COLORS } from "../../styles/colors";
 import { useNavigation } from "../../hooks/useNavigation";
 import { useModal } from "../../providers/ModalProvider";
-import { useAuth } from "../../src/hooks/useAuth";
+import { useAuth } from "../../src/context/AuthContext";
 import { sendDeliveryCompletedNotification } from "../../src/services/notification.service";
 import { useSync } from "../../src/hooks/useSync";
-// 🔥 Importer le service de synchronisation
 import { syncService } from "../../src/services/sync.service";
-
-type Delivery = {
-  id: number;
-  recipient_name: string;
-  phone: string;
-  address: string;
-  parcel_value: number;
-  delivery_fee: number;
-  payment_type: string;
-  merchant_id?: number;
-  status: string;
-  created_at: string;
-  delivered_at?: string;
-  firebase_id?: string; // 🔥 Ajouter firebase_id
-};
-
-type Merchant = {
-  id: number;
-  name: string;
-  phone?: string;
-  address?: string;
-};
+import { DeliveryRepository } from "../../src/repositories/delivery.repository";
+import { MerchantRepository } from "../../src/repositories/merchant.repository";
+import { DeliveryService } from "../../src/services/delivery.service";
+import { Delivery, Merchant } from "../../src/types";
 
 export default function DeliveryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -60,22 +40,21 @@ export default function DeliveryDetail() {
 
   useEffect(() => {
     const loadDelivery = async () => {
-      const deliveryResult = await db.getFirstAsync<Delivery>(
-        "SELECT * FROM deliveries WHERE id = ?",
-        [Number(id)],
-      );
+      try {
+        const deliveryResult = await DeliveryRepository.findById(Number(id));
+        setDelivery(deliveryResult ?? null);
 
-      setDelivery(deliveryResult ?? null);
-
-      if (deliveryResult?.merchant_id) {
-        const merchantResult = await db.getFirstAsync<Merchant>(
-          "SELECT * FROM merchants WHERE id = ?",
-          [deliveryResult.merchant_id],
-        );
-        setMerchant(merchantResult ?? null);
+        if (deliveryResult?.merchant_id) {
+          const merchantResult = await MerchantRepository.findById(
+            deliveryResult.merchant_id,
+          );
+          setMerchant(merchantResult ?? null);
+        }
+      } catch (error) {
+        console.error("Erreur chargement livraison:", error);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     loadDelivery();
@@ -88,12 +67,7 @@ export default function DeliveryDetail() {
       async () => {
         setIsUpdating(true);
         try {
-          await db.runAsync(
-            "UPDATE deliveries SET status = ?, delivered_at = ?, needs_sync = 1 WHERE id = ?",
-            ["LIVREE", new Date().toISOString(), Number(id)],
-          );
-
-          // 🔥 Marquer pour synchronisation
+          await DeliveryService.markAsDelivered(Number(id));
           await markAndSync("deliveries", Number(id));
 
           if (user?.id && delivery) {
@@ -103,10 +77,7 @@ export default function DeliveryDetail() {
             ).catch(e => console.log("⚠️ Notification error:", e));
           }
 
-          const updatedDelivery = await db.getFirstAsync<Delivery>(
-            "SELECT * FROM deliveries WHERE id = ?",
-            [Number(id)],
-          );
+          const updatedDelivery = await DeliveryRepository.findById(Number(id));
           setDelivery(updatedDelivery);
 
           showSuccess("Succès", "Livraison marquée comme livrée");
@@ -133,30 +104,23 @@ export default function DeliveryDetail() {
       async () => {
         setIsDeleting(true);
         try {
-          // 🔥 1. Récupérer le firebase_id avant de supprimer
-          const deliveryToDelete = await db.getFirstAsync<{ firebase_id: string }>(
-            "SELECT firebase_id FROM deliveries WHERE id = ?",
-            [Number(id)]
-          );
+          const deliveryToDelete = await DeliveryRepository.findById(Number(id));
 
           console.log("🗑️ Suppression livraison:", {
             localId: id,
             firebaseId: deliveryToDelete?.firebase_id,
           });
 
-          // 🔥 2. Supprimer de Firebase d'abord (si firebase_id existe)
           if (deliveryToDelete?.firebase_id) {
             try {
               await syncService.deleteFromFirebase("deliveries", deliveryToDelete.firebase_id);
               console.log("✅ Livraison supprimée de Firebase");
             } catch (firebaseError) {
               console.error("⚠️ Erreur suppression Firebase:", firebaseError);
-              // On continue quand même la suppression locale
             }
           }
 
-          // 🔥 3. Supprimer de la base locale
-          await db.runAsync("DELETE FROM deliveries WHERE id = ?", [Number(id)]);
+          await DeliveryRepository.delete(Number(id));
           console.log("✅ Livraison supprimée localement");
 
           showSuccess("Succès", "Livraison supprimée");
@@ -341,9 +305,9 @@ export default function DeliveryDetail() {
   const isColisDejaPaye = delivery.payment_type === "COLIS_DEJA_PAYE";
 
   const montantEncaisse =
-    delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+    delivery.delivery_fee + (isClientPaysTout ? (delivery.parcel_value ?? 0) : 0);
 
-  const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
+  const montantAReverser = isClientPaysTout ? (delivery.parcel_value ?? 0) : 0;
 
   const profit = delivery.delivery_fee;
 
@@ -573,8 +537,8 @@ export default function DeliveryDetail() {
                 Valeur du colis
               </Text>
               <Text style={deliveryDetailStyles.financialValue}>
-                {delivery.parcel_value > 0
-                  ? `${delivery.parcel_value.toLocaleString("fr-FR")} FCFA`
+                {(delivery.parcel_value ?? 0) > 0
+                  ? `${(delivery.parcel_value ?? 0).toLocaleString("fr-FR")} FCFA`
                   : "-"}
               </Text>
             </View>
@@ -595,7 +559,7 @@ export default function DeliveryDetail() {
             <View style={deliveryDetailStyles.totalItem}>
               <Text style={deliveryDetailStyles.totalLabel}>TOTAL</Text>
               <Text style={deliveryDetailStyles.totalValue}>
-                {(delivery.parcel_value + delivery.delivery_fee).toLocaleString(
+                {((delivery.parcel_value ?? 0) + delivery.delivery_fee).toLocaleString(
                   "fr-FR",
                 )}{" "}
                 FCFA

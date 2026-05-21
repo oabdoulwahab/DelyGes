@@ -9,11 +9,9 @@ import {
   Modal,
 } from "react-native";
 import { useEffect, useState } from "react";
-import { db } from "../src/database/db";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   format,
   startOfWeek,
@@ -28,22 +26,11 @@ import { deliveriesStyles } from "../styles/deliveriesStyles";
 import { COLORS } from "../styles/colors";
 import { useModal } from "../providers/ModalProvider";
 import { sendDeliveryCompletedNotification } from "../src/services/notification.service";
-import { useAuth } from "../src/hooks/useAuth";
+import { useAuth } from "../src/context/AuthContext";
 import { useSync } from "../src/hooks/useSync";
-
-type Delivery = {
-  id: number;
-  recipient_name: string;
-  address: string;
-  delivery_fee: number;
-  parcel_value: number;
-  payment_type: string;
-  merchant_id?: number;
-  status: string;
-  created_at: string;
-  phone?: string;
-  delivered_at?: string;
-};
+import { DeliveryRepository } from "../src/repositories/delivery.repository";
+import { DeliveryService } from "../src/services/delivery.service";
+import { Delivery } from "../src/types";
 
 type TabType = "A_LIVRER" | "AUJOURDHUI" | "LIVREE" | "ANNULEE";
 
@@ -66,26 +53,19 @@ export default function Deliveries() {
   const { user } = useAuth();
   const { markAndSync } = useSync();
 
-  // Charger les dates des livraisons pour le calendrier
   const loadDeliveryDates = async () => {
     try {
-      const result = await db.getAllAsync<{ created_at: string }>(
-        "SELECT DISTINCT date(created_at) as created_at FROM deliveries ORDER BY created_at DESC",
-      );
-
-      const dates = result.map((item) => new Date(item.created_at));
-      setDeliveryDates(dates);
+      const dates = await DeliveryRepository.getDeliveryDates();
+      setDeliveryDates(dates.map((d) => new Date(d)));
     } catch (error) {
       console.error("Erreur lors du chargement des dates de livraison:", error);
     }
   };
 
-  // Charger les livraisons en fonction des filtres
   const loadDeliveries = async () => {
     let query = "";
     let params: any[] = [];
 
-    // Construire la requête selon l'onglet actif
     switch (activeTab) {
       case "A_LIVRER":
         query = "SELECT * FROM deliveries WHERE status = ?";
@@ -106,7 +86,6 @@ export default function Deliveries() {
         break;
     }
 
-    // Ajouter le filtre par période si activé
     if (dateFilterEnabled && selectedDate) {
       let dateCondition = "";
 
@@ -116,74 +95,44 @@ export default function Deliveries() {
           dateCondition = "date(created_at) = ?";
           params = [todayStr, ...params];
           break;
-
         case "week":
           const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
           const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 1 });
-          const weekStartStr = weekStart.toISOString().split("T")[0];
-          const weekEndStr = weekEnd.toISOString().split("T")[0];
           dateCondition = "date(created_at) BETWEEN ? AND ?";
-          params = [weekStartStr, weekEndStr, ...params];
+          params = [weekStart.toISOString().split("T")[0], weekEnd.toISOString().split("T")[0], ...params];
           break;
-
         case "month":
           const monthStart = startOfMonth(selectedDate);
           const monthEnd = endOfMonth(selectedDate);
-          const monthStartStr = monthStart.toISOString().split("T")[0];
-          const monthEndStr = monthEnd.toISOString().split("T")[0];
           dateCondition = "date(created_at) BETWEEN ? AND ?";
-          params = [monthStartStr, monthEndStr, ...params];
+          params = [monthStart.toISOString().split("T")[0], monthEnd.toISOString().split("T")[0], ...params];
           break;
-
         case "custom":
           if (selectedEndDate) {
-            const customStartStr = selectedDate.toISOString().split("T")[0];
-            const customEndStr = selectedEndDate.toISOString().split("T")[0];
             dateCondition = "date(created_at) BETWEEN ? AND ?";
-            params = [customStartStr, customEndStr, ...params];
+            params = [selectedDate.toISOString().split("T")[0], selectedEndDate.toISOString().split("T")[0], ...params];
           } else {
-            const customStr = selectedDate.toISOString().split("T")[0];
             dateCondition = "date(created_at) = ?";
-            params = [customStr, ...params];
+            params = [selectedDate.toISOString().split("T")[0], ...params];
           }
           break;
       }
 
       if (dateCondition) {
-        if (query.includes("WHERE")) {
-          query = query.replace("WHERE", `WHERE ${dateCondition} AND`);
-        } else {
-          query += ` WHERE ${dateCondition}`;
-        }
+        query = query.replace("WHERE", `WHERE ${dateCondition} AND`);
       }
     }
 
-    // Ajouter la recherche si nécessaire
     if (searchQuery.trim()) {
-      const searchCondition =
-        "(recipient_name LIKE ? OR address LIKE ? OR phone LIKE ?)";
-      if (query.includes("WHERE")) {
-        query = query.replace("WHERE", `WHERE ${searchCondition} AND`);
-      } else {
-        query += ` WHERE ${searchCondition}`;
-      }
-      params = [
-        `%${searchQuery}%`,
-        `%${searchQuery}%`,
-        `%${searchQuery}%`,
-        ...params,
-      ];
+      const searchCondition = "(recipient_name LIKE ? OR address LIKE ? OR phone LIKE ?)";
+      query = query.replace("WHERE", `WHERE ${searchCondition} AND`);
+      params = [`%${searchQuery}%`, `%${searchQuery}%`, `%${searchQuery}%`, ...params];
     }
 
-    // Ajouter le tri
-    if (activeTab === "LIVREE") {
-      query += " ORDER BY delivered_at DESC";
-    } else {
-      query += " ORDER BY created_at DESC";
-    }
+    query += activeTab === "LIVREE" ? " ORDER BY delivered_at DESC" : " ORDER BY created_at DESC";
 
     try {
-      const result = await db.getAllAsync<Delivery>(query, params);
+      const result = await DeliveryRepository.queryDeliveries(query, params);
       setDeliveries(result);
       setSelectedDeliveries([]);
     } catch (error) {
@@ -229,20 +178,20 @@ export default function Deliveries() {
     const delivery = deliveries.find((d) => d.id === id);
     const amount = delivery?.delivery_fee || 0;
 
-    await db.runAsync(
-      "UPDATE deliveries SET status = ?, delivered_at = ?, needs_sync = 1 WHERE id = ?",
-      ["LIVREE", new Date().toISOString(), id],
-    );
+    try {
+      await DeliveryService.markAsDelivered(id);
+      await markAndSync("deliveries", id);
 
-    // 🔥 Marquer pour synchronisation
-    await markAndSync("deliveries", id);
+      if (user?.id) {
+        await sendDeliveryCompletedNotification(user.id, amount);
+      }
 
-    if (user?.id) {
-      await sendDeliveryCompletedNotification(user.id, amount);
+      showSuccess("Succès", "Livraison marquée comme livrée");
+      loadDeliveries();
+    } catch (error) {
+      console.error("Erreur markAsDelivered:", error);
+      showError("Erreur", "Impossible de marquer comme livrée");
     }
-
-    showSuccess("Succès", "Livraison marquée comme livrée");
-    loadDeliveries();
   };
 
   const markSelectedAsPaid = async () => {
@@ -273,16 +222,15 @@ export default function Deliveries() {
       "Annuler la livraison",
       "Êtes-vous sûr de vouloir annuler cette livraison ?",
       async () => {
-        await db.runAsync(
-          "UPDATE deliveries SET status = ?, needs_sync = 1 WHERE id = ?",
-          ["ANNULEE", id],
-        );
-
-        // 🔥 Marquer pour synchronisation
-        await markAndSync("deliveries", id);
-
-        showSuccess("Succès", "Livraison annulée");
-        loadDeliveries();
+        try {
+          await DeliveryService.cancelDelivery(id);
+          await markAndSync("deliveries", id);
+          showSuccess("Succès", "Livraison annulée");
+          loadDeliveries();
+        } catch (error) {
+          console.error("Erreur cancel:", error);
+          showError("Erreur", "Impossible d'annuler la livraison");
+        }
       },
       "Oui, annuler",
       "Non",
@@ -520,9 +468,9 @@ export default function Deliveries() {
     const isColisDejaPaye = delivery.payment_type === "COLIS_DEJA_PAYE";
 
     const montantEncaisse =
-      delivery.delivery_fee + (isClientPaysTout ? delivery.parcel_value : 0);
+      delivery.delivery_fee + (isClientPaysTout ? (delivery.parcel_value ?? 0) : 0);
 
-    const montantAReverser = isClientPaysTout ? delivery.parcel_value : 0;
+    const montantAReverser = isClientPaysTout ? (delivery.parcel_value ?? 0) : 0;
 
     const profit = delivery.delivery_fee;
 

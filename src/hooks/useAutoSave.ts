@@ -1,7 +1,7 @@
 // src/hooks/useAutoSave.ts
 import { useRef } from "react";
 import { db } from "../database/db";
-import { useAuth } from "./useAuth";
+import { useAuth } from "../context/AuthContext";
 
 type AutoSaveOptions = {
   userId?: number;
@@ -15,7 +15,7 @@ export const useAutoSave = (options?: AutoSaveOptions) => {
   const userId = options?.userId ?? user?.id;
   const delay = options?.delay ?? 400;
 
-  const autoSave = (field: string, value: string | number | null) => {
+  const autoSave = (field: string, value: string | number | boolean | null) => {
     if (!userId) return;
 
     if (timerRef.current) {

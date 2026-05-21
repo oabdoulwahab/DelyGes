@@ -1,5 +1,5 @@
 // src/context/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import * as SecureStore from "expo-secure-store";
 import { db as sqliteDb } from "../database/db";
 import { auth, db as firestore } from "../config/firebase";
@@ -14,11 +14,12 @@ import {
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { syncService } from "../services/sync.service";
 import { addFirebaseColumns } from "../database/migrations/add_firebase_columns";
+import { User } from "../types";
 
 const USER_KEY = "AUTH_USER_ID";
 
 interface AuthContextType {
-  user: any;
+  user: User | null;
   firebaseUser: FirebaseUser | null;
   isAuthenticated: boolean;
   authReady: boolean;
@@ -26,6 +27,7 @@ interface AuthContextType {
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 interface RegisterData {
@@ -44,7 +46,7 @@ export const AuthProvider = ({
   children: React.ReactNode;
   isDbReady: boolean;
 }) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
@@ -87,7 +89,7 @@ const loadLocalUser = async (firebaseUid: string) => {
     await sqliteDb.runAsync("DELETE FROM deliveries WHERE user_id = ?", [firebaseUid]);
     await sqliteDb.runAsync("DELETE FROM merchants WHERE user_id = ?", [firebaseUid]);
 
-    let localUser = await sqliteDb.getFirstAsync<any>(
+    let localUser = await sqliteDb.getFirstAsync<User>(
       "SELECT * FROM user WHERE firebase_uid = ?",
       [firebaseUid],
     );
@@ -116,7 +118,7 @@ const loadLocalUser = async (firebaseUid: string) => {
           ],
         );
 
-        localUser = await sqliteDb.getFirstAsync<any>(
+        localUser = await sqliteDb.getFirstAsync<User>(
           "SELECT * FROM user WHERE id = ?",
           [result.lastInsertRowId],
         );
@@ -151,7 +153,7 @@ const loadLocalUser = async (firebaseUid: string) => {
       const localUserId = await SecureStore.getItemAsync(USER_KEY);
 
       if (localUserId) {
-        const localUser = await sqliteDb.getFirstAsync<any>(
+        const localUser = await sqliteDb.getFirstAsync<User>(
           "SELECT * FROM user WHERE id = ?",
           [Number(localUserId)],
         );
@@ -169,6 +171,22 @@ const loadLocalUser = async (firebaseUid: string) => {
     }
   };
 
+  // 3.5 Rafraîchir l'utilisateur depuis SQLite
+  const refreshUser = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const refreshed = await sqliteDb.getFirstAsync<User>(
+        "SELECT * FROM user WHERE id = ?",
+        [user.id],
+      );
+      if (refreshed) {
+        setUser(refreshed);
+      }
+    } catch (error) {
+      console.error("❌ Erreur refreshUser:", error);
+    }
+  }, [user?.id]);
+
   // 4. Connexion
   const login = async (email: string, password: string) => {
     try {
@@ -185,19 +203,22 @@ const loadLocalUser = async (firebaseUid: string) => {
       console.log("✅ Connecté à Firebase:", fbUser.uid);
 
       // Le reste est géré par onAuthStateChanged
-    } catch (error: any) {
-      console.error("❌ Erreur login:", error.code, error.message);
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      console.error("❌ Erreur login:", err.code, err.message);
 
       // Traduire les erreurs Firebase
       if (
-        error.code === "auth/user-not-found" ||
-        error.code === "auth/wrong-password"
+        err.code === "auth/user-not-found" ||
+        err.code === "auth/wrong-password"
       ) {
         throw new Error("Email ou mot de passe incorrect");
-      } else if (error.code === "auth/invalid-email") {
+      } else if (err.code === "auth/invalid-email") {
         throw new Error("Email invalide");
-      } else if (error.code === "auth/too-many-requests") {
+      } else if (err.code === "auth/too-many-requests") {
         throw new Error("Trop de tentatives. Réessayez plus tard");
+      } else if (err.code === "auth/invalid-credential") {
+        throw new Error("Email ou mot de passe incorrect");
       } else {
         throw new Error("Erreur de connexion");
       }
@@ -210,7 +231,7 @@ const loadLocalUser = async (firebaseUid: string) => {
       console.log("📝 Tentative d'inscription...");
 
       // 1. Vérifier d'abord si le téléphone existe déjà dans SQLite
-      const existingPhone = await sqliteDb.getFirstAsync<any>(
+      const existingPhone = await sqliteDb.getFirstAsync<{ id: number }>(
         "SELECT id FROM user WHERE phone = ?",
         [data.phone],
       );
@@ -276,7 +297,7 @@ const loadLocalUser = async (firebaseUid: string) => {
       );
 
       // 6. Récupérer l'utilisateur créé
-      const newLocalUser = await sqliteDb.getFirstAsync<any>(
+      const newLocalUser = await sqliteDb.getFirstAsync<User>(
         "SELECT * FROM user WHERE id = ?",
         [result.lastInsertRowId],
       );
@@ -284,14 +305,15 @@ const loadLocalUser = async (firebaseUid: string) => {
       // 7. Mettre à jour le state
       setUser(newLocalUser);
       setIsAuthenticated(true);
-      await SecureStore.setItemAsync(USER_KEY, String(newLocalUser.id));
-    } catch (error: any) {
-      console.error("❌ Erreur inscription:", error.code, error.message);
+      await SecureStore.setItemAsync(USER_KEY, String(newLocalUser!.id));
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      console.error("❌ Erreur inscription:", err.code, err.message);
 
       // Si Firebase Auth a réussi mais que SQLite a échoué, nettoyer Firebase
       if (
-        error.code !== "auth/email-already-in-use" &&
-        error.code !== "auth/weak-password"
+        err.code !== "auth/email-already-in-use" &&
+        err.code !== "auth/weak-password"
       ) {
         try {
           const currentUser = auth.currentUser;
@@ -305,16 +327,16 @@ const loadLocalUser = async (firebaseUid: string) => {
       }
 
       // Traduire les erreurs Firebase
-      if (error.code === "auth/email-already-in-use") {
+      if (err.code === "auth/email-already-in-use") {
         throw new Error("Cet email est déjà utilisé");
-      } else if (error.code === "auth/invalid-email") {
+      } else if (err.code === "auth/invalid-email") {
         throw new Error("Email invalide");
-      } else if (error.code === "auth/weak-password") {
+      } else if (err.code === "auth/weak-password") {
         throw new Error("Mot de passe trop faible (minimum 6 caractères)");
-      } else if (error.message.includes("téléphone est déjà utilisé")) {
+      } else if (err.message && err.message.includes("téléphone est déjà utilisé")) {
         throw new Error("Ce téléphone est déjà utilisé");
       } else {
-        throw new Error(error.message || "Erreur d'inscription");
+        throw new Error(err.message || "Erreur d'inscription");
       }
     }
   };
@@ -348,6 +370,7 @@ const loadLocalUser = async (firebaseUid: string) => {
         register,
         logout,
         checkAuth,
+        refreshUser,
       }}
     >
       {children}
