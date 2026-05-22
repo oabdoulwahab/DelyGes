@@ -2,23 +2,6 @@ import { db } from '../database/db';
 import { Notification, NotificationType } from '../types/notification';
 
 export class NotificationStore {
-  // Créer la table des notifications si elle n'existe pas
-  static async initTable() {
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS notifications (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        title TEXT NOT NULL,
-        body TEXT NOT NULL,
-        data TEXT,
-        read INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        user_id INTEGER NOT NULL
-      )
-    `);
-    console.log('✅ Table notifications créée');
-  }
-
   // Ajouter une notification
   static async add(notification: Omit<Notification, 'id' | 'read' | 'createdAt'>) {
     const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

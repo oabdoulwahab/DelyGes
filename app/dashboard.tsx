@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -13,27 +13,51 @@ import { useAuth } from '../src/context/AuthContext';
 import { DashboardService } from '../src/services/dashboard.service';
 import { Delivery } from '../src/types';
 
+interface DashboardState {
+  todayEarnings: number;
+  weekEarnings: number;
+  monthEarnings: number;
+  monthGoal: number;
+  dailyGoal: number;
+  dailyProgress: number;
+  goalAchievedToday: boolean;
+  todayDeliveries: Delivery[];
+  userInitial: string;
+  todayEncaisse: number;
+  todayAReverser: number;
+  todayProfit: number;
+  pendingReversal: number;
+  todayCount: number;
+  trendPercent: number;
+  lastGoalCheck: string;
+}
+
+const INITIAL_DASHBOARD: DashboardState = {
+  todayEarnings: 0,
+  weekEarnings: 0,
+  monthEarnings: 0,
+  monthGoal: 0,
+  dailyGoal: 15000,
+  dailyProgress: 0,
+  goalAchievedToday: false,
+  todayDeliveries: [],
+  userInitial: "?",
+  todayEncaisse: 0,
+  todayAReverser: 0,
+  todayProfit: 0,
+  pendingReversal: 0,
+  todayCount: 0,
+  trendPercent: 0,
+  lastGoalCheck: "",
+};
+
 export default function Dashboard() {
-  const { user } = useAuth(); // 🔥 Récupérer l'utilisateur connecté
-  const [available, setAvailable] = useState(true);
-  const [todayEarnings, setTodayEarnings] = useState(0);
-  const [weekEarnings, setWeekEarnings] = useState(0);
-  const [monthEarnings, setMonthEarnings] = useState(0);
-  const [monthGoal, setMonthGoal] = useState(0);
-  const [dailyGoal, setDailyGoal] = useState(15000);
-  const [dailyProgress, setDailyProgress] = useState(0);
-  const [goalAchievedToday, setGoalAchievedToday] = useState(false); // 🔥 NOUVEAU
-  const [lastGoalCheck, setLastGoalCheck] = useState(''); // 🔥 NOUVEAU
-  const [todayDeliveries, setTodayDeliveries] = useState<Delivery[]>([]);
+  const { user } = useAuth();
+  const [data, setData] = useState<DashboardState>(INITIAL_DASHBOARD);
   const [userName, setUserName] = useState("");
-  const [userInitial, setUserInitial] = useState("?");
   const { showAlert } = useModal();
-  const [todayEncaisse, setTodayEncaisse] = useState(0);
-  const [todayAReverser, setTodayAReverser] = useState(0);
-  const [todayProfit, setTodayProfit] = useState(0);
-  const [pendingReversal, setPendingReversal] = useState(0);
-  const [todayCount, setTodayCount] = useState(0);
-  const [trendPercent, setTrendPercent] = useState(0);
+  const goalAchievedRef = useRef(false);
+  const lastGoalCheckRef = useRef("");
 
   const formattedDate = new Date().toLocaleDateString("fr-FR", {
     day: "numeric",
@@ -45,7 +69,7 @@ export default function Dashboard() {
     if (user) {
       setUserName(user.name || "Livreur");
       const initial = (user.name || "?").trim().charAt(0).toUpperCase() || "?";
-      setUserInitial(initial);
+      setData((prev) => ({ ...prev, userInitial: initial }));
     }
   }, [user]);
 
@@ -64,57 +88,65 @@ export default function Dashboard() {
     return colors[index];
   };
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     const todayDateStr = new Date().toDateString();
 
     try {
-      const data = await DashboardService.getDashboardData(user?.id?.toString() || '1');
+      const dashboardData = await DashboardService.getDashboardData(user?.id?.toString() || '1');
 
-      setTodayEncaisse(data.todayEncaisse);
-      setTodayAReverser(data.todayAReverser);
-      setTodayProfit(data.todayProfit);
-      setTodayEarnings(data.todayEarnings);
-      setTodayCount(data.todayCount);
-      setWeekEarnings(data.weekEarnings);
-      setMonthEarnings(data.monthEarnings);
-      setMonthGoal(data.monthGoal);
-      setDailyGoal(data.dailyGoal);
-      setDailyProgress(data.dailyProgress);
-      setPendingReversal(data.pendingReversal);
-      setTrendPercent(data.trendPercent);
-      setTodayDeliveries(data.todayDeliveries);
+      const wasAchieved = dashboardData.goalAchievedToday;
+      const goalJustAchieved = wasAchieved && !goalAchievedRef.current && lastGoalCheckRef.current !== todayDateStr;
 
-      const wasAchieved = data.goalAchievedToday;
-      if (wasAchieved && !goalAchievedToday && lastGoalCheck !== todayDateStr) {
-        setGoalAchievedToday(true);
-        setLastGoalCheck(todayDateStr);
-        if (user?.id) {
-          await sendGoalAchievedNotification(user.id, data.todayProfit, data.dailyGoal);
-        }
+      if (goalJustAchieved) {
+        goalAchievedRef.current = true;
+        lastGoalCheckRef.current = todayDateStr;
       }
       if (!wasAchieved) {
-        setGoalAchievedToday(false);
+        goalAchievedRef.current = false;
+      }
+
+      setData({
+        todayEarnings: dashboardData.todayEarnings,
+        weekEarnings: dashboardData.weekEarnings,
+        monthEarnings: dashboardData.monthEarnings,
+        monthGoal: dashboardData.monthGoal,
+        dailyGoal: dashboardData.dailyGoal,
+        dailyProgress: dashboardData.dailyProgress,
+        goalAchievedToday: wasAchieved,
+        todayDeliveries: dashboardData.todayDeliveries,
+        userInitial: data.userInitial,
+        todayEncaisse: dashboardData.todayEncaisse,
+        todayAReverser: dashboardData.todayAReverser,
+        todayProfit: dashboardData.todayProfit,
+        pendingReversal: dashboardData.pendingReversal,
+        todayCount: dashboardData.todayCount,
+        trendPercent: dashboardData.trendPercent,
+        lastGoalCheck: lastGoalCheckRef.current,
+      });
+
+      if (goalJustAchieved && user?.id) {
+        await sendGoalAchievedNotification(user.id, dashboardData.todayProfit, dashboardData.dailyGoal);
       }
     } catch (error) {
       console.error('❌ Erreur loadStats:', error);
     }
-  };
+  }, [user?.id]);
 
-  // Charger les stats au montage + intervalle
+  // Charger les stats au montage + intervalle réduit à 60s
   useEffect(() => {
     loadStats();
-    const interval = setInterval(loadStats, 30000);
+    const interval = setInterval(loadStats, 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadStats]);
 
   // Recharger quand l'écran reçoit le focus
   useFocusEffect(
     useCallback(() => {
       loadStats();
-    }, []),
+    }, [loadStats]),
   );
 
-  const monthProgress = Math.min((monthEarnings / monthGoal) * 100, 100);
+  const monthProgress = Math.min((data.monthEarnings / data.monthGoal) * 100, 100);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -142,15 +174,15 @@ export default function Dashboard() {
     <View style={commonStyles.container}>
       <BlurView intensity={95} style={dashboardStyles.header}>
         <View style={dashboardStyles.headerContent}>
-          <View style={dashboardStyles.profileSection}>
-            <View
-              style={[
-                dashboardStyles.profileImage,
-                { backgroundColor: getAvatarColor(userInitial) },
-              ]}
-            >
-              <Text style={dashboardStyles.profileInitial}>{userInitial}</Text>
-            </View>
+              <View style={dashboardStyles.profileSection}>
+                <View
+                  style={[
+                    dashboardStyles.profileImage,
+                    { backgroundColor: getAvatarColor(data.userInitial) },
+                  ]}
+                >
+                  <Text style={dashboardStyles.profileInitial}>{data.userInitial}</Text>
+                </View>
             <View>
               <Text style={dashboardStyles.greeting}>Bonjour,</Text>
               <Text style={dashboardStyles.name}>{userName}</Text>
@@ -204,10 +236,10 @@ export default function Dashboard() {
           
           <View style={dashboardStyles.goalAmountContainer}>
             <Text style={dashboardStyles.goalCurrentAmount}>
-              {todayEarnings.toLocaleString("fr-FR")} FCFA
+              {data.todayEarnings.toLocaleString("fr-FR")} FCFA
             </Text>
             <Text style={dashboardStyles.goalTargetAmount}>
-              / {dailyGoal.toLocaleString("fr-FR")} FCFA
+              / {data.dailyGoal.toLocaleString("fr-FR")} FCFA
             </Text>
           </View>
           
@@ -216,31 +248,31 @@ export default function Dashboard() {
             <View 
               style={[
                 dashboardStyles.progressBarFill,
-                { width: `${Math.min(dailyProgress, 100)}%` }
+                { width: `${Math.min(data.dailyProgress, 100)}%` }
               ]} 
             />
           </View>
           
           <View style={dashboardStyles.goalFooter}>
             <Text style={dashboardStyles.goalProgressText}>
-              {dailyProgress.toFixed(0)}% atteint
+              {data.dailyProgress.toFixed(0)}% atteint
             </Text>
             <Text style={dashboardStyles.goalRemainingText}>
-              Reste : {(dailyGoal - todayEarnings) > 0 
-                ? (dailyGoal - todayEarnings).toLocaleString("fr-FR") 
+              Reste : {(data.dailyGoal - data.todayEarnings) > 0 
+                ? (data.dailyGoal - data.todayEarnings).toLocaleString("fr-FR") 
                 : "0"} FCFA
             </Text>
           </View>
           
           {/* Message de motivation */}
-          {dailyProgress >= 100 ? (
+          {data.dailyProgress >= 100 ? (
             <View style={dashboardStyles.goalAchievedBadge}>
               <MaterialIcons name="emoji-events" size={16} color="#FFFFFF" />
               <Text style={dashboardStyles.goalAchievedText}>Objectif atteint ! 🎉</Text>
             </View>
           ) : (
             <Text style={dashboardStyles.goalMotivationText}>
-              Plus que {(dailyGoal - todayEarnings).toLocaleString("fr-FR")} FCFA à gagner !
+              Plus que {(data.dailyGoal - data.todayEarnings).toLocaleString("fr-FR")} FCFA à gagner !
             </Text>
           )}
         </View>
@@ -275,7 +307,7 @@ export default function Dashboard() {
               <View style={dashboardStyles.financeRow}>
                 <Text style={dashboardStyles.financeLabel}>Total encaissé</Text>
                 <Text style={dashboardStyles.financeValue}>
-                  {todayEncaisse.toLocaleString("fr-FR")} FCFA
+                  {data.todayEncaisse.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
@@ -287,7 +319,7 @@ export default function Dashboard() {
                     { color: COLORS.warning },
                   ]}
                 >
-                  {todayAReverser.toLocaleString("fr-FR")} FCFA
+                  {data.todayAReverser.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
@@ -299,7 +331,7 @@ export default function Dashboard() {
                     { color: COLORS.success },
                   ]}
                 >
-                  {todayProfit.toLocaleString("fr-FR")} FCFA
+                  {data.todayProfit.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
@@ -313,7 +345,7 @@ export default function Dashboard() {
                     { color: COLORS.primary },
                   ]}
                 >
-                  {pendingReversal.toLocaleString("fr-FR")} FCFA
+                  {data.pendingReversal.toLocaleString("fr-FR")} FCFA
                 </Text>
               </View>
 
@@ -321,12 +353,12 @@ export default function Dashboard() {
                 <Text style={dashboardStyles.financeLabel}>
                   Livraisons aujourd’hui
                 </Text>
-                <Text style={dashboardStyles.financeValue}>{todayCount}</Text>
+                <Text style={dashboardStyles.financeValue}>{data.todayCount}</Text>
               </View>
             </View>
 
             <Text style={dashboardStyles.mainAmount}>
-              {(todayEarnings || 0).toLocaleString("fr-FR")} FCFA
+              {(data.todayEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
 
             <View style={dashboardStyles.trendContainer}>
@@ -335,26 +367,26 @@ export default function Dashboard() {
                   dashboardStyles.trendBadge,
                   {
                     backgroundColor:
-                      trendPercent >= 0
+                      data.trendPercent >= 0
                         ? "rgba(16, 185, 129, 0.2)"
                         : "rgba(239, 68, 68, 0.2)",
                   },
                 ]}
               >
                 <MaterialIcons
-                  name={trendPercent >= 0 ? "trending-up" : "trending-down"}
+                  name={data.trendPercent >= 0 ? "trending-up" : "trending-down"}
                   size={14}
-                  color={trendPercent >= 0 ? COLORS.success : COLORS.danger}
+                  color={data.trendPercent >= 0 ? COLORS.success : COLORS.danger}
                 />
                 <Text
                   style={[
                     dashboardStyles.trendText,
                     {
-                      color: trendPercent >= 0 ? COLORS.success : COLORS.danger,
+                      color: data.trendPercent >= 0 ? COLORS.success : COLORS.danger,
                     },
                   ]}
                 >
-                  {trendPercent >= 0 ? `+${trendPercent}%` : `${trendPercent}%`}
+                  {data.trendPercent >= 0 ? `+${data.trendPercent}%` : `${data.trendPercent}%`}
                 </Text>
               </View>
               <Text style={dashboardStyles.trendLabel}>vs hier</Text>
@@ -364,14 +396,14 @@ export default function Dashboard() {
           <View style={dashboardStyles.secondaryCard}>
             <Text style={dashboardStyles.secondaryLabel}>Semaine</Text>
             <Text style={dashboardStyles.secondaryAmount}>
-              {(weekEarnings || 0).toLocaleString("fr-FR")} FCFA
+              {(data.weekEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
           </View>
 
           <View style={dashboardStyles.secondaryCard}>
             <Text style={dashboardStyles.secondaryLabel}>Mois</Text>
             <Text style={dashboardStyles.secondaryAmount}>
-              {(monthEarnings || 0).toLocaleString("fr-FR")} FCFA
+              {(data.monthEarnings || 0).toLocaleString("fr-FR")} FCFA
             </Text>
           </View>
         </View>
@@ -396,8 +428,8 @@ export default function Dashboard() {
               nestedScrollEnabled={true}
               scrollEnabled={true}
             >
-              {todayDeliveries.length > 0 ? (
-                todayDeliveries.map((delivery) => {
+              {data.todayDeliveries.length > 0 ? (
+                data.todayDeliveries.map((delivery: Delivery) => {
                   const statusColor = getStatusColor(delivery.status);
                   const statusText = getStatusText(delivery.status);
 

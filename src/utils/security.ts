@@ -42,6 +42,8 @@ export class Security {
     }
   }
 
+  // Note: Ce token n'est plus utilisé depuis la migration vers Firebase Auth.
+  // Conservé pour compatibilité avec l'ancien système. Sera supprimé après migration complète.
   static generateToken(userId: number): string {
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2);
@@ -64,5 +66,10 @@ export class Security {
     } catch {
       return { userId: 0, valid: false };
     }
+  }
+
+  // Vérifier si le mot de passe est géré par Firebase
+  static isFirebaseManaged(password: string): boolean {
+    return password === "firebase_managed";
   }
 }

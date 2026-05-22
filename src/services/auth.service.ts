@@ -29,6 +29,10 @@ export class AuthService {
       }
 
       // Vérifier le mot de passe
+      if (Security.isFirebaseManaged(user.password)) {
+        throw new AuthError('Connectez-vous via Firebase');
+      }
+
       const isValidPassword = await Security.comparePassword(credentials.password, user.password);
       if (!isValidPassword) {
         throw new AuthError('Identifiants incorrects');
@@ -70,12 +74,14 @@ export class AuthService {
         throw new ValidationError(`Mot de passe faible: ${passwordValidation.errors.join(', ')}`);
       }
 
-      // Créer l'utilisateur
+      // Hasher le mot de passe avant stockage
+      const hashedPassword = await Security.hashPassword(data.password);
+
       const user = await UserRepository.create({
         name: data.name,
         email: data.email,
         phone: data.phone,
-        password: data.password
+        password: hashedPassword
       });
 
       // Générer un token
@@ -160,8 +166,9 @@ export class AuthService {
         throw new ValidationError(`Mot de passe faible: ${passwordValidation.errors.join(', ')}`);
       }
 
-      // Mettre à jour le mot de passe
-      await UserRepository.update(userId, { password: newPassword });
+      // Hasher le nouveau mot de passe avant stockage
+      const hashedNewPassword = await Security.hashPassword(newPassword);
+      await UserRepository.update(userId, { password: hashedNewPassword });
     } catch (error) {
       if (error instanceof AuthError || error instanceof ValidationError || error instanceof NotFoundError) throw error;
       throw new Error('Erreur lors du changement de mot de passe');

@@ -85,10 +85,6 @@ const loadLocalUser = async (firebaseUid: string) => {
   try {
     console.log("📦 Chargement utilisateur local...");
 
-    // 🔥 SUPPRIMER TOUTES LES ANCIENNES DONNÉES DE CET UTILISATEUR
-    await sqliteDb.runAsync("DELETE FROM deliveries WHERE user_id = ?", [firebaseUid]);
-    await sqliteDb.runAsync("DELETE FROM merchants WHERE user_id = ?", [firebaseUid]);
-
     let localUser = await sqliteDb.getFirstAsync<User>(
       "SELECT * FROM user WHERE firebase_uid = ?",
       [firebaseUid],
@@ -100,8 +96,8 @@ const loadLocalUser = async (firebaseUid: string) => {
 
       if (fbUser) {
         await sqliteDb.runAsync(
-          "DELETE FROM user WHERE email = ? OR phone = ?",
-          [fbUser.email || "", fbUser.phoneNumber || ""],
+          "DELETE FROM user WHERE firebase_uid = ?",
+          [firebaseUid],
         );
 
         const result = await sqliteDb.runAsync(
@@ -131,9 +127,18 @@ const loadLocalUser = async (firebaseUid: string) => {
       setIsAuthenticated(true);
       await SecureStore.setItemAsync(USER_KEY, String(localUser.id));
 
-      // Synchroniser les données après connexion
-      setLoadingMessage("Synchronisation des données...");
-      await syncService.importFromFirebase();
+      // Synchroniser les données après connexion (seulement si pas de données locales)
+      const localDeliveryCount = await sqliteDb.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM deliveries WHERE user_id = ?",
+        [localUser.id],
+      );
+
+      if (!localDeliveryCount || localDeliveryCount.count === 0) {
+        setLoadingMessage("Synchronisation des données...");
+        await syncService.importFromFirebase();
+      } else {
+        console.log(`📦 ${localDeliveryCount.count} livraisons locales existantes, import ignoré`);
+      }
     }
   } catch (error) {
     console.error("❌ Erreur chargement utilisateur local:", error);

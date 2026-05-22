@@ -188,7 +188,7 @@ export class FinancialCalculations {
       }>(
         `SELECT 
           m.id as merchant_id,
-          m.business_name,
+          m.name as business_name,
           COALESCE(SUM(d.amount_to_return), 0) as amount_to_return,
           COUNT(d.id) as delivery_count
         FROM merchants m
@@ -196,7 +196,7 @@ export class FinancialCalculations {
           AND d.user_id = ? 
           AND date(d.delivered_at) = date(?)
           AND d.status = 'LIVREE'
-        GROUP BY m.id, m.business_name
+        GROUP BY m.id, m.name
         HAVING delivery_count > 0
         ORDER BY amount_to_return DESC`,
         [userId, date]

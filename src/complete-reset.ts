@@ -1,10 +1,20 @@
-// src/complete-reset.ts
+// src/complete-reset.ts - UTILITAIRE DE DÉVELOPPEMENT SEULEMENT
+// Réinitialisation complète. Efface TOUTES les données locales + session.
 import { db } from './database/db';
 import * as SecureStore from 'expo-secure-store';
 import { auth } from './config/firebase';
 import { signOut } from 'firebase/auth';
 
+let safetyEnabled = true;
+
+export const disableSafety = () => { safetyEnabled = false; };
+
 export const completeReset = async () => {
+  if (safetyEnabled) {
+    console.warn('⚠️ Sécurité activée: appeler disableSafety() pour autoriser la réinitialisation');
+    return;
+  }
+
   try {
     console.log('🧹 RÉINITIALISATION COMPLÈTE...');
     
@@ -19,6 +29,7 @@ export const completeReset = async () => {
     
     await db.runAsync('DELETE FROM deliveries');
     await db.runAsync('DELETE FROM merchants');
+    await db.runAsync('DELETE FROM sync_queue');
     await db.runAsync('DELETE FROM user');
     await db.runAsync('DELETE FROM notifications');
     await db.runAsync('DELETE FROM app_settings');

@@ -89,6 +89,17 @@ export const initDB = async (): Promise<void> => {
       )
     `);
 
+    // ===== TABLE SETTLEMENTS =====
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS settlements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        merchant_id INTEGER NOT NULL,
+        amount REAL NOT NULL DEFAULT 0,
+        notes TEXT,
+        settled_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log("✅ Tables vérifiées/créées");
   } catch (error) {
     console.error("❌ Erreur initDB:", error);
@@ -211,6 +222,21 @@ export const createIndexes = async (): Promise<void> => {
     );
     await db.execAsync(
       "CREATE INDEX IF NOT EXISTS idx_merchants_firebase_id ON merchants(firebase_id)",
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_firebase_id ON deliveries(firebase_id)",
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_needs_sync ON deliveries(needs_sync)",
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_user_needs_sync ON deliveries(user_id, needs_sync)",
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_deliveries_delivered_at ON deliveries(delivered_at)",
+    );
+    await db.execAsync(
+      "CREATE INDEX IF NOT EXISTS idx_merchants_user_needs_sync ON merchants(user_id, needs_sync)",
     );
 
     console.log("📌 Index créés");

@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 
 import NavigationTabs from "../components/NavigationTabs";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { initializeDatabase } from "../src/database/db";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { ModalProvider } from "../providers/ModalProvider";
@@ -15,6 +16,7 @@ import {
   scheduleInactivityReminders,
 } from "../src/services/notification.service";
 import { addFirebaseColumns } from "../src/database/migrations/add_firebase_columns";
+import { addSyncQueueTable } from "../src/database/migrations/add_sync_queue";
 
 // 🔥 Écran de chargement avec timeout
 const LoadingScreen = ({ message = "Chargement..." }) => (
@@ -128,6 +130,7 @@ export default function Layout() {
         
         setInitMessage("Mise à jour de la structure...");
         await addFirebaseColumns();
+        await addSyncQueueTable();
         
         setDbReady(true);
       } catch (error) {
@@ -144,10 +147,12 @@ export default function Layout() {
   }
 
   return (
-    <AuthProvider isDbReady={dbReady}>
-      <ModalProvider>
-        <RootLayoutNav />
-      </ModalProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider isDbReady={dbReady}>
+        <ModalProvider>
+          <RootLayoutNav />
+        </ModalProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

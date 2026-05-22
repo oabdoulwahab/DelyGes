@@ -46,6 +46,7 @@ export type Merchant = {
   firebase_id?: string;
   user_id?: string;
   needs_sync?: number;
+  sync_updated_at?: string;
 };
 
 export type Settlement = {
@@ -79,6 +80,7 @@ export type Delivery = {
   notes?: string;
   firebase_id?: string;
   needs_sync?: number;
+  sync_updated_at?: string;
 };
 
 export type DeliveryCreateDTO = {
