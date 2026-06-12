@@ -13,7 +13,6 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { syncService } from "../services/sync.service";
-import { addFirebaseColumns } from "../database/migrations/add_firebase_columns";
 import { User } from "../types";
 
 const USER_KEY = "AUTH_USER_ID";
@@ -135,7 +134,7 @@ const loadLocalUser = async (firebaseUid: string) => {
 
       if (!localDeliveryCount || localDeliveryCount.count === 0) {
         setLoadingMessage("Synchronisation des données...");
-        await syncService.importFromFirebase();
+        syncService.importFromFirebase().catch(e => console.error("❌ Erreur import depuis Firebase:", e));
       } else {
         console.log(`📦 ${localDeliveryCount.count} livraisons locales existantes, import ignoré`);
       }
@@ -151,9 +150,6 @@ const loadLocalUser = async (firebaseUid: string) => {
 
     try {
       console.log("🔍 Vérification session...");
-
-      // Ajouter les colonnes Firebase si nécessaire
-      await addFirebaseColumns();
 
       const localUserId = await SecureStore.getItemAsync(USER_KEY);
 

@@ -55,7 +55,8 @@ export default function Deliveries() {
 
   const loadDeliveryDates = async () => {
     try {
-      const dates = await DeliveryRepository.getDeliveryDates();
+      if (!user) return;
+      const dates = await DeliveryRepository.getDeliveryDates(user.id);
       setDeliveryDates(dates.map((d) => new Date(d)));
     } catch (error) {
       console.error("Erreur lors du chargement des dates de livraison:", error);
@@ -66,23 +67,25 @@ export default function Deliveries() {
     let query = "";
     let params: (string | number | boolean | null)[] = [];
 
+    if (!user) return;
+
     switch (activeTab) {
       case "A_LIVRER":
-        query = "SELECT * FROM deliveries WHERE status = ?";
-        params = ["A_LIVRER"];
+        query = "SELECT * FROM deliveries WHERE user_id = ? AND status = ?";
+        params = [user.id, "A_LIVRER"];
         break;
       case "AUJOURDHUI":
         const today = new Date().toISOString().split("T")[0];
-        query = "SELECT * FROM deliveries WHERE date(created_at) = ?";
-        params = [today];
+        query = "SELECT * FROM deliveries WHERE user_id = ? AND date(created_at) = ?";
+        params = [user.id, today];
         break;
       case "LIVREE":
-        query = "SELECT * FROM deliveries WHERE status = ?";
-        params = ["LIVREE"];
+        query = "SELECT * FROM deliveries WHERE user_id = ? AND status = ?";
+        params = [user.id, "LIVREE"];
         break;
       case "ANNULEE":
-        query = "SELECT * FROM deliveries WHERE status = ?";
-        params = ["ANNULEE"];
+        query = "SELECT * FROM deliveries WHERE user_id = ? AND status = ?";
+        params = [user.id, "ANNULEE"];
         break;
     }
 

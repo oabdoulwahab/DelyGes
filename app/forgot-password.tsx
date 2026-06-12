@@ -18,6 +18,8 @@ import { Image } from "react-native";
 import { BlurView } from "expo-blur";
 
 import { UserRepository } from "../src/repositories/user.repository";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "../src/config/firebase";
 import * as yup from "yup";
 import { COLORS } from "../styles/colors";
 import { forgotPasswordStyles } from "../styles/forgotPasswordStyles";
@@ -67,10 +69,15 @@ export default function ForgotPassword() {
         return;
       }
 
-      // Simuler l'envoi d'un email (dans une vraie app, vous appelleriez une API)
-      console.log("🔐 Réinitialisation demandée pour:", user);
+      if (!user.email) {
+        showError(
+          "Email manquant",
+          "Ce compte n'a pas d'email associé. Veuillez contacter le support."
+        );
+        return;
+      }
 
-      // Passer à l'écran de succès
+      await sendPasswordResetEmail(auth, user.email);
       setStep("success");
       
     } catch (error) {

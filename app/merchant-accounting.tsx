@@ -17,6 +17,7 @@ import {
 import { useModal } from "../providers/ModalProvider";
 import { COLORS } from "../styles/colors";
 import { merchantAccountingStyles } from "../styles/merchantAccountingStyles";
+import { useAuth } from "../src/context/AuthContext";
 import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { MerchantRepository } from "../src/repositories/merchant.repository";
 import { Delivery, Merchant } from "../src/types";
@@ -52,6 +53,7 @@ type PeriodType = "month" | "custom";
 type ViewMode = "monthly" | "merchant" | "pending";
 
 export default function MerchantAccounting() {
+  const { user } = useAuth();
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [filteredMonthlyData, setFilteredMonthlyData] = useState<MonthlyData[]>(
     [],
@@ -106,7 +108,7 @@ export default function MerchantAccounting() {
         }
       }
 
-      const deliveries = await DeliveryRepository.findReversedWithDates(dateFrom, dateTo);
+      const deliveries = await DeliveryRepository.findReversedWithDates(user!.id, dateFrom, dateTo);
 
       const merchants = await MerchantRepository.findAll();
 
@@ -210,7 +212,7 @@ export default function MerchantAccounting() {
   // ============================================================
   const loadPendingMerchants = async () => {
     try {
-      const deliveries = await DeliveryRepository.findPendingReversal();
+      const deliveries = await DeliveryRepository.findPendingReversal(user!.id);
 
       const merchants = await MerchantRepository.findAll();
 
@@ -265,7 +267,7 @@ export default function MerchantAccounting() {
 
   const loadDeliveryDates = async () => {
     try {
-      const dates = await DeliveryRepository.getDeliveredDates();
+      const dates = await DeliveryRepository.getDeliveredDates(user!.id);
       setDeliveryDates(dates.map((d) => new Date(d)));
     } catch (error) {
       console.error("Erreur lors du chargement des dates:", error);

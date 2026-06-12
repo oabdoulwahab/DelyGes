@@ -26,16 +26,32 @@ export interface DashboardData {
 export class DashboardService {
   static async getDashboardData(userId: string | number): Promise<DashboardData> {
     const today = new Date().toISOString().split('T')[0];
-    const todayDateStr = new Date().toDateString();
 
     const userIdNum = typeof userId === 'string' ? parseInt(userId, 10) : userId;
 
+    const todayStart = `${today}T00:00:00.000Z`;
+    const tomorrowDate = new Date();
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowStart = tomorrowDate.toISOString().split('T')[0] + 'T00:00:00.000Z';
+
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString();
+
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+
     const todayDeliveries = await DatabaseService.query<Delivery>(
-      `SELECT * FROM deliveries
-       WHERE user_id = ?
-       AND status = 'LIVREE'
-       AND delivered_at LIKE ?`,
-      [userIdNum, `${today}%`],
+      `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+        d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+        d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+        d.firebase_id, d.needs_sync
+       FROM deliveries d
+       WHERE d.user_id = ?
+       AND d.status = 'LIVREE'
+       AND d.delivered_at >= ? AND d.delivered_at < ?`,
+      [userIdNum, todayStart, tomorrowStart],
     );
 
     let encaisse = 0;
@@ -51,12 +67,12 @@ export class DashboardService {
 
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStart = yesterday.toISOString().split('T')[0] + 'T00:00:00.000Z';
 
     const yesterdayResult = await DatabaseService.getOne<{ total: number }>(
       `SELECT COALESCE(SUM(delivery_fee), 0) as total FROM deliveries
-       WHERE user_id = ? AND status = ? AND delivered_at LIKE ?`,
-      [userIdNum, 'LIVREE', `${yesterdayStr}%`],
+       WHERE user_id = ? AND status = ? AND delivered_at >= ? AND delivered_at < ?`,
+      [userIdNum, 'LIVREE', yesterdayStart, todayStart],
     );
     const totalYesterday = yesterdayResult?.total || 0;
     const trendPercent = totalYesterday === 0
@@ -67,8 +83,8 @@ export class DashboardService {
       `SELECT COALESCE(SUM(delivery_fee), 0) as total
        FROM deliveries
        WHERE user_id = ? AND status = 'LIVREE'
-       AND date(delivered_at) >= date('now', '-7 days')`,
-      [userIdNum],
+       AND delivered_at >= ?`,
+      [userIdNum, weekAgoStr],
     );
     const weekEarnings = weekResult?.total || 0;
 
@@ -76,25 +92,33 @@ export class DashboardService {
       `SELECT COALESCE(SUM(delivery_fee), 0) as total
        FROM deliveries
        WHERE user_id = ? AND status = 'LIVREE'
-       AND strftime('%Y-%m', delivered_at) = strftime('%Y-%m', 'now')`,
-      [userIdNum],
+       AND delivered_at >= ? AND delivered_at < ?`,
+      [userIdNum, monthStart, nextMonthStart],
     );
     const monthEarnings = monthResult?.total || 0;
 
     const todayAllResult = await DatabaseService.query<Delivery>(
-      `SELECT * FROM deliveries
-       WHERE user_id = ?
-       AND (status = 'A_LIVRER' OR status = 'LIVREE')
-       AND date(created_at) = date('now')
-       ORDER BY created_at`,
-      [userIdNum],
+      `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+        d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+        d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+        d.firebase_id, d.needs_sync
+       FROM deliveries d
+       WHERE d.user_id = ?
+       AND (d.status = 'A_LIVRER' OR d.status = 'LIVREE')
+       AND d.created_at >= ? AND d.created_at < ?
+       ORDER BY d.created_at`,
+      [userIdNum, todayStart, tomorrowStart],
     );
 
     const pending = await DatabaseService.query<Delivery>(
-      `SELECT * FROM deliveries
-       WHERE user_id = ?
-       AND status = 'LIVREE'
-       AND reversed = 0`,
+      `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+        d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+        d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+        d.firebase_id, d.needs_sync
+       FROM deliveries d
+       WHERE d.user_id = ?
+       AND d.status = 'LIVREE'
+       AND d.reversed = 0`,
       [userIdNum],
     );
 

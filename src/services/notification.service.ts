@@ -219,10 +219,7 @@ export const sendGoalAchievedNotification = async (
     // Vérifier si l'utilisateur veut ces notifications (par défaut oui)
     const notificationsEnabled = user?.daily_goal_notifications !== 0;
 
-    // Vérifier si l'utilisateur a défini son propre objectif (différent de la valeur par défaut 15000)
-    const hasCustomGoal = user?.daily_goal !== 15000;
-
-    if (!notificationsEnabled || !hasCustomGoal) return;
+    if (!notificationsEnabled) return;
 
     const title = "🎯 OBJECTIF ATTEINT !";
     const body = `Félicitations ${user?.name || ""} ! Vous avez gagné ${amount.toLocaleString("fr-FR")} FCFA aujourd'hui. Objectif: ${goal.toLocaleString("fr-FR")} FCFA 🎉`;

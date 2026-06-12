@@ -436,10 +436,11 @@ export class DeliveryRepository {
   }
 
   // Obtenir les dates des livraisons (pour le calendrier)
-  static async getDeliveryDates(): Promise<string[]> {
+  static async getDeliveryDates(userId: number): Promise<string[]> {
     try {
       const result = await DatabaseService.query<{ created_at: string }>(
-        "SELECT DISTINCT date(created_at) as created_at FROM deliveries ORDER BY created_at DESC",
+        "SELECT DISTINCT date(created_at) as created_at FROM deliveries WHERE user_id = ? ORDER BY created_at DESC",
+        [userId],
       );
       return result.map((r) => r.created_at);
     } catch (error) {
@@ -495,18 +496,22 @@ export class DeliveryRepository {
   }
 
   // Livraisons reversées avec computed columns (pour comptabilité)
-  static async findReversedWithDates(dateFrom?: string, dateTo?: string): Promise<(Delivery & { month_key: string; year: string; month: string })[]> {
+  static async findReversedWithDates(userId: number, dateFrom?: string, dateTo?: string): Promise<(Delivery & { month_key: string; year: string; month: string })[]> {
     try {
       let query = `
-        SELECT d.*,
+        SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+          d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+          d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+          d.firebase_id, d.needs_sync,
           strftime('%Y-%m', d.delivered_at) as month_key,
           strftime('%Y', d.delivered_at) as year,
           strftime('%m', d.delivered_at) as month
         FROM deliveries d
-        WHERE d.status = 'LIVREE'
+        WHERE d.user_id = ?
+        AND d.status = 'LIVREE'
         AND d.reversed = 1
       `;
-      const params: any[] = [];
+      const params: any[] = [userId];
 
       if (dateFrom && dateTo) {
         query += ' AND date(d.delivered_at) BETWEEN ? AND ?';
@@ -526,13 +531,19 @@ export class DeliveryRepository {
   }
 
   // Livraisons livrées mais non reversées
-  static async findPendingReversal(): Promise<Delivery[]> {
+  static async findPendingReversal(userId: number): Promise<Delivery[]> {
     try {
       return await DatabaseService.query<Delivery>(
-        `SELECT d.* FROM deliveries d
-         WHERE d.status = 'LIVREE'
+        `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+          d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+          d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+          d.firebase_id, d.needs_sync
+         FROM deliveries d
+         WHERE d.user_id = ?
+         AND d.status = 'LIVREE'
          AND d.reversed != 1
          ORDER BY d.delivered_at DESC`,
+        [userId],
       );
     } catch (error) {
       console.error('Erreur findPendingReversal:', error);
@@ -541,10 +552,11 @@ export class DeliveryRepository {
   }
 
   // Dates distinctes des livraisons livrées
-  static async getDeliveredDates(): Promise<string[]> {
+  static async getDeliveredDates(userId: number): Promise<string[]> {
     try {
       const result = await DatabaseService.query<{ delivered_at: string }>(
-        `SELECT DISTINCT date(delivered_at) as delivered_at FROM deliveries WHERE status = 'LIVREE' ORDER BY delivered_at DESC`,
+        `SELECT DISTINCT date(delivered_at) as delivered_at FROM deliveries WHERE user_id = ? AND status = 'LIVREE' ORDER BY delivered_at DESC`,
+        [userId],
       );
       return result.map((r) => r.delivered_at);
     } catch (error) {

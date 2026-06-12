@@ -67,27 +67,18 @@ function RootLayoutNav() {
   }, []);
 
   useEffect(() => {
-    const initServices = async () => {
-      if (!authReady) return;
+    if (!authReady) return;
 
-      try {
-        setLoadingMessage("Configuration des notifications...");
-        await setupNotifications();
-        
-        if (isAuthenticated && user) {
-          setLoadingMessage("Préparation...");
-          // 🔥 Exécution en parallèle SANS AWAIT pour ne pas bloquer
-          setupBackgroundTask().catch(e => console.log("⚠️ BackgroundTask:", e));
-          scheduleInactivityReminders(user.id).catch(e => console.log("⚠️ Reminders:", e));
-        }
-      } catch (e) {
-        console.error("❌ Erreur services:", e);
-      } finally {
-        setServicesReady(true);
+    setLoadingMessage("Configuration des notifications...");
+    setupNotifications().then(() => {
+      if (isAuthenticated && user) {
+        setLoadingMessage("Préparation...");
+        setupBackgroundTask().catch(e => console.log("⚠️ BackgroundTask:", e));
+        scheduleInactivityReminders(user.id).catch(e => console.log("⚠️ Reminders:", e));
       }
-    };
+    }).catch(e => console.error("❌ Erreur services:", e));
 
-    initServices();
+    setServicesReady(true);
   }, [authReady, isAuthenticated, user]);
 
   if (!authReady || !servicesReady) {

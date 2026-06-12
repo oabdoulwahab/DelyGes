@@ -51,6 +51,13 @@ export class StatsService {
     if (!user) throw new Error("Utilisateur non connecté");
 
     try {
+      const userResult = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM user WHERE firebase_uid = ?",
+        [user.uid],
+      );
+      const userId = userResult?.id;
+      if (!userId) throw new Error("Utilisateur local non trouvé");
+
       const { startDate, endDate, previousStartDate } =
         this.getDateRange(period);
 
@@ -59,6 +66,7 @@ export class StatsService {
       console.log("📅 Date fin:", endDate.toISOString());
 
       const currentPeriodDeliveries = await this.getDeliveriesInRange(
+        userId,
         startDate,
         endDate,
       );
@@ -69,6 +77,7 @@ export class StatsService {
       }
 
       const previousPeriodDeliveries = await this.getDeliveriesInRange(
+        userId,
         previousStartDate,
         startDate,
       );
@@ -80,7 +89,8 @@ export class StatsService {
       );
 
       const allDeliveries = await db.getAllAsync<Delivery>(
-        "SELECT id, status, delivered_at, delivery_fee, payment_type FROM deliveries",
+        "SELECT id, status, delivered_at, delivery_fee, payment_type FROM deliveries WHERE user_id = ?",
+        [userId],
       );
       console.log("📋 Toutes les livraisons:", allDeliveries);
 
@@ -92,18 +102,19 @@ export class StatsService {
   }
 
   // Récupérer les livraisons dans une plage de dates
-  private static async getDeliveriesInRange(startDate: Date, endDate: Date) {
+  private static async getDeliveriesInRange(userId: number, startDate: Date, endDate: Date) {
     const startStr = startDate.toISOString();
     const endStr = endDate.toISOString();
 
     console.log("🔍 Requête SQL:", `BETWEEN ${startStr} AND ${endStr}`);
 
     const result = await db.getAllAsync<Delivery>(
-      `SELECT * FROM deliveries 
-     WHERE status = 'LIVREE' 
+      `SELECT id, status, delivered_at, delivery_fee, payment_type FROM deliveries 
+     WHERE user_id = ?
+     AND status = 'LIVREE' 
      AND delivered_at BETWEEN ? AND ?
      ORDER BY delivered_at ASC`,
-      [startStr, endStr],
+      [userId, startStr, endStr],
     );
 
     return result;
