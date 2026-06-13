@@ -1,22 +1,15 @@
 // src/services/delivery.service.ts
 import { DeliveryRepository } from '../repositories/delivery.repository';
-import { AuthService } from './auth.service';
 import { Delivery, DeliveryCreateDTO, DeliveryUpdateDTO, DeliveryFilters, DailyEarnings } from '../types';
-import { ValidationError, NotFoundError } from '../utils/errors';
+import { NotFoundError } from '../utils/errors';
 import { Formatters } from '../utils/formatters';
 
 export class DeliveryService {
-  // Obtenir toutes les livraisons de l'utilisateur courant
-  static async getMyDeliveries(filters?: DeliveryFilters): Promise<Delivery[]> {
+  static async getMyDeliveries(userId: number, filters?: DeliveryFilters): Promise<Delivery[]> {
     try {
-      const user = await AuthService.getCurrentUser();
-      if (!user) {
-        throw new Error('Utilisateur non authentifié');
-      }
-
       const finalFilters: DeliveryFilters = {
         ...filters,
-        userId: user.id
+        userId
       };
 
       return await DeliveryRepository.findAll(finalFilters);
@@ -26,21 +19,14 @@ export class DeliveryService {
     }
   }
 
-  // Obtenir une livraison par ID
-  static async getDeliveryById(id: number): Promise<Delivery> {
+  static async getDeliveryById(userId: number, id: number): Promise<Delivery> {
     try {
-      const user = await AuthService.getCurrentUser();
-      if (!user) {
-        throw new Error('Utilisateur non authentifié');
-      }
-
       const delivery = await DeliveryRepository.findById(id);
       if (!delivery) {
         throw new NotFoundError('Livraison');
       }
 
-      // Vérifier que la livraison appartient à l'utilisateur
-      if (delivery.user_id !== user.id) {
+      if (delivery.user_id !== userId) {
         throw new Error('Non autorisé');
       }
 
@@ -51,17 +37,11 @@ export class DeliveryService {
     }
   }
 
-  // Créer une livraison
-  static async createDelivery(data: Omit<DeliveryCreateDTO, 'user_id'>): Promise<Delivery> {
+  static async createDelivery(userId: number, data: Omit<DeliveryCreateDTO, 'user_id'>): Promise<Delivery> {
     try {
-      const user = await AuthService.getCurrentUser();
-      if (!user) {
-        throw new Error('Utilisateur non authentifié');
-      }
-
       const deliveryData: DeliveryCreateDTO = {
         ...data,
-        user_id: user.id
+        user_id: userId
       };
 
       return await DeliveryRepository.create(deliveryData);
@@ -71,11 +51,9 @@ export class DeliveryService {
     }
   }
 
-  // Mettre à jour une livraison
-  static async updateDelivery(id: number, data: DeliveryUpdateDTO): Promise<Delivery> {
+  static async updateDelivery(userId: number, id: number, data: DeliveryUpdateDTO): Promise<Delivery> {
     try {
-      // Vérifier que l'utilisateur possède cette livraison
-      await this.getDeliveryById(id);
+      await this.getDeliveryById(userId, id);
 
       return await DeliveryRepository.update(id, data);
     } catch (error) {
@@ -84,11 +62,9 @@ export class DeliveryService {
     }
   }
 
-  // Supprimer une livraison
-  static async deleteDelivery(id: number): Promise<void> {
+  static async deleteDelivery(userId: number, id: number): Promise<void> {
     try {
-      // Vérifier que l'utilisateur possède cette livraison
-      await this.getDeliveryById(id);
+      await this.getDeliveryById(userId, id);
 
       await DeliveryRepository.delete(id);
     } catch (error) {
@@ -97,11 +73,9 @@ export class DeliveryService {
     }
   }
 
-  // Marquer comme livrée
-  static async markAsDelivered(id: number): Promise<Delivery> {
+  static async markAsDelivered(userId: number, id: number): Promise<Delivery> {
     try {
-      // Vérifier que l'utilisateur possède cette livraison
-      await this.getDeliveryById(id);
+      await this.getDeliveryById(userId, id);
 
       return await DeliveryRepository.markAsDelivered(id);
     } catch (error) {
@@ -110,11 +84,9 @@ export class DeliveryService {
     }
   }
 
-  // Annuler une livraison
-  static async cancelDelivery(id: number): Promise<Delivery> {
+  static async cancelDelivery(userId: number, id: number): Promise<Delivery> {
     try {
-      // Vérifier que l'utilisateur possède cette livraison
-      await this.getDeliveryById(id);
+      await this.getDeliveryById(userId, id);
 
       return await DeliveryRepository.cancel(id);
     } catch (error) {
@@ -123,40 +95,27 @@ export class DeliveryService {
     }
   }
 
-  // Obtenir les statistiques
-  static async getStats(period?: 'today' | 'week' | 'month') {
+  static async getStats(userId: number, period?: 'today' | 'week' | 'month') {
     try {
-      const user = await AuthService.getCurrentUser();
-      if (!user) {
-        throw new Error('Utilisateur non authentifié');
-      }
-
-      return await DeliveryRepository.getStats(user.id, period);
+      return await DeliveryRepository.getStats(userId, period);
     } catch (error) {
       console.error('Erreur getStats:', error);
       throw error;
     }
   }
 
-  // Obtenir les revenus journaliers
-  static async getDailyEarnings(days: number = 7): Promise<DailyEarnings[]> {
+  static async getDailyEarnings(userId: number, days: number = 7): Promise<DailyEarnings[]> {
     try {
-      const user = await AuthService.getCurrentUser();
-      if (!user) {
-        throw new Error('Utilisateur non authentifié');
-      }
-
-      return await DeliveryRepository.getDailyEarnings(user.id, days);
+      return await DeliveryRepository.getDailyEarnings(userId, days);
     } catch (error) {
       console.error('Erreur getDailyEarnings:', error);
       throw error;
     }
   }
 
-  // Obtenir le total des revenus
-  static async getTotalEarnings(): Promise<number> {
+  static async getTotalEarnings(userId: number): Promise<number> {
     try {
-      const stats = await this.getStats();
+      const stats = await this.getStats(userId);
       return stats.totalEarnings;
     } catch (error) {
       console.error('Erreur getTotalEarnings:', error);
@@ -164,10 +123,9 @@ export class DeliveryService {
     }
   }
 
-  // Grouper les livraisons par statut
-  static async groupByStatus(): Promise<Record<string, Delivery[]>> {
+  static async groupByStatus(userId: number): Promise<Record<string, Delivery[]>> {
     try {
-      const deliveries = await this.getMyDeliveries();
+      const deliveries = await this.getMyDeliveries(userId);
       
       return deliveries.reduce((groups, delivery) => {
         const status = delivery.status;
@@ -183,54 +141,49 @@ export class DeliveryService {
     }
   }
 
-  // Rechercher des livraisons
-  static async searchDeliveries(query: string): Promise<Delivery[]> {
+  static async searchDeliveries(userId: number, query: string): Promise<Delivery[]> {
     try {
-      return await this.getMyDeliveries({ search: query });
+      return await this.getMyDeliveries(userId, { search: query });
     } catch (error) {
       console.error('Erreur searchDeliveries:', error);
       return [];
     }
   }
 
-  // Obtenir les livraisons du jour
-  static async getTodayDeliveries(): Promise<Delivery[]> {
+  static async getTodayDeliveries(userId: number): Promise<Delivery[]> {
     try {
-      return await this.getMyDeliveries({ period: 'today' });
+      return await this.getMyDeliveries(userId, { period: 'today' });
     } catch (error) {
       console.error('Erreur getTodayDeliveries:', error);
       return [];
     }
   }
 
-  // Obtenir les livraisons en attente
-  static async getPendingDeliveries(): Promise<Delivery[]> {
+  static async getPendingDeliveries(userId: number): Promise<Delivery[]> {
     try {
-      return await this.getMyDeliveries({ status: 'A_LIVRER' });
+      return await this.getMyDeliveries(userId, { status: 'A_LIVRER' });
     } catch (error) {
       console.error('Erreur getPendingDeliveries:', error);
       return [];
     }
   }
 
-  // Obtenir les livraisons terminées
-  static async getCompletedDeliveries(): Promise<Delivery[]> {
+  static async getCompletedDeliveries(userId: number): Promise<Delivery[]> {
     try {
-      return await this.getMyDeliveries({ status: 'LIVREE' });
+      return await this.getMyDeliveries(userId, { status: 'LIVREE' });
     } catch (error) {
       console.error('Erreur getCompletedDeliveries:', error);
       return [];
     }
   }
 
-  // Générer un résumé des statistiques pour le dashboard
-  static async getDashboardSummary() {
+  static async getDashboardSummary(userId: number) {
     try {
       const [todayStats, weekStats, monthStats, todayDeliveries] = await Promise.all([
-        this.getStats('today'),
-        this.getStats('week'),
-        this.getStats('month'),
-        this.getTodayDeliveries()
+        this.getStats(userId, 'today'),
+        this.getStats(userId, 'week'),
+        this.getStats(userId, 'month'),
+        this.getTodayDeliveries(userId)
       ]);
 
       // Calculer la progression de l'objectif mensuel

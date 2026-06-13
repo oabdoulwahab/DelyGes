@@ -184,7 +184,7 @@ export default function Deliveries() {
     const amount = delivery?.delivery_fee || 0;
 
     try {
-      await DeliveryService.markAsDelivered(id);
+      await DeliveryService.markAsDelivered(user!.id, id);
       await markAndSync("deliveries", id);
 
       if (user?.id) {
@@ -228,7 +228,7 @@ export default function Deliveries() {
       "Êtes-vous sûr de vouloir annuler cette livraison ?",
       async () => {
         try {
-          await DeliveryService.cancelDelivery(id);
+          await DeliveryService.cancelDelivery(user!.id, id);
           await markAndSync("deliveries", id);
           showSuccess("Succès", "Livraison annulée");
           loadDeliveries();

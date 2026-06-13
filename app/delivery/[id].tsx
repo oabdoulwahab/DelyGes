@@ -67,7 +67,7 @@ export default function DeliveryDetail() {
       async () => {
         setIsUpdating(true);
         try {
-          await DeliveryService.markAsDelivered(Number(id));
+          await DeliveryService.markAsDelivered(user!.id, Number(id));
           await markAndSync("deliveries", Number(id));
 
           if (user?.id && delivery) {
