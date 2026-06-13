@@ -145,6 +145,7 @@ export default function Deliveries() {
   };
 
   useEffect(() => {
+    if (!user) return;
     loadDeliveries();
     loadDeliveryDates();
   }, [
@@ -154,6 +155,7 @@ export default function Deliveries() {
     selectedDate,
     selectedEndDate,
     activePeriod,
+    user,
   ]);
 
   const toggleDeliverySelection = (id: number) => {

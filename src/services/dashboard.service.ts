@@ -23,24 +23,32 @@ export interface DashboardData {
   cancelledAll: number;
 }
 
+const toLocalDateStr = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 export class DashboardService {
   static async getDashboardData(userId: string | number): Promise<DashboardData> {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = toLocalDateStr(now);
 
     const userIdNum = typeof userId === 'string' ? parseInt(userId, 10) : userId;
 
-    const todayStart = `${today}T00:00:00.000Z`;
-    const tomorrowDate = new Date();
+    const tomorrowDate = new Date(now);
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    const tomorrowStart = tomorrowDate.toISOString().split('T')[0] + 'T00:00:00.000Z';
+    const tomorrow = toLocalDateStr(tomorrowDate);
 
-    const weekAgo = new Date();
+    const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const weekAgoStr = weekAgo.toISOString();
+    const weekAgoDate = toLocalDateStr(weekAgo);
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStartStr = toLocalDateStr(monthStart);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonthStartStr = toLocalDateStr(nextMonthStart);
 
     const todayDeliveries = await DatabaseService.query<Delivery>(
       `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
@@ -51,7 +59,7 @@ export class DashboardService {
        WHERE d.user_id = ?
        AND d.status = 'LIVREE'
        AND d.delivered_at >= ? AND d.delivered_at < ?`,
-      [userIdNum, todayStart, tomorrowStart],
+      [userIdNum, today, tomorrow],
     );
 
     let encaisse = 0;
@@ -65,14 +73,14 @@ export class DashboardService {
       profit += delivery.delivery_fee;
     }
 
-    const yesterday = new Date();
+    const yesterday = new Date(now);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStart = yesterday.toISOString().split('T')[0] + 'T00:00:00.000Z';
+    const yesterdayStr = toLocalDateStr(yesterday);
 
     const yesterdayResult = await DatabaseService.getOne<{ total: number }>(
       `SELECT COALESCE(SUM(delivery_fee), 0) as total FROM deliveries
        WHERE user_id = ? AND status = ? AND delivered_at >= ? AND delivered_at < ?`,
-      [userIdNum, 'LIVREE', yesterdayStart, todayStart],
+      [userIdNum, 'LIVREE', yesterdayStr, today],
     );
     const totalYesterday = yesterdayResult?.total || 0;
     const trendPercent = totalYesterday === 0
@@ -84,7 +92,7 @@ export class DashboardService {
        FROM deliveries
        WHERE user_id = ? AND status = 'LIVREE'
        AND delivered_at >= ?`,
-      [userIdNum, weekAgoStr],
+      [userIdNum, weekAgoDate],
     );
     const weekEarnings = weekResult?.total || 0;
 
@@ -93,7 +101,7 @@ export class DashboardService {
        FROM deliveries
        WHERE user_id = ? AND status = 'LIVREE'
        AND delivered_at >= ? AND delivered_at < ?`,
-      [userIdNum, monthStart, nextMonthStart],
+      [userIdNum, monthStartStr, nextMonthStartStr],
     );
     const monthEarnings = monthResult?.total || 0;
 
@@ -107,7 +115,7 @@ export class DashboardService {
        AND (d.status = 'A_LIVRER' OR d.status = 'LIVREE')
        AND d.created_at >= ? AND d.created_at < ?
        ORDER BY d.created_at`,
-      [userIdNum, todayStart, tomorrowStart],
+      [userIdNum, today, tomorrow],
     );
 
     const pending = await DatabaseService.query<Delivery>(

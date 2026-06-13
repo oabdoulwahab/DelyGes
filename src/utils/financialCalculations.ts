@@ -88,6 +88,7 @@ export class FinancialCalculations {
    * Calcule les totaux pour un commerçant
    */
   static async calculateMerchantTotals(
+    userId: number,
     merchantId: number,
     startDate?: string,
     endDate?: string
@@ -104,10 +105,10 @@ export class FinancialCalculations {
           COUNT(*) as total_deliveries,
           COALESCE(SUM(amount_to_return), 0) as total_to_return
         FROM deliveries 
-        WHERE merchant_id = ? AND is_settled = 0
+        WHERE user_id = ? AND merchant_id = ? AND is_settled = 0
       `;
       
-      const params: any[] = [merchantId];
+      const params: any[] = [userId, merchantId];
       
       if (startDate && endDate) {
         query += ' AND date(delivered_at) BETWEEN date(?) AND date(?)';

@@ -3,7 +3,7 @@ import { endOfMonth, format, isSameDay, startOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Modal,
   RefreshControl,
@@ -88,6 +88,7 @@ export default function MerchantAccounting() {
   // ============================================================
   const loadAccounting = async () => {
     try {
+      if (!user) return;
       let dateFrom: string | undefined;
       let dateTo: string | undefined;
 
@@ -108,7 +109,7 @@ export default function MerchantAccounting() {
         }
       }
 
-      const deliveries = await DeliveryRepository.findReversedWithDates(user!.id, dateFrom, dateTo);
+      const deliveries = await DeliveryRepository.findReversedWithDates(user.id, dateFrom, dateTo);
 
       const merchants = await MerchantRepository.findAll();
 
@@ -212,7 +213,8 @@ export default function MerchantAccounting() {
   // ============================================================
   const loadPendingMerchants = async () => {
     try {
-      const deliveries = await DeliveryRepository.findPendingReversal(user!.id);
+      if (!user) return;
+      const deliveries = await DeliveryRepository.findPendingReversal(user.id);
 
       const merchants = await MerchantRepository.findAll();
 
@@ -267,24 +269,26 @@ export default function MerchantAccounting() {
 
   const loadDeliveryDates = async () => {
     try {
-      const dates = await DeliveryRepository.getDeliveredDates(user!.id);
+      if (!user) return;
+      const dates = await DeliveryRepository.getDeliveredDates(user.id);
       setDeliveryDates(dates.map((d) => new Date(d)));
     } catch (error) {
       console.error("Erreur lors du chargement des dates:", error);
     }
   };
 
-  const onRefresh = useCallback(async () => {
+  const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([loadAccounting(), loadPendingMerchants()]);
     setRefreshing(false);
-  }, []);
+  };
 
   useEffect(() => {
+    if (!user) return;
     loadAccounting();
     loadDeliveryDates();
     loadPendingMerchants();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (dateFilterEnabled && (selectedDate || selectedEndDate)) {
