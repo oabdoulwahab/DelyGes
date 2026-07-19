@@ -454,7 +454,11 @@ class SyncService {
   // === SYNC ALL ===
 
   async syncAll() {
+    const t0 = Date.now();
+    console.log(`[DIAG] syncAll ENTRÉE — inProgress=${this.syncInProgress}, online=${this.isOnline}, user=${auth.currentUser?.uid}`);
+
     if (this.syncInProgress || !this.isOnline || !auth.currentUser) {
+      console.log(`[DIAG] syncAll SORTIE — bloqué (inProgress=${this.syncInProgress}, online=${this.isOnline}, user=${!!auth.currentUser})`);
       return;
     }
 
@@ -468,6 +472,7 @@ class SyncService {
       console.error("❌ Erreur synchronisation:", error);
     } finally {
       this.syncInProgress = false;
+      console.log(`[DIAG] syncAll SORTIE — terminé en ${Date.now() - t0}ms`);
     }
   }
 
@@ -560,41 +565,61 @@ class SyncService {
   // === PROCESS SYNC QUEUE ===
 
   private async processSyncQueue() {
-    if (this.syncQueue.length === 0 || !this.isOnline) return;
+    const queueSize = this.syncQueue.length;
+    console.log(`[DIAG] processSyncQueue ENTRÉE — file mémoire: ${queueSize} éléments, online: ${this.isOnline}`);
+    if (queueSize === 0 || !this.isOnline) {
+      console.log(`[DIAG] processSyncQueue SORTIE — rien à traiter (size=${queueSize}, online=${this.isOnline})`);
+      return;
+    }
 
-    console.log(`🔄 Traitement de ${this.syncQueue.length} éléments en mémoire...`);
+    console.log(`🔄 Traitement de ${queueSize} éléments en mémoire...`);
     const queue = [...this.syncQueue];
     this.syncQueue = [];
+    const t0 = Date.now();
     await this.syncAll();
+    console.log(`[DIAG] processSyncQueue SORTIE — terminé en ${Date.now() - t0}ms`);
   }
 
   // === SYNC DELIVERIES ===
 
   private async syncDeliveries() {
+    const t0 = Date.now();
+    console.log(`[DIAG] syncDeliveries ENTRÉE`);
     const items = await db.getAllAsync<Delivery>(
       `SELECT * FROM deliveries WHERE needs_sync = 1 LIMIT 20`,
     );
+    console.log(`[DIAG] syncDeliveries — ${items.length} livraisons avec needs_sync=1 trouvées`);
 
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      console.log(`[DIAG] syncDeliveries SORTIE — rien à synchroniser (${Date.now() - t0}ms)`);
+      return;
+    }
     console.log(`🔄 Synchronisation de ${items.length} livraisons...`);
 
     for (const item of items) {
       await this.syncSingleDelivery(item);
     }
+    console.log(`[DIAG] syncDeliveries SORTIE — ${items.length} livraisons traitées en ${Date.now() - t0}ms`);
   }
 
   private async syncSingleDelivery(item: Delivery) {
+    const fnId = `syncDelivery[${item.id}]`;
+    console.log(`[DIAG] ${fnId} ENTRÉE — status=${item.status}, needs_sync=${item.needs_sync}, firebase_id=${item.firebase_id}, merchant_id=${item.merchant_id}`);
     try {
       let merchantFirebaseId = null;
       if (item.merchant_id) {
+        console.log(`[DIAG] ${fnId} — avant db.getFirstAsync merchant ${item.merchant_id}`);
         const merchant = await db.getFirstAsync<{ firebase_id: string }>(
           "SELECT firebase_id FROM merchants WHERE id = ?",
           [item.merchant_id],
         );
+        console.log(`[DIAG] ${fnId} — après db.getFirstAsync merchant: found=${!!merchant}, firebase_id=${merchant?.firebase_id}`);
 
         if (merchant) {
           if (!merchant.firebase_id) {
+            console.log(`[DIAG] ${fnId} — avant syncMerchantNow (pas de firebase_id)`);
             merchantFirebaseId = await this.syncMerchantNow(item.merchant_id);
+            console.log(`[DIAG] ${fnId} — après syncMerchantNow: newFirebaseId=${merchantFirebaseId}`);
           } else {
             merchantFirebaseId = merchant.firebase_id;
           }
@@ -622,41 +647,60 @@ class SyncService {
       };
 
       if (item.firebase_id) {
+        console.log(`[DIAG] ${fnId} — firebase_id EXISTE: ${item.firebase_id} → UPDATE`);
         // Vérifier conflit avec la version distante
+        console.log(`[DIAG] ${fnId} — avant getDoc Firestore deliveries/${item.firebase_id}`);
         const remoteDoc = await getDoc(doc(firestore, "deliveries", item.firebase_id));
+        console.log(`[DIAG] ${fnId} — après getDoc: exists=${remoteDoc.exists()}`);
         if (remoteDoc.exists()) {
           const remoteData = remoteDoc.data();
+          console.log(`[DIAG] ${fnId} — avant resolveConflict (local=${item.sync_updated_at}, remote=${remoteData.updated_at})`);
           const resolvedData = await this.resolveConflict(
             item.sync_updated_at,
             remoteData.updated_at,
             firestoreData,
             remoteData,
           );
+          console.log(`[DIAG] ${fnId} — après resolveConflict, avant updateDoc`);
           await updateDoc(doc(firestore, "deliveries", item.firebase_id), resolvedData);
+          console.log(`[DIAG] ${fnId} — après updateDoc OK`);
         } else {
-          // Document distant supprimé, recréer
+          console.log(`[DIAG] ${fnId} — document distant inexistant → recréation setDoc`);
           await setDoc(doc(firestore, "deliveries", item.firebase_id), firestoreData);
+          console.log(`[DIAG] ${fnId} — après setDoc (recréation) OK`);
         }
 
+        console.log(`[DIAG] ${fnId} — avant UPDATE SQLite needs_sync=0`);
         await db.runAsync(
           `UPDATE deliveries SET needs_sync = 0, sync_updated_at = ? WHERE id = ?`,
           [now, item.id],
         );
+        console.log(`[DIAG] ${fnId} — après UPDATE SQLite OK`);
       } else {
+        console.log(`[DIAG] ${fnId} — firebase_id ABSENT → CRÉATION Firestore`);
         const docRef = doc(collection(firestore, "deliveries"));
+        console.log(`[DIAG] ${fnId} — avant setDoc (nouveau doc ${docRef.id})`);
         await setDoc(docRef, firestoreData);
-
+        console.log(`[DIAG] ${fnId} — après setDoc OK, avant UPDATE SQLite firebase_id`);
         await db.runAsync(
           `UPDATE deliveries SET firebase_id = ?, needs_sync = 0, sync_updated_at = ? WHERE id = ?`,
           [docRef.id, now, item.id],
         );
+        console.log(`[DIAG] ${fnId} — après UPDATE SQLite firebase_id OK`);
       }
 
       // Nettoyer la file persistante
+      console.log(`[DIAG] ${fnId} — avant markSyncCompleted`);
       await this.markSyncCompleted("deliveries", item.id);
+      console.log(`[DIAG] ${fnId} — après markSyncCompleted`);
+      console.log(`[DIAG] ${fnId} SORTIE — SUCCÈS`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erreur inconnue";
+      const stack = error instanceof Error ? error.stack : "pas de stack";
+      console.error(`[DIAG] ${fnId} CATCH — message: ${msg}`);
+      console.error(`[DIAG] ${fnId} CATCH — stack: ${stack}`);
       await this.markSyncFailed("deliveries", item.id, msg);
+      console.log(`[DIAG] ${fnId} SORTIE — ÉCHEC (${msg})`);
     }
   }
 
