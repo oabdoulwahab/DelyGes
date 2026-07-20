@@ -247,7 +247,7 @@ export class StatsService {
         key = days[adjustedIndex];
 
         console.log(
-          `📅 Date: ${date.toLocaleDateString("fr-FR")} (jour ${dayIndex}) → ${key}`,
+          `📅 Date: ${date.toISOString().split('T')[0]} (jour ${dayIndex}) → ${key}`,
         );
       } else {
         const weekNum = Math.ceil(date.getDate() / 7);

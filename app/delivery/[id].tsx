@@ -24,6 +24,7 @@ import { syncService } from "../../src/services/sync.service";
 import { DeliveryRepository } from "../../src/repositories/delivery.repository";
 import { MerchantRepository } from "../../src/repositories/merchant.repository";
 import { DeliveryService } from "../../src/services/delivery.service";
+import { Formatters } from "../../src/utils/formatters";
 import { Delivery, Merchant } from "../../src/types";
 
 export default function DeliveryDetail() {
@@ -211,12 +212,7 @@ export default function DeliveryDetail() {
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
+    return Formatters.formatDate(dateString, "d MMMM yyyy");
   };
 
   const formatTime = (dateString: string) => {
@@ -538,7 +534,7 @@ export default function DeliveryDetail() {
               </Text>
               <Text style={deliveryDetailStyles.financialValue}>
                 {(delivery.parcel_value ?? 0) > 0
-                  ? `${(delivery.parcel_value ?? 0).toLocaleString("fr-FR")} FCFA`
+                  ? `${Formatters.formatNumber(delivery.parcel_value ?? 0)} FCFA`
                   : "-"}
               </Text>
             </View>
@@ -549,7 +545,7 @@ export default function DeliveryDetail() {
               </Text>
               <Text style={deliveryDetailStyles.financialValue}>
                 {delivery.delivery_fee > 0
-                  ? `${delivery.delivery_fee.toLocaleString("fr-FR")} FCFA`
+                  ? `${Formatters.formatNumber(delivery.delivery_fee)} FCFA`
                   : "-"}
               </Text>
             </View>
@@ -559,9 +555,7 @@ export default function DeliveryDetail() {
             <View style={deliveryDetailStyles.totalItem}>
               <Text style={deliveryDetailStyles.totalLabel}>TOTAL</Text>
               <Text style={deliveryDetailStyles.totalValue}>
-                {((delivery.parcel_value ?? 0) + delivery.delivery_fee).toLocaleString(
-                  "fr-FR",
-                )}{" "}
+                {Formatters.formatNumber((delivery.parcel_value ?? 0) + delivery.delivery_fee)}{" "}
                 FCFA
               </Text>
             </View>
@@ -592,7 +586,7 @@ export default function DeliveryDetail() {
                     { color: COLORS.primary },
                   ]}
                 >
-                  {montantEncaisse.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(montantEncaisse)} FCFA
                 </Text>
               </View>
 
@@ -612,7 +606,7 @@ export default function DeliveryDetail() {
                       { color: COLORS.warning },
                     ]}
                   >
-                    {montantAReverser.toLocaleString("fr-FR")} FCFA
+                    {Formatters.formatNumber(montantAReverser)} FCFA
                   </Text>
                 </View>
               )}
@@ -632,7 +626,7 @@ export default function DeliveryDetail() {
                     { color: COLORS.success },
                   ]}
                 >
-                  {profit.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(profit)} FCFA
                 </Text>
               </View>
             </View>

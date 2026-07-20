@@ -7,20 +7,19 @@ import {
   ScrollView,
   StatusBar,
   Modal,
+  FlatList,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import {
-  format,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  isSameDay,
-} from "date-fns";
-import { fr } from "date-fns/locale";
+import format from "date-fns/format";
+import startOfWeek from "date-fns/startOfWeek";
+import endOfWeek from "date-fns/endOfWeek";
+import startOfMonth from "date-fns/startOfMonth";
+import endOfMonth from "date-fns/endOfMonth";
+import isSameDay from "date-fns/isSameDay";
+import fr from "date-fns/locale/fr";
 import { commonStyles } from "../styles/common";
 import { deliveriesStyles } from "../styles/deliveriesStyles";
 import { COLORS } from "../styles/colors";
@@ -30,6 +29,7 @@ import { useAuth } from "../src/context/AuthContext";
 import { useSync } from "../src/hooks/useSync";
 import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { DeliveryService } from "../src/services/delivery.service";
+import { Formatters } from "../src/utils/formatters";
 import { Delivery } from "../src/types";
 
 type TabType = "A_LIVRER" | "AUJOURDHUI" | "LIVREE" | "ANNULEE";
@@ -53,7 +53,7 @@ export default function Deliveries() {
   const { user } = useAuth();
   const { markAndSync } = useSync();
 
-  const loadDeliveryDates = async () => {
+  const loadDeliveryDates = useCallback(async () => {
     try {
       if (!user) return;
       const dates = await DeliveryRepository.getDeliveryDates(user.id);
@@ -61,9 +61,9 @@ export default function Deliveries() {
     } catch (error) {
       console.error("Erreur lors du chargement des dates de livraison:", error);
     }
-  };
+  }, [user]);
 
-  const loadDeliveries = async () => {
+  const loadDeliveries = useCallback(async () => {
     let query = "";
     let params: (string | number | boolean | null)[] = [];
 
@@ -142,7 +142,7 @@ export default function Deliveries() {
       console.error("Erreur lors du chargement des livraisons:", error);
       Alert.alert("Erreur", "Impossible de charger les livraisons");
     }
-  };
+  }, [user, activeTab, searchQuery, dateFilterEnabled, selectedDate, selectedEndDate, activePeriod]);
 
   useEffect(() => {
     if (!user) return;
@@ -158,7 +158,7 @@ export default function Deliveries() {
     user,
   ]);
 
-  const toggleDeliverySelection = (id: number) => {
+  const toggleDeliverySelection = useCallback((id: number) => {
     const delivery = deliveries.find((d) => d.id === id);
 
     if (
@@ -173,9 +173,9 @@ export default function Deliveries() {
         ? prev.filter((deliveryId) => deliveryId !== id)
         : [...prev, id],
     );
-  };
+  }, [deliveries]);
 
-  const markAsDelivered = async (id: number) => {
+  const markAsDelivered = useCallback(async (id: number) => {
     setSelectedDeliveries((prev) =>
       prev.filter((deliveryId) => deliveryId !== id),
     );
@@ -197,9 +197,9 @@ export default function Deliveries() {
       console.error("Erreur markAsDelivered:", error);
       showError("Erreur", "Impossible de marquer comme livrée");
     }
-  };
+  }, [deliveries, user, markAndSync, showSuccess, showError, loadDeliveries]);
 
-  const markSelectedAsPaid = async () => {
+  const markSelectedAsPaid = useCallback(async () => {
     if (selectedDeliveries.length === 0) return;
 
     const validDeliveries = deliveries.filter(
@@ -216,9 +216,9 @@ export default function Deliveries() {
         setSelectedDeliveries([]);
       },
     );
-  };
+  }, [selectedDeliveries, deliveries, showConfirm, showSuccess]);
 
-  const markAsCancelled = async (id: number) => {
+  const markAsCancelled = useCallback(async (id: number) => {
     setSelectedDeliveries((prev) =>
       prev.filter((deliveryId) => deliveryId !== id),
     );
@@ -240,9 +240,9 @@ export default function Deliveries() {
       "Oui, annuler",
       "Non",
     );
-  };
+  }, [user, markAndSync, showConfirm, showSuccess, showError, loadDeliveries]);
 
-  const getStatusConfig = (status: string, isSelected?: boolean) => {
+  const getStatusConfig = useCallback((status: string, isSelected?: boolean) => {
     switch (status) {
       case "LIVREE":
         return {
@@ -277,9 +277,9 @@ export default function Deliveries() {
           icon: "pending",
         };
     }
-  };
+  }, []);
 
-  const groupDeliveriesByTime = () => {
+  const groupDeliveriesByTime = useCallback(() => {
     const morning: Delivery[] = [];
     const afternoon: Delivery[] = [];
     const evening: Delivery[] = [];
@@ -292,9 +292,9 @@ export default function Deliveries() {
     });
 
     return { morning, afternoon, evening };
-  };
+  }, [deliveries]);
 
-  const onDateChange = (event: object, date?: Date) => {
+  const onDateChange = useCallback((event: object, date?: Date) => {
     setShowDatePicker(false);
     if (date) {
       setSelectedDate(date);
@@ -302,17 +302,17 @@ export default function Deliveries() {
       setActivePeriod("custom");
       setDateFilterEnabled(true);
     }
-  };
+  }, []);
 
-  const clearDateFilter = () => {
+  const clearDateFilter = useCallback(() => {
     setSelectedDate(null);
     setSelectedEndDate(null);
     setActivePeriod("today");
     setDateFilterEnabled(false);
     setCalendarDate(new Date());
-  };
+  }, []);
 
-  const formatDateForDisplay = () => {
+  const formatDateForDisplay = useCallback(() => {
     if (!dateFilterEnabled || !selectedDate) return "Aucun filtre actif";
 
     switch (activePeriod) {
@@ -339,9 +339,9 @@ export default function Deliveries() {
       default:
         return format(selectedDate, "dd/MM/yyyy");
     }
-  };
+  }, [dateFilterEnabled, selectedDate, activePeriod, selectedEndDate]);
 
-  const selectPeriod = (period: PeriodType) => {
+  const selectPeriod = useCallback((period: PeriodType) => {
     const today = new Date();
     setActivePeriod(period);
 
@@ -373,18 +373,18 @@ export default function Deliveries() {
         setDateFilterEnabled(false);
         break;
     }
-  };
+  }, []);
 
-  const handleApplyFilters = () => {
+  const handleApplyFilters = useCallback(() => {
     if (activePeriod === "custom" && selectedDate) {
       setDateFilterEnabled(true);
     }
     setShowFilterModal(false);
-  };
+  }, [activePeriod, selectedDate]);
 
-  const hasDeliveriesOnDate = (date: Date) => {
+  const hasDeliveriesOnDate = useCallback((date: Date) => {
     return deliveryDates.some((deliveryDate) => isSameDay(deliveryDate, date));
-  };
+  }, [deliveryDates]);
 
   const generateCalendarDays = () => {
     const year = calendarDate.getFullYear();
@@ -556,7 +556,7 @@ export default function Deliveries() {
             </View>
 
             <Text style={deliveriesStyles.feeText}>
-              +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
+              +{Formatters.formatNumber(delivery.delivery_fee)} FCFA
             </Text>
           </View>
 
@@ -595,12 +595,12 @@ export default function Deliveries() {
             </Text>
 
             <Text style={deliveriesStyles.encaisseText}>
-              Encaissé : {montantEncaisse.toLocaleString("fr-FR")} FCFA
+              Encaissé : {Formatters.formatNumber(montantEncaisse)} FCFA
             </Text>
 
             {montantAReverser > 0 && (
               <Text style={deliveriesStyles.reverserText}>
-                À reverser : {montantAReverser.toLocaleString("fr-FR")} FCFA
+                À reverser : {Formatters.formatNumber(montantAReverser)} FCFA
               </Text>
             )}
           </View>
@@ -646,9 +646,136 @@ export default function Deliveries() {
 
   const { morning, afternoon, evening } = groupDeliveriesByTime();
 
-  const totalSelectedAmount = deliveries
-    .filter((d) => selectedDeliveries.includes(d.id) && d.status !== "ANNULEE")
-    .reduce((sum, d) => sum + d.delivery_fee, 0);
+  const totalSelectedAmount = useMemo(() => {
+    return deliveries
+      .filter((d) => selectedDeliveries.includes(d.id) && d.status !== "ANNULEE")
+      .reduce((sum, d) => sum + d.delivery_fee, 0);
+  }, [deliveries, selectedDeliveries]);
+
+  // Create flat list of items for FlatList
+  type FlatItem = 
+    | { type: 'section'; key: string; title: string }
+    | { type: 'delivery'; key: string; delivery: Delivery; showSeparator: boolean }
+    | { type: 'empty'; key: string };
+
+  const flatItems: FlatItem[] = useMemo(() => {
+    const items: FlatItem[] = [];
+    
+    if (activeTab === "AUJOURDHUI") {
+      if (morning.length > 0) {
+        items.push({ type: 'section', key: 'section-morning', title: 'Tournées du matin' });
+        morning.forEach((delivery, index) => {
+          items.push({ 
+            type: 'delivery', 
+            key: `delivery-${delivery.id}`, 
+            delivery,
+            showSeparator: false
+          });
+        });
+      }
+      
+      if (afternoon.length > 0) {
+        if (morning.length > 0) {
+          items.push({ type: 'section', key: 'separator-morning-afternoon', title: '' });
+        }
+        items.push({ type: 'section', key: 'section-afternoon', title: 'Bloc après-midi' });
+        afternoon.forEach((delivery, index) => {
+          items.push({ 
+            type: 'delivery', 
+            key: `delivery-${delivery.id}`, 
+            delivery,
+            showSeparator: false
+          });
+        });
+      }
+      
+      if (evening.length > 0) {
+        if (afternoon.length > 0) {
+          items.push({ type: 'section', key: 'separator-afternoon-evening', title: '' });
+        }
+        items.push({ type: 'section', key: 'section-evening', title: 'Soirée' });
+        evening.forEach((delivery, index) => {
+          items.push({ 
+            type: 'delivery', 
+            key: `delivery-${delivery.id}`, 
+            delivery,
+            showSeparator: false
+          });
+        });
+      }
+      
+      if (deliveries.length === 0) {
+        items.push({ type: 'empty', key: 'empty' });
+      }
+    } else {
+      deliveries.forEach((delivery, index) => {
+        items.push({ 
+          type: 'delivery', 
+          key: `delivery-${delivery.id}`, 
+          delivery,
+          showSeparator: index < deliveries.length - 1
+        });
+      });
+      
+      if (deliveries.length === 0) {
+        items.push({ type: 'empty', key: 'empty' });
+      }
+    }
+    
+    return items;
+  }, [activeTab, morning, afternoon, evening, deliveries]);
+
+  const renderItem = useCallback(({ item }: { item: FlatItem }) => {
+    if (item.type === 'section') {
+      if (item.title === '') {
+        return <View style={deliveriesStyles.sectionSeparator} />;
+      }
+      return (
+        <View style={commonStyles.section}>
+          <Text style={deliveriesStyles.sectionTitle}>{item.title}</Text>
+        </View>
+      );
+    }
+    
+    if (item.type === 'empty') {
+      return (
+        <View style={deliveriesStyles.emptyState}>
+          <MaterialIcons
+            name={
+              activeTab === "A_LIVRER"
+                ? "schedule"
+                : activeTab === "LIVREE"
+                  ? "check-circle"
+                  : activeTab === "ANNULEE"
+                    ? "cancel"
+                    : "local-shipping"
+            }
+            size={48}
+            color={COLORS.muted}
+          />
+          <Text style={deliveriesStyles.emptyStateText}>
+            {searchQuery
+              ? "Aucune livraison trouvée"
+              : dateFilterEnabled
+                ? `Aucune livraison pour ${formatDateForDisplay().toLowerCase()}`
+                : activeTab === "A_LIVRER" && "Aucune livraison à venir"
+                || activeTab === "LIVREE" && "Aucune livraison terminée"
+                || activeTab === "ANNULEE" && "Aucune livraison annulée"
+                || "Aucune livraison pour aujourd'hui"}
+          </Text>
+        </View>
+      );
+    }
+    
+    return (
+      <View>
+        {renderDeliveryCard(item.delivery)}
+        {item.showSeparator && <View style={deliveriesStyles.sectionSeparator} />}
+      </View>
+    );
+  }, [activeTab, searchQuery, dateFilterEnabled, renderDeliveryCard, formatDateForDisplay]);
+
+  const keyExtractor = useCallback((item: FlatItem) => item.key, []);
 
   return (
     <View style={commonStyles.container}>
@@ -665,193 +792,109 @@ export default function Deliveries() {
         </View>
       </BlurView>
 
-      <ScrollView
+      <FlatList
         style={deliveriesStyles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={deliveriesStyles.scrollContent}
-      >
-        <View style={deliveriesStyles.searchContainer}>
-          <View style={deliveriesStyles.searchInputContainer}>
-            <MaterialIcons
-              name="search"
-              size={20}
-              color={COLORS.muted}
-              style={deliveriesStyles.searchIcon}
-            />
-            <TextInput
-              style={deliveriesStyles.searchInput}
-              placeholder="Rechercher un client..."
-              placeholderTextColor={COLORS.muted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+        data={flatItems}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        ListHeaderComponent={
+          <>
+            <View style={deliveriesStyles.searchContainer}>
+              <View style={deliveriesStyles.searchInputContainer}>
+                <MaterialIcons
+                  name="search"
+                  size={20}
+                  color={COLORS.muted}
+                  style={deliveriesStyles.searchIcon}
+                />
+                <TextInput
+                  style={deliveriesStyles.searchInput}
+                  placeholder="Rechercher un client..."
+                  placeholderTextColor={COLORS.muted}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
 
-          <TouchableOpacity
-            style={[
-              deliveriesStyles.filterButton,
-              dateFilterEnabled && deliveriesStyles.filterButtonActive,
-            ]}
-            onPress={() => setShowFilterModal(true)}
-          >
-            <MaterialIcons
-              name="filter-list"
-              size={20}
-              color={dateFilterEnabled ? COLORS.primary : COLORS.muted}
-            />
-            {dateFilterEnabled && (
-              <View style={deliveriesStyles.filterIndicator} />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {dateFilterEnabled && (
-          <View style={deliveriesStyles.dateFilterContainer}>
-            <View style={deliveriesStyles.dateFilterContent}>
-              <MaterialIcons
-                name="calendar-today"
-                size={16}
-                color={COLORS.primary}
-              />
-              <Text style={deliveriesStyles.dateFilterText}>
-                {formatDateForDisplay()}
-              </Text>
-              <TouchableOpacity onPress={clearDateFilter}>
-                <MaterialIcons name="close" size={16} color={COLORS.danger} />
+              <TouchableOpacity
+                style={[
+                  deliveriesStyles.filterButton,
+                  dateFilterEnabled && deliveriesStyles.filterButtonActive,
+                ]}
+                onPress={() => setShowFilterModal(true)}
+              >
+                <MaterialIcons
+                  name="filter-list"
+                  size={20}
+                  color={dateFilterEnabled ? COLORS.primary : COLORS.muted}
+                />
+                {dateFilterEnabled && (
+                  <View style={deliveriesStyles.filterIndicator} />
+                )}
               </TouchableOpacity>
             </View>
-          </View>
-        )}
 
-        <View style={deliveriesStyles.tabsContainer}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={deliveriesStyles.tabsScroll}
-          >
-            {(["A_LIVRER", "AUJOURDHUI", "LIVREE", "ANNULEE"] as TabType[]).map(
-              (tab) => (
-                <TouchableOpacity
-                  key={tab}
-                  style={[
-                    deliveriesStyles.tab,
-                    activeTab === tab && deliveriesStyles.activeTab,
-                  ]}
-                  onPress={() => setActiveTab(tab)}
-                >
-                  <Text
-                    style={[
-                      deliveriesStyles.tabText,
-                      activeTab === tab && deliveriesStyles.activeTabText,
-                    ]}
-                  >
-                    {tab === "A_LIVRER" && "En cours"}
-                    {tab === "AUJOURDHUI" && "Aujourd'hui"}
-                    {tab === "LIVREE" && "Terminées"}
-                    {tab === "ANNULEE" && "Annulées"}
-                  </Text>
-                  <View
-                    style={[
-                      deliveriesStyles.tabIndicator,
-                      activeTab === tab && deliveriesStyles.activeTabIndicator,
-                    ]}
+            {dateFilterEnabled && (
+              <View style={deliveriesStyles.dateFilterContainer}>
+                <View style={deliveriesStyles.dateFilterContent}>
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={16}
+                    color={COLORS.primary}
                   />
-                </TouchableOpacity>
-              ),
+                  <Text style={deliveriesStyles.dateFilterText}>
+                    {formatDateForDisplay()}
+                  </Text>
+                  <TouchableOpacity onPress={clearDateFilter}>
+                    <MaterialIcons name="close" size={16} color={COLORS.danger} />
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
-          </ScrollView>
-        </View>
 
-        {activeTab === "AUJOURDHUI" ? (
-          <View style={deliveriesStyles.deliveriesList}>
-            {morning.length > 0 && (
-              <View style={commonStyles.section}>
-                <Text style={deliveriesStyles.sectionTitle}>
-                  Tournées du matin
-                </Text>
-                {morning.map((delivery) => (
-                  <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
-                ))}
-                {afternoon.length > 0 && morning.length > 0 && (
-                  <View style={deliveriesStyles.sectionSeparator} />
+            <View style={deliveriesStyles.tabsContainer}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={deliveriesStyles.tabsScroll}
+              >
+                {(["A_LIVRER", "AUJOURDHUI", "LIVREE", "ANNULEE"] as TabType[]).map(
+                  (tab) => (
+                    <TouchableOpacity
+                      key={tab}
+                      style={[
+                        deliveriesStyles.tab,
+                        activeTab === tab && deliveriesStyles.activeTab,
+                      ]}
+                      onPress={() => setActiveTab(tab)}
+                    >
+                      <Text
+                        style={[
+                          deliveriesStyles.tabText,
+                          activeTab === tab && deliveriesStyles.activeTabText,
+                        ]}
+                      >
+                        {tab === "A_LIVRER" && "En cours"}
+                        {tab === "AUJOURDHUI" && "Aujourd'hui"}
+                        {tab === "LIVREE" && "Terminées"}
+                        {tab === "ANNULEE" && "Annulées"}
+                      </Text>
+                      <View
+                        style={[
+                          deliveriesStyles.tabIndicator,
+                          activeTab === tab && deliveriesStyles.activeTabIndicator,
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  ),
                 )}
-              </View>
-            )}
-
-            {afternoon.length > 0 && (
-              <View style={commonStyles.section}>
-                <Text style={deliveriesStyles.sectionTitle}>
-                  Bloc après-midi
-                </Text>
-                {afternoon.map((delivery) => (
-                  <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
-                ))}
-                {evening.length > 0 && afternoon.length > 0 && (
-                  <View style={deliveriesStyles.sectionSeparator} />
-                )}
-              </View>
-            )}
-
-            {evening.length > 0 && (
-              <View style={commonStyles.section}>
-                <Text style={deliveriesStyles.sectionTitle}>Soirée</Text>
-                {evening.map((delivery) => (
-                  <View key={delivery.id}>{renderDeliveryCard(delivery)}</View>
-                ))}
-              </View>
-            )}
-
-            {deliveries.length === 0 && (
-              <View style={deliveriesStyles.emptyState}>
-                <MaterialIcons
-                  name="local-shipping"
-                  size={48}
-                  color={COLORS.muted}
-                />
-                <Text style={deliveriesStyles.emptyStateText}>
-                  {searchQuery
-                    ? "Aucune livraison trouvée"
-                    : dateFilterEnabled
-                      ? `Aucune livraison pour ${formatDateForDisplay().toLowerCase()}`
-                      : "Aucune livraison pour aujourd'hui"}
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : (
-          <View style={deliveriesStyles.deliveriesList}>
-            {deliveries.map((delivery, index) => (
-              <View key={delivery.id}>
-                {renderDeliveryCard(delivery)}
-                {index < deliveries.length - 1 && (
-                  <View style={deliveriesStyles.sectionSeparator} />
-                )}
-              </View>
-            ))}
-
-            {deliveries.length === 0 && (
-              <View style={deliveriesStyles.emptyState}>
-                <MaterialIcons
-                  name={
-                    activeTab === "A_LIVRER"
-                      ? "schedule"
-                      : activeTab === "LIVREE"
-                        ? "check-circle"
-                        : "cancel"
-                  }
-                  size={48}
-                  color={COLORS.muted}
-                />
-                <Text style={deliveriesStyles.emptyStateText}>
-                  {activeTab === "A_LIVRER" && "Aucune livraison à venir"}
-                  {activeTab === "LIVREE" && "Aucune livraison terminée"}
-                  {activeTab === "ANNULEE" && "Aucune livraison annulée"}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-      </ScrollView>
+              </ScrollView>
+            </View>
+          </>
+        }
+      />
 
       {selectedDeliveries.length > 0 && (
         <View style={deliveriesStyles.selectionBar}>
@@ -862,7 +905,7 @@ export default function Deliveries() {
               {selectedDeliveries.length > 1 ? "s" : ""}
             </Text>
             <Text style={deliveriesStyles.selectionAmount}>
-              +{totalSelectedAmount.toLocaleString("fr-FR")} FCFA total
+              +{Formatters.formatNumber(totalSelectedAmount)} FCFA total
             </Text>
           </View>
 

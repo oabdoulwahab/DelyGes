@@ -4,6 +4,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { Delivery } from "../src/types";
 import { COLORS } from "../styles/colors";
+import { Formatters } from "../src/utils/formatters";
 import { deliveriesStyles } from "../styles/deliveriesStyles";
 
 interface DeliveryCardProps {
@@ -163,7 +164,7 @@ const DeliveryCard = memo(function DeliveryCard({
           </View>
 
           <Text style={deliveriesStyles.feeText}>
-            +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
+            +{Formatters.formatNumber(delivery.delivery_fee)} FCFA
           </Text>
         </View>
 
@@ -202,12 +203,12 @@ const DeliveryCard = memo(function DeliveryCard({
           </Text>
 
           <Text style={deliveriesStyles.encaisseText}>
-            Encaissé : {montantEncaisse.toLocaleString("fr-FR")} FCFA
+            Encaissé : {Formatters.formatNumber(montantEncaisse)} FCFA
           </Text>
 
           {montantAReverser > 0 && (
             <Text style={deliveriesStyles.reverserText}>
-              À reverser : {montantAReverser.toLocaleString("fr-FR")} FCFA
+              À reverser : {Formatters.formatNumber(montantAReverser)} FCFA
             </Text>
           )}
         </View>

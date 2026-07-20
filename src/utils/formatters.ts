@@ -1,6 +1,27 @@
 // src/utils/formatters.ts
-import { format, parseISO, differenceInDays, differenceInHours, isToday, isYesterday } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import format from 'date-fns/format';
+import parseISO from 'date-fns/parseISO';
+import differenceInDays from 'date-fns/differenceInDays';
+import differenceInHours from 'date-fns/differenceInHours';
+import isToday from 'date-fns/isToday';
+import isYesterday from 'date-fns/isYesterday';
+import fr from 'date-fns/locale/fr';
+
+function formatNumberFR(n: number, decimals: number = 0): string {
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  const intPart = Math.floor(abs);
+  const fracPart = decimals > 0
+    ? Math.round((abs - intPart) * Math.pow(10, decimals)).toString().padStart(decimals, '0')
+    : '';
+  const parts = intPart.toString().split('');
+  let result = '';
+  for (let i = parts.length - 1, j = 0; i >= 0; i--, j++) {
+    if (j > 0 && j % 3 === 0) result = '\u00A0' + result;
+    result = parts[i] + result;
+  }
+  return sign + result + (fracPart ? ',' + fracPart : '');
+}
 
 export class Formatters {
   // Formater une date
@@ -18,9 +39,14 @@ export class Formatters {
     return this.formatDate(date, 'dd/MM/yyyy HH:mm');
   }
 
+  // Formater un nombre à la française (séparateur de milliers)
+  static formatNumber(amount: number, decimals: number = 0): string {
+    return formatNumberFR(amount, decimals);
+  }
+
   // Formater un montant en devise
   static formatCurrency(amount: number, currency: string = 'FCFA'): string {
-    return `${amount.toLocaleString('fr-FR')} ${currency}`;
+    return `${formatNumberFR(amount)} ${currency}`;
   }
 
   // Formater un numéro de téléphone

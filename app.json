@@ -13,6 +13,7 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/f5cb150b-bb4e-42f8-a5ab-6dd8dd4ec3e9"
     },
+     "jsEngine": "hermes",
     "runtimeVersion": "1",
     "ios": {
       "supportsTablet": true,

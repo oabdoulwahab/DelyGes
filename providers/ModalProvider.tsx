@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import CustomModal from '../components/CustomModal';
 
 type ModalButton = {
@@ -103,15 +103,18 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     hideModal();
   }, [hideModal]);
 
-  const contextValue: ModalContextType = {
-    showModal,
-    showAlert,
-    showConfirm,
-    showSuccess,
-    showError,
-    hideModal,
-    isVisible: visible,
-  };
+  const contextValue: ModalContextType = useMemo(
+    () => ({
+      showModal,
+      showAlert,
+      showConfirm,
+      showSuccess,
+      showError,
+      hideModal,
+      isVisible: visible,
+    }),
+    [showModal, showAlert, showConfirm, showSuccess, showError, hideModal, visible]
+  );
 
   return (
     <ModalContext.Provider value={contextValue}>

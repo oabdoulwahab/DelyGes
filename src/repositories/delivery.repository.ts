@@ -1,5 +1,11 @@
 // src/repositories/delivery.repository.ts
-import { endOfDay, endOfMonth, endOfWeek, format, startOfDay, startOfMonth, startOfWeek } from 'date-fns';
+import endOfDay from 'date-fns/endOfDay';
+import endOfMonth from 'date-fns/endOfMonth';
+import endOfWeek from 'date-fns/endOfWeek';
+import format from 'date-fns/format';
+import startOfDay from 'date-fns/startOfDay';
+import startOfMonth from 'date-fns/startOfMonth';
+import startOfWeek from 'date-fns/startOfWeek';
 import { DatabaseService } from '../database/db';
 import { Delivery, DeliveryCreateDTO, DeliveryFilters, DeliveryUpdateDTO } from '../types';
 import { AppError, DatabaseError, NotFoundError, ValidationError } from '../utils/errors';

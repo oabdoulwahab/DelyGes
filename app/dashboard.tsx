@@ -11,6 +11,7 @@ import NotificationBadge from "../components/NotificationBadge";
 import { sendGoalAchievedNotification } from '../src/services/notification.service';
 import { useAuth } from '../src/context/AuthContext';
 import { DashboardService } from '../src/services/dashboard.service';
+import { Formatters } from '../src/utils/formatters';
 import { Delivery } from '../src/types';
 
 interface DashboardState {
@@ -59,11 +60,7 @@ export default function Dashboard() {
   const goalAchievedRef = useRef(false);
   const lastGoalCheckRef = useRef("");
 
-  const formattedDate = new Date().toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const formattedDate = Formatters.formatDate(new Date(), "d MMM yyyy");
 
   useEffect(() => {
     if (user) {
@@ -236,10 +233,10 @@ export default function Dashboard() {
           
           <View style={dashboardStyles.goalAmountContainer}>
             <Text style={dashboardStyles.goalCurrentAmount}>
-              {data.todayEarnings.toLocaleString("fr-FR")} FCFA
+              {Formatters.formatNumber(data.todayEarnings)} FCFA
             </Text>
             <Text style={dashboardStyles.goalTargetAmount}>
-              / {data.dailyGoal.toLocaleString("fr-FR")} FCFA
+              / {Formatters.formatNumber(data.dailyGoal)} FCFA
             </Text>
           </View>
           
@@ -259,7 +256,7 @@ export default function Dashboard() {
             </Text>
             <Text style={dashboardStyles.goalRemainingText}>
               Reste : {(data.dailyGoal - data.todayEarnings) > 0 
-                ? (data.dailyGoal - data.todayEarnings).toLocaleString("fr-FR") 
+                ? Formatters.formatNumber(data.dailyGoal - data.todayEarnings) 
                 : "0"} FCFA
             </Text>
           </View>
@@ -272,7 +269,7 @@ export default function Dashboard() {
             </View>
           ) : (
             <Text style={dashboardStyles.goalMotivationText}>
-              Plus que {(data.dailyGoal - data.todayEarnings).toLocaleString("fr-FR")} FCFA à gagner !
+              Plus que {Formatters.formatNumber(data.dailyGoal - data.todayEarnings)} FCFA à gagner !
             </Text>
           )}
         </View>
@@ -307,7 +304,7 @@ export default function Dashboard() {
               <View style={dashboardStyles.financeRow}>
                 <Text style={dashboardStyles.financeLabel}>Total encaissé</Text>
                 <Text style={dashboardStyles.financeValue}>
-                  {data.todayEncaisse.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(data.todayEncaisse)} FCFA
                 </Text>
               </View>
 
@@ -319,7 +316,7 @@ export default function Dashboard() {
                     { color: COLORS.warning },
                   ]}
                 >
-                  {data.todayAReverser.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(data.todayAReverser)} FCFA
                 </Text>
               </View>
 
@@ -331,7 +328,7 @@ export default function Dashboard() {
                     { color: COLORS.success },
                   ]}
                 >
-                  {data.todayProfit.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(data.todayProfit)} FCFA
                 </Text>
               </View>
 
@@ -345,7 +342,7 @@ export default function Dashboard() {
                     { color: COLORS.primary },
                   ]}
                 >
-                  {data.pendingReversal.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(data.pendingReversal)} FCFA
                 </Text>
               </View>
 
@@ -358,7 +355,7 @@ export default function Dashboard() {
             </View>
 
             <Text style={dashboardStyles.mainAmount}>
-              {(data.todayEarnings || 0).toLocaleString("fr-FR")} FCFA
+              {Formatters.formatNumber(data.todayEarnings || 0)} FCFA
             </Text>
 
             <View style={dashboardStyles.trendContainer}>
@@ -396,14 +393,14 @@ export default function Dashboard() {
           <View style={dashboardStyles.secondaryCard}>
             <Text style={dashboardStyles.secondaryLabel}>Semaine</Text>
             <Text style={dashboardStyles.secondaryAmount}>
-              {(data.weekEarnings || 0).toLocaleString("fr-FR")} FCFA
+              {Formatters.formatNumber(data.weekEarnings || 0)} FCFA
             </Text>
           </View>
 
           <View style={dashboardStyles.secondaryCard}>
             <Text style={dashboardStyles.secondaryLabel}>Mois</Text>
             <Text style={dashboardStyles.secondaryAmount}>
-              {(data.monthEarnings || 0).toLocaleString("fr-FR")} FCFA
+              {Formatters.formatNumber(data.monthEarnings || 0)} FCFA
             </Text>
           </View>
         </View>

@@ -1,6 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { endOfMonth, format, isSameDay, startOfMonth } from "date-fns";
-import { fr } from "date-fns/locale";
+import endOfMonth from "date-fns/endOfMonth";
+import format from "date-fns/format";
+import isSameDay from "date-fns/isSameDay";
+import startOfMonth from "date-fns/startOfMonth";
+import fr from "date-fns/locale/fr";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
@@ -20,6 +23,7 @@ import { merchantAccountingStyles } from "../styles/merchantAccountingStyles";
 import { useAuth } from "../src/context/AuthContext";
 import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { MerchantRepository } from "../src/repositories/merchant.repository";
+import { Formatters } from "../src/utils/formatters";
 import { Delivery, Merchant } from "../src/types";
 
 type DeliveryAccounting = Delivery & { month_key: string; year: string; month: string };
@@ -608,7 +612,7 @@ export default function MerchantAccounting() {
       </Text>
       <View style={merchantAccountingStyles.deliveryPreviewFooter}>
         <Text style={merchantAccountingStyles.deliveryPreviewFee}>
-          +{delivery.delivery_fee.toLocaleString("fr-FR")} FCFA
+          +{Formatters.formatNumber(delivery.delivery_fee)} FCFA
         </Text>
         {delivery.reversed === 1 ? (
           <View style={merchantAccountingStyles.reversedBadge}>
@@ -676,7 +680,7 @@ export default function MerchantAccounting() {
                 {merchant.totalDeliveries} livraison(s)
               </Text>
               <Text style={merchantAccountingStyles.merchantStatAmount}>
-                {merchant.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                {Formatters.formatNumber(merchant.totalEncaisse)} FCFA
               </Text>
             </View>
           </View>
@@ -704,7 +708,7 @@ export default function MerchantAccounting() {
                   Total encaissé
                 </Text>
                 <Text style={merchantAccountingStyles.financialValue}>
-                  {merchant.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(merchant.totalEncaisse)} FCFA
                 </Text>
               </View>
               <View style={merchantAccountingStyles.financialRow}>
@@ -722,7 +726,7 @@ export default function MerchantAccounting() {
                     { color: COLORS.warning },
                   ]}
                 >
-                  {merchant.totalAReverser.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(merchant.totalAReverser)} FCFA
                 </Text>
               </View>
               <View style={merchantAccountingStyles.financialRow}>
@@ -740,7 +744,7 @@ export default function MerchantAccounting() {
                     { color: COLORS.success },
                   ]}
                 >
-                  {merchant.totalProfit.toLocaleString("fr-FR")} FCFA
+                  {Formatters.formatNumber(merchant.totalProfit)} FCFA
                 </Text>
               </View>
             </View>
@@ -931,7 +935,7 @@ export default function MerchantAccounting() {
         <View style={merchantAccountingStyles.globalCard}>
           <Text style={merchantAccountingStyles.globalLabel}>Encaissé</Text>
           <Text style={merchantAccountingStyles.globalValue}>
-            {totals.encaisse.toLocaleString("fr-FR")} FCFA
+            {Formatters.formatNumber(totals.encaisse)} FCFA
           </Text>
         </View>
         <View style={merchantAccountingStyles.globalCard}>
@@ -942,7 +946,7 @@ export default function MerchantAccounting() {
               { color: COLORS.warning },
             ]}
           >
-            {totals.aReverser.toLocaleString("fr-FR")} FCFA
+            {Formatters.formatNumber(totals.aReverser)} FCFA
           </Text>
         </View>
         <View style={merchantAccountingStyles.globalCard}>
@@ -953,7 +957,7 @@ export default function MerchantAccounting() {
               { color: COLORS.success },
             ]}
           >
-            {totals.profit.toLocaleString("fr-FR")} FCFA
+            {Formatters.formatNumber(totals.profit)} FCFA
           </Text>
         </View>
       </View>
@@ -1039,7 +1043,7 @@ export default function MerchantAccounting() {
                             color: COLORS.warning,
                           }}
                         >
-                          {merchant.totalAReverser.toLocaleString("fr-FR")} FCFA
+                          {Formatters.formatNumber(merchant.totalAReverser)} FCFA
                         </Text>
                         <Text
                           style={{
@@ -1074,7 +1078,7 @@ export default function MerchantAccounting() {
                             <Text
                               style={merchantAccountingStyles.financialValue}
                             >
-                              {merchant.totalEncaisse.toLocaleString("fr-FR")}{" "}
+                              {Formatters.formatNumber(merchant.totalEncaisse)}{" "}
                               FCFA
                             </Text>
                           </View>
@@ -1093,7 +1097,7 @@ export default function MerchantAccounting() {
                                 { color: COLORS.warning },
                               ]}
                             >
-                              {merchant.totalAReverser.toLocaleString("fr-FR")}{" "}
+                              {Formatters.formatNumber(merchant.totalAReverser)}{" "}
                               FCFA
                             </Text>
                           </View>
@@ -1133,7 +1137,7 @@ export default function MerchantAccounting() {
                             style={merchantAccountingStyles.closeButtonText}
                           >
                             Tout clôturer (
-                            {merchant.totalAReverser.toLocaleString("fr-FR")}{" "}
+                            {Formatters.formatNumber(merchant.totalAReverser)}{" "}
                             FCFA)
                           </Text>
                         </TouchableOpacity>
@@ -1305,7 +1309,7 @@ export default function MerchantAccounting() {
                             Total encaissé
                           </Text>
                           <Text style={merchantAccountingStyles.financialValue}>
-                            {merchant.totalEncaisse.toLocaleString("fr-FR")}{" "}
+                            {Formatters.formatNumber(merchant.totalEncaisse)}{" "}
                             FCFA
                           </Text>
                         </View>
@@ -1324,7 +1328,7 @@ export default function MerchantAccounting() {
                               { color: COLORS.warning },
                             ]}
                           >
-                            {merchant.totalAReverser.toLocaleString("fr-FR")}{" "}
+                            {Formatters.formatNumber(merchant.totalAReverser)}{" "}
                             FCFA
                           </Text>
                         </View>
@@ -1343,7 +1347,7 @@ export default function MerchantAccounting() {
                               { color: COLORS.success },
                             ]}
                           >
-                            {merchant.totalProfit.toLocaleString("fr-FR")} FCFA
+                            {Formatters.formatNumber(merchant.totalProfit)} FCFA
                           </Text>
                         </View>
                       </View>
@@ -1465,7 +1469,7 @@ export default function MerchantAccounting() {
                     </View>
                     <View style={merchantAccountingStyles.monthStats}>
                       <Text style={merchantAccountingStyles.monthTotalEncaisse}>
-                        {month.totalEncaisse.toLocaleString("fr-FR")} FCFA
+                        {Formatters.formatNumber(month.totalEncaisse)} FCFA
                       </Text>
                       <MaterialIcons
                         name={
@@ -1506,7 +1510,7 @@ export default function MerchantAccounting() {
                               { color: COLORS.warning },
                             ]}
                           >
-                            {month.totalAReverser.toLocaleString("fr-FR")} FCFA
+                            {Formatters.formatNumber(month.totalAReverser)} FCFA
                           </Text>
                         </View>
                         <View style={merchantAccountingStyles.monthSummaryItem}>
@@ -1521,7 +1525,7 @@ export default function MerchantAccounting() {
                               { color: COLORS.success },
                             ]}
                           >
-                            {month.totalProfit.toLocaleString("fr-FR")} FCFA
+                            {Formatters.formatNumber(month.totalProfit)} FCFA
                           </Text>
                         </View>
                       </View>

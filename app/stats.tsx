@@ -24,6 +24,7 @@ import { statsStyles } from "../styles/statsStyles";
 import { COLORS } from "../styles/colors";
 import { useAuth } from "../src/context/AuthContext";
 import { StatsService, Period, StatsData } from "../src/services/stats.service";
+import { Formatters } from "../src/utils/formatters";
 
 const { width } = Dimensions.get("window");
 const CHART_WIDTH = width - 32;
@@ -78,7 +79,7 @@ export default function Stats() {
 };
 
   const formatCurrency = (value: number) => {
-    return `${value.toLocaleString("fr-FR")} FCFA`;
+    return `${Formatters.formatNumber(value)} FCFA`;
   };
 
   const getPeriodLabel = (period: Period) => {
@@ -98,20 +99,13 @@ export default function Stats() {
     const now = new Date();
     switch (period) {
       case "day":
-        return now.toLocaleDateString("fr-FR", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        });
+        return Formatters.formatDate(now, "d MMMM yyyy");
       case "week":
         const weekStart = new Date(now);
         weekStart.setDate(now.getDate() - now.getDay() + 1);
-        return `${weekStart.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} - ${now.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}`;
+        return `${Formatters.formatDate(weekStart, "d MMM")} - ${Formatters.formatDate(now, "d MMM yyyy")}`;
       case "month":
-        return now.toLocaleDateString("fr-FR", {
-          month: "long",
-          year: "numeric",
-        });
+        return Formatters.formatDate(now, "MMMM yyyy");
       case "year":
         return now.getFullYear().toString();
     }

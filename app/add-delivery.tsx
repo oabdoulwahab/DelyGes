@@ -24,6 +24,7 @@ import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { MerchantRepository } from "../src/repositories/merchant.repository";
 import { MerchantService } from "../src/services/merchant.service";
 import { FinancialCalculations } from "../src/utils/financialCalculations";
+import { Formatters } from "../src/utils/formatters";
 import { Delivery, Merchant, PaymentType } from "../src/types";
 
 export default function AddDelivery() {
@@ -387,20 +388,11 @@ const getOrCreateMerchant = async () => {
       : 0;
     switch (paymentType) {
       case "CLIENT_PAYE_TOUT":
-        return (parcelNum + deliveryNum).toLocaleString("fr-FR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
+        return Formatters.formatNumber(parcelNum + deliveryNum, 2);
       case "CLIENT_PAYE_LIVRAISON":
-        return deliveryNum.toLocaleString("fr-FR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
+        return Formatters.formatNumber(deliveryNum, 2);
       case "LIVRAISON_DEJA_PAYEE":
-        return parcelNum.toLocaleString("fr-FR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        });
+        return Formatters.formatNumber(parcelNum, 2);
       case "COLIS_DEJA_PAYE":
         return "0,00";
       default:

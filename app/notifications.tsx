@@ -18,8 +18,8 @@ import { COLORS } from "../styles/colors";
 import { useAuth } from "../src/context/AuthContext";
 import { NotificationStore } from "../src/services/notification.store";
 import { Notification } from "../src/types/notification";
-import { formatDistanceToNow } from "date-fns";
-import { fr } from "date-fns/locale";
+import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import fr from "date-fns/locale/fr";
 
 export default function NotificationsScreen() {
   const { user } = useAuth();

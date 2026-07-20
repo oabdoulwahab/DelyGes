@@ -5,6 +5,7 @@ import * as TaskManager from "expo-task-manager";
 import { Platform } from "react-native";
 import { db } from "../database/db";
 import { NotificationStore } from "./notification.store";
+import { Formatters } from "../utils/formatters";
 
 const BACKGROUND_FETCH_TASK = "check-delivery-reminder";
 
@@ -117,7 +118,7 @@ export const sendDeliveryCompletedNotification = async (
     );
 
     const title = "✅ Livraison terminée";
-    const body = `+${amount.toLocaleString("fr-FR")} FCFA. Total jour: ${(stats?.total || amount).toLocaleString("fr-FR")} FCFA`;
+    const body = `+${Formatters.formatNumber(amount)} FCFA. Total jour: ${Formatters.formatNumber(stats?.total || amount)} FCFA`;
 
     const notificationId = await NotificationStore.add({
       type: "delivery_progress",
@@ -222,7 +223,7 @@ export const sendGoalAchievedNotification = async (
     if (!notificationsEnabled) return;
 
     const title = "🎯 OBJECTIF ATTEINT !";
-    const body = `Félicitations ${user?.name || ""} ! Vous avez gagné ${amount.toLocaleString("fr-FR")} FCFA aujourd'hui. Objectif: ${goal.toLocaleString("fr-FR")} FCFA 🎉`;
+    const body = `Félicitations ${user?.name || ""} ! Vous avez gagné ${Formatters.formatNumber(amount)} FCFA aujourd'hui. Objectif: ${Formatters.formatNumber(goal)} FCFA 🎉`;
 
     const notificationId = await NotificationStore.add({
       type: "goal_achieved",

@@ -1,5 +1,5 @@
 // src/context/AuthContext.tsx
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import * as SecureStore from "expo-secure-store";
 import { db as sqliteDb } from "../database/db";
 import { auth, db as firestore } from "../config/firebase";
@@ -145,7 +145,7 @@ const loadLocalUser = async (firebaseUid: string) => {
 };
 
   // 3. Vérification initiale
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     if (!isDbReady) return;
 
     try {
@@ -170,7 +170,7 @@ const loadLocalUser = async (firebaseUid: string) => {
     } catch (error) {
       console.error("❌ Erreur checkAuth:", error);
     }
-  };
+  }, [isDbReady]);
 
   // 3.5 Rafraîchir l'utilisateur depuis SQLite
   const refreshUser = useCallback(async () => {
@@ -189,7 +189,7 @@ const loadLocalUser = async (firebaseUid: string) => {
   }, [user?.id]);
 
   // 4. Connexion
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
       console.log("🔐 Tentative de connexion...");
 
@@ -224,10 +224,10 @@ const loadLocalUser = async (firebaseUid: string) => {
         throw new Error("Erreur de connexion");
       }
     }
-  };
+  }, []);
 
   // 5. Inscription
-  const register = async (data: RegisterData) => {
+  const register = useCallback(async (data: RegisterData) => {
     try {
       console.log("📝 Tentative d'inscription...");
 
@@ -340,10 +340,10 @@ const loadLocalUser = async (firebaseUid: string) => {
         throw new Error(err.message || "Erreur d'inscription");
       }
     }
-  };
+  }, []);
 
   // 6. Déconnexion
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       console.log("🚪 Déconnexion...");
       await signOut(auth);
@@ -352,7 +352,7 @@ const loadLocalUser = async (firebaseUid: string) => {
       console.error("❌ Erreur logout:", error);
       throw error;
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (isDbReady) {
@@ -360,20 +360,23 @@ const loadLocalUser = async (firebaseUid: string) => {
     }
   }, [isDbReady]);
 
+  const contextValue = useMemo(
+    () => ({
+      user,
+      firebaseUser,
+      isAuthenticated,
+      authReady,
+      login,
+      register,
+      logout,
+      checkAuth,
+      refreshUser,
+    }),
+    [user, firebaseUser, isAuthenticated, authReady, login, register, logout, checkAuth, refreshUser]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        firebaseUser,
-        isAuthenticated,
-        authReady,
-        login,
-        register,
-        logout,
-        checkAuth,
-        refreshUser,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

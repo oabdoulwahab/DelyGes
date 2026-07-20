@@ -1,5 +1,6 @@
 import { DatabaseService } from '../database/db';
 import { Delivery } from '../types';
+import { cacheGet, cacheSet } from '../cache/cache';
 
 export interface DashboardData {
   todayEarnings: number;
@@ -32,6 +33,10 @@ const toLocalDateStr = (date: Date): string => {
 
 export class DashboardService {
   static async getDashboardData(userId: string | number): Promise<DashboardData> {
+    const cacheKey = `dashboard:${userId}`;
+    const cached = cacheGet<DashboardData>(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
     const today = toLocalDateStr(now);
 
@@ -50,18 +55,95 @@ export class DashboardService {
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const nextMonthStartStr = toLocalDateStr(nextMonthStart);
 
-    const todayDeliveries = await DatabaseService.query<Delivery>(
-      `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
-        d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
-        d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
-        d.firebase_id, d.needs_sync
-       FROM deliveries d
-       WHERE d.user_id = ?
-       AND d.status = 'LIVREE'
-       AND d.delivered_at >= ? AND d.delivered_at < ?`,
-      [userIdNum, today, tomorrow],
-    );
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = toLocalDateStr(yesterday);
 
+    // Parallelize independent queries
+    const [
+      todayDeliveries,
+      yesterdayResult,
+      weekResult,
+      monthResult,
+      todayAllResult,
+      pending,
+      userGoal,
+      allStats,
+    ] = await Promise.all([
+      DatabaseService.query<Delivery>(
+        `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+          d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+          d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+          d.firebase_id, d.needs_sync
+         FROM deliveries d
+         WHERE d.user_id = ?
+         AND d.status = 'LIVREE'
+         AND d.delivered_at >= ? AND d.delivered_at < ?`,
+        [userIdNum, today, tomorrow],
+      ),
+      DatabaseService.getOne<{ total: number }>(
+        `SELECT COALESCE(SUM(delivery_fee), 0) as total FROM deliveries
+         WHERE user_id = ? AND status = ? AND delivered_at >= ? AND delivered_at < ?`,
+        [userIdNum, 'LIVREE', yesterdayStr, today],
+      ),
+      DatabaseService.getOne<{ total: number }>(
+        `SELECT COALESCE(SUM(delivery_fee), 0) as total
+         FROM deliveries
+         WHERE user_id = ? AND status = 'LIVREE'
+         AND delivered_at >= ?`,
+        [userIdNum, weekAgoDate],
+      ),
+      DatabaseService.getOne<{ total: number }>(
+        `SELECT COALESCE(SUM(delivery_fee), 0) as total
+         FROM deliveries
+         WHERE user_id = ? AND status = 'LIVREE'
+         AND delivered_at >= ? AND delivered_at < ?`,
+        [userIdNum, monthStartStr, nextMonthStartStr],
+      ),
+      DatabaseService.query<Delivery>(
+        `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+          d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+          d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+          d.firebase_id, d.needs_sync
+         FROM deliveries d
+         WHERE d.user_id = ?
+         AND (d.status = 'A_LIVRER' OR d.status = 'LIVREE')
+         AND d.created_at >= ? AND d.created_at < ?
+         ORDER BY d.created_at`,
+        [userIdNum, today, tomorrow],
+      ),
+      DatabaseService.query<Delivery>(
+        `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
+          d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
+          d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
+          d.firebase_id, d.needs_sync
+         FROM deliveries d
+         WHERE d.user_id = ?
+         AND d.status = 'LIVREE'
+         AND d.reversed = 0`,
+        [userIdNum],
+      ),
+      DatabaseService.getOne<{ daily_goal: number; monthly_goal: number }>(
+        `SELECT daily_goal, monthly_goal FROM user WHERE id = ?`,
+        [userIdNum],
+      ),
+      DatabaseService.getOne<{
+        totalEarnings: number;
+        completed: number;
+        pending: number;
+        cancelled: number;
+      }>(
+        `SELECT
+          COALESCE(SUM(delivery_fee), 0) as totalEarnings,
+          COALESCE(SUM(CASE WHEN status = 'LIVREE' THEN 1 ELSE 0 END), 0) as completed,
+          COALESCE(SUM(CASE WHEN status = 'A_LIVRER' THEN 1 ELSE 0 END), 0) as pending,
+          COALESCE(SUM(CASE WHEN status = 'ANNULEE' THEN 1 ELSE 0 END), 0) as cancelled
+        FROM deliveries WHERE user_id = ?`,
+        [userIdNum],
+      ),
+    ]);
+
+    // Compute derived values from todayDeliveries
     let encaisse = 0;
     let aReverser = 0;
     let profit = 0;
@@ -73,62 +155,13 @@ export class DashboardService {
       profit += delivery.delivery_fee;
     }
 
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = toLocalDateStr(yesterday);
-
-    const yesterdayResult = await DatabaseService.getOne<{ total: number }>(
-      `SELECT COALESCE(SUM(delivery_fee), 0) as total FROM deliveries
-       WHERE user_id = ? AND status = ? AND delivered_at >= ? AND delivered_at < ?`,
-      [userIdNum, 'LIVREE', yesterdayStr, today],
-    );
     const totalYesterday = yesterdayResult?.total || 0;
     const trendPercent = totalYesterday === 0
       ? 0
       : Math.round(((profit - totalYesterday) / totalYesterday) * 100);
 
-    const weekResult = await DatabaseService.getOne<{ total: number }>(
-      `SELECT COALESCE(SUM(delivery_fee), 0) as total
-       FROM deliveries
-       WHERE user_id = ? AND status = 'LIVREE'
-       AND delivered_at >= ?`,
-      [userIdNum, weekAgoDate],
-    );
     const weekEarnings = weekResult?.total || 0;
-
-    const monthResult = await DatabaseService.getOne<{ total: number }>(
-      `SELECT COALESCE(SUM(delivery_fee), 0) as total
-       FROM deliveries
-       WHERE user_id = ? AND status = 'LIVREE'
-       AND delivered_at >= ? AND delivered_at < ?`,
-      [userIdNum, monthStartStr, nextMonthStartStr],
-    );
     const monthEarnings = monthResult?.total || 0;
-
-    const todayAllResult = await DatabaseService.query<Delivery>(
-      `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
-        d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
-        d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
-        d.firebase_id, d.needs_sync
-       FROM deliveries d
-       WHERE d.user_id = ?
-       AND (d.status = 'A_LIVRER' OR d.status = 'LIVREE')
-       AND d.created_at >= ? AND d.created_at < ?
-       ORDER BY d.created_at`,
-      [userIdNum, today, tomorrow],
-    );
-
-    const pending = await DatabaseService.query<Delivery>(
-      `SELECT d.id, d.recipient_name, d.phone, d.address, d.parcel_value, d.delivery_fee,
-        d.merchant_id, d.payment_type, d.amount_collected, d.amount_to_return,
-        d.profit, d.status, d.reversed, d.created_at, d.delivered_at, d.user_id,
-        d.firebase_id, d.needs_sync
-       FROM deliveries d
-       WHERE d.user_id = ?
-       AND d.status = 'LIVREE'
-       AND d.reversed = 0`,
-      [userIdNum],
-    );
 
     let pendingTotal = 0;
     for (const delivery of pending) {
@@ -137,32 +170,13 @@ export class DashboardService {
       }
     }
 
-    const userGoal = await DatabaseService.getOne<{ daily_goal: number; monthly_goal: number }>(
-      `SELECT daily_goal, monthly_goal FROM user WHERE id = ?`,
-      [userIdNum],
-    );
     const dailyGoal = userGoal?.daily_goal || 15000;
     const monthGoal = userGoal?.monthly_goal || 0;
 
     const dailyProgress = dailyGoal > 0 ? (profit / dailyGoal) * 100 : 0;
     const goalAchievedToday = profit >= dailyGoal;
 
-    const allStats = await DatabaseService.getOne<{
-      totalEarnings: number;
-      completed: number;
-      pending: number;
-      cancelled: number;
-    }>(
-      `SELECT
-        COALESCE(SUM(delivery_fee), 0) as totalEarnings,
-        COALESCE(SUM(CASE WHEN status = 'LIVREE' THEN 1 ELSE 0 END), 0) as completed,
-        COALESCE(SUM(CASE WHEN status = 'A_LIVRER' THEN 1 ELSE 0 END), 0) as pending,
-        COALESCE(SUM(CASE WHEN status = 'ANNULEE' THEN 1 ELSE 0 END), 0) as cancelled
-      FROM deliveries WHERE user_id = ?`,
-      [userIdNum],
-    );
-
-    return {
+    const result: DashboardData = {
       todayEarnings: profit,
       weekEarnings,
       monthEarnings,
@@ -183,5 +197,7 @@ export class DashboardService {
       pendingAll: allStats?.pending || 0,
       cancelledAll: allStats?.cancelled || 0,
     };
+    cacheSet(cacheKey, result);
+    return result;
   }
 }
