@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DelyGes — Gestion de livraisons</title>
+  <meta
+    name="description"
+    content="DelyGes, l'application de gestion de livraisons et de comptabilité pour livreurs indépendants."
+  />
+  <style>
+    :root {
+      --primary: #2563eb;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px 32px;
+      max-width: 480px;
+      text-align: center;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .brand-mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+    }
+    h1 { font-size: 1.3rem; margin-top: 20px; }
+    p { color: var(--text-muted); margin-top: 10px; }
+    .links { margin-top: 24px; }
+    .links a {
+      display: inline-block;
+      margin: 6px 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .links .primary { background: var(--primary); color: #fff; }
+    .links .secondary { border: 1px solid var(--border); color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="brand">
+      <span class="brand-mark">D</span>
+      DelyGes
+    </span>
+    <h1>Bienvenue sur le site officiel de DelyGes</h1>
+    <p>
+      DelyGes est une application mobile de gestion de livraisons et de
+      comptabilité pour livreurs indépendants. L'application est disponible
+      sur Android.
+    </p>
+    <div class="links">
+      <a class="primary" href="/delete-account">Supprimer mon compte</a>
+      <a class="secondary" href="mailto:delygest@gmail.com">Contacter le support</a>
+    </div>
+  </div>
+</body>
+</html>

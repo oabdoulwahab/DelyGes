@@ -16,7 +16,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { db } from "../src/database/db";
 import { UserRepository } from "../src/repositories/user.repository";
 import { DeliveryRepository } from "../src/repositories/delivery.repository";
-import { MerchantRepository } from "../src/repositories/merchant.repository";
+import { AccountDeletionService } from "../src/services/account-deletion.service";
 import { BlurView } from "expo-blur";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
@@ -33,7 +33,7 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth";
-import { doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 
 type UserSettings = {
   name: string;
@@ -426,16 +426,7 @@ export default function Settings() {
     setIsDeleting(true);
 
     try {
-      await deleteDoc(doc(firestore, "users", firebaseUser!.uid));
-      console.log("✅ Document utilisateur supprimé");
-
-      await DeliveryRepository.deleteByUserId(user.id);
-      await MerchantRepository.deleteByUserId(user.id);
-      await UserRepository.delete(user.id);
-      console.log("✅ Données locales supprimées");
-
-      await firebaseUser!.delete();
-      console.log("✅ Compte Firebase Auth supprimé");
+      await AccountDeletionService.deleteAccount(firebaseUser!.uid);
 
       showSuccess(
         "Compte supprimé",

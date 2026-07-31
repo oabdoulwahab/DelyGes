@@ -7,7 +7,7 @@ import { db } from "../database/db";
 import { NotificationStore } from "./notification.store";
 import { Formatters } from "../utils/formatters";
 
-const BACKGROUND_FETCH_TASK = "check-delivery-reminder";
+export const BACKGROUND_FETCH_TASK = "check-delivery-reminder";
 
 export const setupNotifications = async () => {
   try {
