@@ -28,14 +28,32 @@ export const registerStyles = StyleSheet.create({
     color: COLORS.white,
   },
   content: {
+    flexGrow: 1,
     padding: SPACING.lg,
     paddingBottom: 40,
+  },
+  logoBackground: {
+    width: 220,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: COLORS.primarySoft,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 24,
+    alignSelf: "center",
+  },
+  logo: {
+    width: 280,
+    height: 280,
+    borderRadius: 40,
+    resizeMode: "contain",
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
     color: COLORS.white,
     marginBottom: SPACING.xl,
+    textAlign: "center",
   },
   inputGroup: {
     marginBottom: SPACING.lg,

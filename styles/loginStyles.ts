@@ -16,7 +16,7 @@ export const loginStyles = StyleSheet.create({
     marginBottom: 32,
   },
   logoBackground: {
-    width: 120,
+    width: 220,
     height: 120,
     borderRadius: 60,
     backgroundColor: COLORS.primarySoft,
@@ -25,8 +25,8 @@ export const loginStyles = StyleSheet.create({
     marginBottom: 24,
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 280,
+    height: 280,
     borderRadius: 40,
     resizeMode: "contain",
   },

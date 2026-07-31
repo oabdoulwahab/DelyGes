@@ -3,14 +3,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
   Switch,
   ActivityIndicator,
   Alert,
   Modal,
 } from "react-native";
-import { useState, useEffect } from "react";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { useState, useEffect, useRef } from "react";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { db } from "../src/database/db";
@@ -50,6 +50,7 @@ type UserSettings = {
 };
 
 export default function Settings() {
+  const scrollRef = useRef<any>(null);
   const { user, isAuthenticated, logout, authReady, firebaseUser } = useAuth();
   const [appVersion, setAppVersion] = useState("");
   const [passwordExpanded, setPasswordExpanded] = useState(false);
@@ -522,10 +523,16 @@ export default function Settings() {
         </TouchableOpacity>
       </BlurView>
 
-      <ScrollView
+      <KeyboardAwareScrollView
+        ref={scrollRef}
         style={settingsStyles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={settingsStyles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={180}
+        keyboardOpeningTime={100}
       >
         {/* Section Profil */}
         <View style={settingsStyles.profileSection}>
@@ -573,6 +580,7 @@ export default function Settings() {
                 onChangeText={(text) => updateSetting("name", text)}
                 placeholder="Votre nom"
                 placeholderTextColor={COLORS.inputPlaceholder}
+                onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
               />
             </View>
 
@@ -639,20 +647,21 @@ export default function Settings() {
                 </Text>
               </View>
               <View style={settingsStyles.goalInputContainer}>
-                <TextInput
-                  style={settingsStyles.goalInput}
-                  value={settings.daily_goal?.toString() || " "}
-                  onChangeText={(text) => {
-                    const numericValue = text.replace(/[^0-9]/g, "");
-                    updateSetting(
-                      "daily_goal",
-                      numericValue ? parseInt(numericValue) : 0,
-                    );
-                  }}
-                  keyboardType="numeric"
-                  placeholder=" "
-                  placeholderTextColor={COLORS.muted}
-                />
+                  <TextInput
+                    style={settingsStyles.goalInput}
+                    value={settings.daily_goal?.toString() || " "}
+                    onChangeText={(text) => {
+                      const numericValue = text.replace(/[^0-9]/g, "");
+                      updateSetting(
+                        "daily_goal",
+                        numericValue ? parseInt(numericValue) : 0,
+                      );
+                    }}
+                    keyboardType="numeric"
+                    placeholder=" "
+                    placeholderTextColor={COLORS.muted}
+                    onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
+                  />
                 <Text style={settingsStyles.currency}>FCFA</Text>
               </View>
             </View>
@@ -666,20 +675,21 @@ export default function Settings() {
                 </Text>
               </View>
               <View style={settingsStyles.goalInputContainer}>
-                <TextInput
-                  style={settingsStyles.goalInput}
-                  value={settings.monthly_goal?.toString() || "0"}
-                  onChangeText={(text) => {
-                    const numericValue = text.replace(/[^0-9]/g, "");
-                    updateSetting(
-                      "monthly_goal",
-                      numericValue ? parseInt(numericValue) : 0,
-                    );
-                  }}
-                  keyboardType="numeric"
-                  placeholder="0"
-                  placeholderTextColor={COLORS.muted}
-                />
+                  <TextInput
+                    style={settingsStyles.goalInput}
+                    value={settings.monthly_goal?.toString() || "0"}
+                    onChangeText={(text) => {
+                      const numericValue = text.replace(/[^0-9]/g, "");
+                      updateSetting(
+                        "monthly_goal",
+                        numericValue ? parseInt(numericValue) : 0,
+                      );
+                    }}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor={COLORS.muted}
+                    onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
+                  />
                 <Text style={settingsStyles.currency}>FCFA</Text>
               </View>
             </View>
@@ -839,6 +849,7 @@ export default function Settings() {
                         currentPassword: "",
                       });
                     }}
+                    onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                   />
                   {passwordErrors.currentPassword ? (
                     <Text style={settingsStyles.passwordErrorText}>
@@ -865,6 +876,7 @@ export default function Settings() {
                       setPasswordData({ ...passwordData, newPassword: text });
                       setPasswordErrors({ ...passwordErrors, newPassword: "" });
                     }}
+                    onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                   />
                   {passwordErrors.newPassword ? (
                     <Text style={settingsStyles.passwordErrorText}>
@@ -900,6 +912,7 @@ export default function Settings() {
                         confirmPassword: "",
                       });
                     }}
+                    onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                   />
                   {passwordErrors.confirmPassword ? (
                     <Text style={settingsStyles.passwordErrorText}>
@@ -1117,7 +1130,7 @@ export default function Settings() {
             </View>
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

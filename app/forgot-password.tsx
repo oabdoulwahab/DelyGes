@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,14 @@ import {
   SafeAreaView,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { Image } from "react-native";
 import { BlurView } from "expo-blur";
 
 import { UserRepository } from "../src/repositories/user.repository";
@@ -38,6 +39,7 @@ type ForgotPasswordFormData = {
 /* ---------------- SCREEN ---------------- */
 
 export default function ForgotPassword() {
+  const scrollRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState<"request" | "success">("request");
   const { showAlert, showSuccess, showError } = useModal();
@@ -161,12 +163,18 @@ export default function ForgotPassword() {
         <View style={{ width: 40 }} />
       </BlurView>
 
-      <ScrollView
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
         contentContainerStyle={forgotPasswordStyles.scrollContainer}
         keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={180}
+        keyboardOpeningTime={100}
       >
         {/* HEADER */}
-        <View style={forgotPasswordStyles.header}>
+        <View style={forgotPasswordStyles.contentHeader}>
           <View style={forgotPasswordStyles.logoBackground}>
             <Image
               source={require("../assets/images/splash-icon.png")}
@@ -200,6 +208,7 @@ export default function ForgotPassword() {
                   onChangeText={onChange}
                   autoCapitalize="none"
                   keyboardType="email-address"
+                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                 />
                 {errors.emailOrPhone && (
                   <Text style={forgotPasswordStyles.fieldError}>
@@ -259,7 +268,7 @@ export default function ForgotPassword() {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

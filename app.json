@@ -2,7 +2,7 @@
   "expo": {
     "name": "DelyGes",
     "slug": "DelyGes",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/favicon.png",
     "scheme": "delyges",
@@ -13,8 +13,8 @@
       "fallbackToCacheTimeout": 0,
       "url": "https://u.expo.dev/f5cb150b-bb4e-42f8-a5ab-6dd8dd4ec3e9"
     },
-     "jsEngine": "hermes",
-    "runtimeVersion": "1",
+    "jsEngine": "hermes",
+    "runtimeVersion": "1.0.3",
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -45,7 +45,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.abdalbensaid.DelyGes",
-      "versionCode": 27
+      "versionCode": 30
     },
     "web": {
       "output": "static",

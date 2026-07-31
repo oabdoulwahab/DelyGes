@@ -36,20 +36,26 @@ export const forgotPasswordStyles = StyleSheet.create({
     padding: SPACING.lg,
   },
 
+  // Content header (logo + titre + sous-titre)
+  contentHeader: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+
   // Logo et titre
   logoBackground: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 220,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: COLORS.primarySoft,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: SPACING.lg,
+    marginBottom: 24,
     alignSelf: "center",
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 280,
+    height: 280,
     borderRadius: 40,
     resizeMode: "contain",
   },

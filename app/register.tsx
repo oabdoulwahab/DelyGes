@@ -2,22 +2,24 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import Checkbox from "expo-checkbox";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
+  Image,
   SafeAreaView,
-  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
   View,
   ActivityIndicator,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { COLORS } from "../styles/colors";
 import { registerStyles } from "../styles/registerStyles";
 import { useAuth } from "../src/context/AuthContext"; // Assure-toi que ce hook pointe vers ton contexte
 
 export default function Register() {
+  const scrollRef = useRef<any>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -106,10 +108,24 @@ export default function Register() {
         <View style={{ width: 40 }} />
       </BlurView>
 
-      <ScrollView 
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
         contentContainerStyle={registerStyles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={180}
+        keyboardOpeningTime={100}
       >
+        <View style={registerStyles.logoBackground}>
+          <Image
+            source={require("../assets/images/splash-icon.png")}
+            style={registerStyles.logo}
+            resizeMode="contain"
+          />
+        </View>
         <Text style={registerStyles.title}>Créer un compte</Text>
 
         {/* Nom complet */}
@@ -121,6 +137,7 @@ export default function Register() {
             placeholderTextColor={COLORS.inputPlaceholder}
             value={fullName}
             onChangeText={setFullName}
+            onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
           />
         </View>
 
@@ -135,6 +152,7 @@ export default function Register() {
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
           />
         </View>
 
@@ -148,6 +166,7 @@ export default function Register() {
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
+            onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
           />
         </View>
 
@@ -162,6 +181,7 @@ export default function Register() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
             />
             <TouchableOpacity
               style={registerStyles.eyeButton}
@@ -187,6 +207,7 @@ export default function Register() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showConfirmPassword}
+              onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
             />
             <TouchableOpacity
               style={registerStyles.eyeButton}
@@ -236,7 +257,7 @@ export default function Register() {
             Déjà un compte ? Se connecter
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

@@ -6,7 +6,7 @@ import startOfMonth from "date-fns/startOfMonth";
 import fr from "date-fns/locale/fr";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Modal,
   RefreshControl,
@@ -17,6 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useModal } from "../providers/ModalProvider";
 import { COLORS } from "../styles/colors";
 import { merchantAccountingStyles } from "../styles/merchantAccountingStyles";
@@ -57,6 +58,7 @@ type PeriodType = "month" | "custom";
 type ViewMode = "monthly" | "merchant" | "pending";
 
 export default function MerchantAccounting() {
+  const scrollRef = useRef<any>(null);
   const { user } = useAuth();
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [filteredMonthlyData, setFilteredMonthlyData] = useState<MonthlyData[]>(
@@ -800,6 +802,7 @@ export default function MerchantAccounting() {
             placeholderTextColor={COLORS.muted}
             value={searchQuery}
             onChangeText={setSearchQuery}
+            onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
           />
         </View>
         <TouchableOpacity
@@ -962,10 +965,16 @@ export default function MerchantAccounting() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
+        ref={scrollRef}
         style={merchantAccountingStyles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={merchantAccountingStyles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={180}
+        keyboardOpeningTime={100}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1553,7 +1562,7 @@ export default function MerchantAccounting() {
               </Text>
             </View>
           ))}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* Modal de filtre */}
       <Modal

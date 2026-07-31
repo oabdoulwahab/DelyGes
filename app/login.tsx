@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
   ActivityIndicator,
   Image,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import Checkbox from "expo-checkbox";
@@ -40,6 +40,7 @@ type LoginFormData = {
 /* ---------------- SCREEN ---------------- */
 
 export default function Login() {
+  const scrollRef = useRef<any>(null);
   // isLoading et error doivent être gérés soit par le context soit localement
   // Ici, on ajoute une gestion locale simple pour la réactivité du bouton
   const { login } = useAuth();
@@ -84,9 +85,15 @@ const onSubmit = async (data: LoginFormData) => {
 
   return (
     <SafeAreaView style={loginStyles.container}>
-      <ScrollView
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        style={{ flex: 1 }}
         contentContainerStyle={loginStyles.scrollContainer}
         keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={180}
+        keyboardOpeningTime={100}
       >
         {/* HEADER */}
         <View style={loginStyles.header}>
@@ -134,6 +141,7 @@ const onSubmit = async (data: LoginFormData) => {
                     setLoginError(null);
                   }}
                   autoCapitalize="none"
+                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                 />
                 {errors.emailOrPhone && (
                   <Text style={loginStyles.fieldError}>
@@ -162,6 +170,7 @@ const onSubmit = async (data: LoginFormData) => {
                       setLoginError(null);
                     }}
                     secureTextEntry={!showPassword}
+                    onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                   />
                   <TouchableOpacity
                     style={loginStyles.eyeButton}
@@ -235,7 +244,7 @@ const onSubmit = async (data: LoginFormData) => {
             <Text style={loginStyles.footerLink}>Créer un compte</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

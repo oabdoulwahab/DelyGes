@@ -3,12 +3,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   StatusBar,
-  KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useState, useEffect, useRef } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -28,6 +26,7 @@ import { Formatters } from "../src/utils/formatters";
 import { Delivery, Merchant, PaymentType } from "../src/types";
 
 export default function AddDelivery() {
+  const scrollRef = useRef<any>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const isEditing = !!id;
   const { user, isAuthenticated } = useAuth();
@@ -416,10 +415,7 @@ const getOrCreateMerchant = async () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={commonStyles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
+    <View style={commonStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       <BlurView intensity={95} style={addDeliveryStyles.header}>
         <TouchableOpacity
@@ -452,10 +448,16 @@ const getOrCreateMerchant = async () => {
         </TouchableOpacity>
       </BlurView>
 
-      <ScrollView
+      <KeyboardAwareScrollView
+        ref={scrollRef}
         style={addDeliveryStyles.scrollView}
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={addDeliveryStyles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        enableAutomaticScroll={true}
+        extraScrollHeight={180}
+        keyboardOpeningTime={100}
       >
         {/* Section Logistique */}
         <View style={commonStyles.section}>
@@ -483,6 +485,7 @@ const getOrCreateMerchant = async () => {
                 }}
                 autoCapitalize="words"
                 editable={!isSaving}
+                onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
               />
               {errors.recipientName && (
                 <Text style={addDeliveryStyles.errorText}>
@@ -511,6 +514,7 @@ const getOrCreateMerchant = async () => {
                 }}
                 keyboardType="phone-pad"
                 editable={!isSaving}
+                onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
               />
               {errors.phone && (
                 <Text style={addDeliveryStyles.errorText}>
@@ -547,6 +551,7 @@ const getOrCreateMerchant = async () => {
                     setErrors((prev) => ({ ...prev, address: false }));
                   }}
                   editable={!isSaving}
+                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                 />
                 {errors.address && (
                   <Text style={addDeliveryStyles.errorText}>
@@ -586,12 +591,13 @@ const getOrCreateMerchant = async () => {
                     setMerchantId(null);
                     setErrors((prev) => ({ ...prev, merchantName: false }));
                   }}
-                  onFocus={() => {
+                  onFocus={(e) => {
                     if (
                       merchantName.trim().length > 0 &&
                       filteredMerchants.length > 0
                     )
                       setShowSuggestions(true);
+                    scrollRef.current?.scrollToFocusedInput(e.target);
                   }}
                   autoCapitalize="words"
                   editable={!isSaving}
@@ -716,6 +722,7 @@ const getOrCreateMerchant = async () => {
                   }}
                   keyboardType="decimal-pad"
                   editable={!isSaving}
+                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                 />
               </View>
               {paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && (
@@ -766,6 +773,7 @@ const getOrCreateMerchant = async () => {
                   }}
                   keyboardType="decimal-pad"
                   editable={!isSaving}
+                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                 />
               </View>
               {paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && (
@@ -851,7 +859,7 @@ const getOrCreateMerchant = async () => {
         </View>
 
         <View style={addDeliveryStyles.bottomSpacer} />
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <BlurView style={addDeliveryStyles.actionButtons}>
         <TouchableOpacity
@@ -873,6 +881,6 @@ const getOrCreateMerchant = async () => {
           )}
         </TouchableOpacity>
       </BlurView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

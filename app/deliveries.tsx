@@ -9,7 +9,7 @@ import {
   Modal,
   FlatList,
 } from "react-native";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
@@ -37,6 +37,7 @@ type TabType = "A_LIVRER" | "AUJOURDHUI" | "LIVREE" | "ANNULEE";
 type PeriodType = "today" | "week" | "month" | "custom";
 
 export default function Deliveries() {
+  const scrollRef = useRef<any>(null);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [selectedDeliveries, setSelectedDeliveries] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -815,6 +816,7 @@ export default function Deliveries() {
                   placeholderTextColor={COLORS.muted}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                 />
               </View>
 
