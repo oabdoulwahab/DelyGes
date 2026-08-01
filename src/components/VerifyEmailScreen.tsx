@@ -23,7 +23,7 @@ import { AccountDeletionService } from "../services/account-deletion.service";
 import { COLORS } from "../../styles/colors";
 import { verifyEmailStyles } from "../../styles/verifyEmailStyles";
 
-const RESEND_COOLDOWN_SECONDS = 60;
+const RESEND_COOLDOWN_SECONDS = 180;
 
 type Message = { type: "success" | "error"; text: string } | null;
 
