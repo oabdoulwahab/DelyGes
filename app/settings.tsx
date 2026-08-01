@@ -28,6 +28,11 @@ import * as Updates from "expo-updates";
 import * as Application from "expo-application";
 import { openBrowserAsync } from "expo-web-browser";
 import { auth, db as firestore } from "../src/config/firebase";
+import { useTutorial } from "../src/hooks/useTutorial";
+import TutorialOverlay from "../components/TutorialOverlay";
+import { TutorialProvider } from "../src/context/TutorialContext";
+import TutorialTarget from "../components/TutorialTarget";
+import TutorialScrollRegistrar from "../components/TutorialScrollRegistrar";
 import {
   updateProfile,
   updatePassword,
@@ -95,6 +100,17 @@ export default function Settings() {
   const { showModal, showConfirm, showSuccess, showError, showAlert } =
     useModal();
   const [isLoading, setIsLoading] = useState(true);
+
+  // Tutoriel
+  const {
+    isVisible: isTutorialVisible,
+    currentStep: tutorialStep,
+    tutorial,
+    nextStep: tutorialNext,
+    prevStep: tutorialPrev,
+    closeTutorial: tutorialClose,
+    showTutorial: tutorialShow,
+  } = useTutorial("settings");
 
   // Fonction pour mettre à jour un champ avec auto-save ET Firebase
   const updateSetting = async (field: keyof UserSettings, value: string | number | boolean) => {
@@ -505,8 +521,9 @@ export default function Settings() {
     });
   };
 
-  return (
-    <SafeAreaView style={commonStyles.container}>
+   return (
+     <TutorialProvider>
+       <SafeAreaView style={commonStyles.container}>
       <BlurView intensity={95} style={settingsStyles.header}>
         <TouchableOpacity
           style={settingsStyles.backButton}
@@ -516,6 +533,12 @@ export default function Settings() {
         </TouchableOpacity>
 
         <Text style={settingsStyles.headerTitle}>Paramètres</Text>
+        <TouchableOpacity
+          style={settingsStyles.backButton}
+          onPress={tutorialShow}
+        >
+          <MaterialIcons name="help-outline" size={24} color={COLORS.muted} />
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={settingsStyles.saveButton}
@@ -525,6 +548,7 @@ export default function Settings() {
         </TouchableOpacity>
       </BlurView>
 
+      <TutorialScrollRegistrar scrollRef={scrollRef}>
       <KeyboardAwareScrollView
         ref={scrollRef}
         style={settingsStyles.content}
@@ -537,6 +561,7 @@ export default function Settings() {
         keyboardOpeningTime={100}
       >
         {/* Section Profil */}
+        <TutorialTarget id="section-profile">
         <View style={settingsStyles.profileSection}>
           <View style={settingsStyles.profileImageContainer}>
             <View style={settingsStyles.profileImage}>
@@ -562,10 +587,11 @@ export default function Settings() {
             >
               ✓ En ligne
             </Text>
-          )}
-        </View>
+           )}
+         </View>
+         </TutorialTarget>
 
-        {/* Section: Profil Professionnel */}
+         {/* Section: Profil Professionnel */}
         <View style={commonStyles.section}>
           <Text style={settingsStyles.sectionTitle}>PROFIL PROFESSIONNEL</Text>
 
@@ -615,29 +641,32 @@ export default function Settings() {
           </Text>
 
           <View style={commonStyles.card}>
-            {/* TVA */}
-            <View style={settingsStyles.cardItem}>
-              <View style={settingsStyles.cardItemLeft}>
-                <MaterialIcons name="percent" size={20} color={COLORS.muted} />
-                <Text style={settingsStyles.cardItemLabel}>
-                  Assujetti à la TVA
-                </Text>
-              </View>
-              <Switch
-                value={settings.is_vat === 1}
-                onValueChange={(value) =>
-                  updateSetting("is_vat", value ? 1 : 0)
-                }
-                trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
-                thumbColor={COLORS.white}
-              />
-            </View>
+             {/* TVA */}
+             <TutorialTarget id="toggle-vat">
+             <View style={settingsStyles.cardItem}>
+               <View style={settingsStyles.cardItemLeft}>
+                 <MaterialIcons name="percent" size={20} color={COLORS.muted} />
+                 <Text style={settingsStyles.cardItemLabel}>
+                   Assujetti à la TVA
+                 </Text>
+               </View>
+               <Switch
+                 value={settings.is_vat === 1}
+                 onValueChange={(value) =>
+                   updateSetting("is_vat", value ? 1 : 0)
+                 }
+                 trackColor={{ false: COLORS.borderLight, true: COLORS.primary }}
+                 thumbColor={COLORS.white}
+               />
+             </View>
+             </TutorialTarget>
           </View>
         </View>
 
-        {/* Section: Objectifs */}
-        <View style={commonStyles.section}>
-          <Text style={settingsStyles.sectionTitle}>OBJECTIFS</Text>
+         {/* Section: Objectifs */}
+         <TutorialTarget id="section-goals">
+         <View style={commonStyles.section}>
+           <Text style={settingsStyles.sectionTitle}>OBJECTIFS</Text>
 
           <View style={commonStyles.card}>
             {/* Objectif quotidien */}
@@ -696,11 +725,13 @@ export default function Settings() {
               </View>
             </View>
           </View>
-        </View>
+         </View>
+         </TutorialTarget>
 
-        {/* Section: Notifications */}
-        <View style={commonStyles.section}>
-          <Text style={settingsStyles.sectionTitle}>NOTIFICATIONS</Text>
+         {/* Section: Notifications */}
+         <TutorialTarget id="section-notifications">
+         <View style={commonStyles.section}>
+           <Text style={settingsStyles.sectionTitle}>NOTIFICATIONS</Text>
 
           <View style={commonStyles.card}>
             <TouchableOpacity
@@ -793,11 +824,13 @@ export default function Settings() {
               />
             </View>
           </View>
-        </View>
+         </View>
+         </TutorialTarget>
 
-        {/* Section: Données & Sécurité */}
-        <View style={commonStyles.section}>
-          <Text style={settingsStyles.sectionTitle}>DONNÉES & SÉCURITÉ</Text>
+         {/* Section: Données & Sécurité */}
+         <TutorialTarget id="section-data-security">
+         <View style={commonStyles.section}>
+           <Text style={settingsStyles.sectionTitle}>DONNÉES & SÉCURITÉ</Text>
 
           <View style={commonStyles.card}>
             {/* Changer le mot de passe */}
@@ -1211,6 +1244,7 @@ export default function Settings() {
             </View>
           </View>
         </Modal>
+        </TutorialTarget>
 
         {/* Indicateur de chargement pendant la suppression */}
         {isDeleting && (
@@ -1224,6 +1258,18 @@ export default function Settings() {
           </View>
         )}
       </KeyboardAwareScrollView>
+      </TutorialScrollRegistrar>
+
+      {/* Tutoriel */}
+      <TutorialOverlay
+        visible={isTutorialVisible}
+        tutorial={tutorial}
+        currentStep={tutorialStep}
+        onNext={tutorialNext}
+        onPrev={tutorialPrev}
+        onClose={tutorialClose}
+      />
     </SafeAreaView>
+    </TutorialProvider>
   );
 }

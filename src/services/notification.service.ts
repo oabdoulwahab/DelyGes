@@ -222,6 +222,15 @@ export const sendGoalAchievedNotification = async (
 
     if (!notificationsEnabled) return;
 
+    // Éviter les doublons : ne notifier qu'une seule fois par jour
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const existing = await db.getFirstAsync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND type = 'goal_achieved' AND created_at >= ?",
+      [userId, todayStart.toISOString()],
+    );
+    if ((existing?.count || 0) > 0) return;
+
     const title = "🎯 OBJECTIF ATTEINT !";
     const body = `Félicitations ${user?.name || ""} ! Vous avez gagné ${Formatters.formatNumber(amount)} FCFA aujourd'hui. Objectif: ${Formatters.formatNumber(goal)} FCFA 🎉`;
 

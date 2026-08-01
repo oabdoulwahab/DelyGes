@@ -24,6 +24,11 @@ import { MerchantService } from "../src/services/merchant.service";
 import { FinancialCalculations } from "../src/utils/financialCalculations";
 import { Formatters } from "../src/utils/formatters";
 import { Delivery, Merchant, PaymentType } from "../src/types";
+import { useTutorial } from "../src/hooks/useTutorial";
+import TutorialOverlay from "../components/TutorialOverlay";
+import { TutorialProvider } from "../src/context/TutorialContext";
+import TutorialTarget from "../components/TutorialTarget";
+import TutorialScrollRegistrar from "../components/TutorialScrollRegistrar";
 
 export default function AddDelivery() {
   const scrollRef = useRef<any>(null);
@@ -57,6 +62,17 @@ export default function AddDelivery() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [filteredMerchants, setFilteredMerchants] = useState<Merchant[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Tutoriel
+  const {
+    isVisible: isTutorialVisible,
+    currentStep: tutorialStep,
+    tutorial,
+    nextStep: tutorialNext,
+    prevStep: tutorialPrev,
+    closeTutorial: tutorialClose,
+    showTutorial: tutorialShow,
+  } = useTutorial("add-delivery");
 
   // 🔥 Ref pour éviter les doubles soumissions
   const isSubmitting = useRef(false);
@@ -413,7 +429,8 @@ const getOrCreateMerchant = async () => {
   }
 
   return (
-    <View style={commonStyles.container}>
+    <TutorialProvider>
+      <View style={commonStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
       <BlurView intensity={95} style={addDeliveryStyles.header}>
         <TouchableOpacity
@@ -431,21 +448,30 @@ const getOrCreateMerchant = async () => {
         <Text style={addDeliveryStyles.headerTitle}>
           {isEditing ? "Modifier la Livraison" : "Ajouter une Livraison"}
         </Text>
-        <TouchableOpacity
-          onPress={handleSave}
-          style={addDeliveryStyles.saveButtonHeader}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={addDeliveryStyles.saveButtonHeaderText}>
-              Enregistrer
-            </Text>
-          )}
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <TouchableOpacity
+            onPress={tutorialShow}
+            style={addDeliveryStyles.cancelButton}
+          >
+            <MaterialIcons name="help-outline" size={22} color={COLORS.muted} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleSave}
+            style={addDeliveryStyles.saveButtonHeader}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={addDeliveryStyles.saveButtonHeaderText}>
+                Enregistrer
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </BlurView>
 
+      <TutorialScrollRegistrar scrollRef={scrollRef}>
       <KeyboardAwareScrollView
         ref={scrollRef}
         style={addDeliveryStyles.scrollView}
@@ -458,6 +484,7 @@ const getOrCreateMerchant = async () => {
         keyboardOpeningTime={100}
       >
         {/* Section Logistique */}
+        <TutorialTarget id="input-recipient-name">
         <View style={commonStyles.section}>
           <Text style={addDeliveryStyles.sectionTitle}>
             Informations de livraison
@@ -559,11 +586,13 @@ const getOrCreateMerchant = async () => {
               </View>
             </View>
           </View>
-        </View>
+         </View>
+         </TutorialTarget>
 
-        {/* Section Commerçant */}
-        <View style={commonStyles.section}>
-          <Text style={addDeliveryStyles.sectionTitle}>Commerçant</Text>
+         {/* Section Commerçant */}
+         <TutorialTarget id="input-merchant-search">
+         <View style={commonStyles.section}>
+           <Text style={addDeliveryStyles.sectionTitle}>Commerçant</Text>
           <View style={commonStyles.card}>
             <View
               style={[
@@ -672,11 +701,13 @@ const getOrCreateMerchant = async () => {
               )}
             </View>
           </View>
-        </View>
+         </View>
+         </TutorialTarget>
 
-        {/* Section Détails financiers */}
-        <View style={commonStyles.section}>
-          <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
+         {/* Section Détails financiers */}
+         <TutorialTarget id="input-parcel-value">
+         <View style={commonStyles.section}>
+           <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
           <View style={addDeliveryStyles.financialGrid}>
             <View
               style={[
@@ -780,11 +811,12 @@ const getOrCreateMerchant = async () => {
                   Valeur supérieure à 0 requise
                 </Text>
               )}
+             </View>
             </View>
-          </View>
 
-          <View style={commonStyles.section}>
-            <Text style={addDeliveryStyles.sectionTitle}>Paiement</Text>
+            <TutorialTarget id="selector-payment-type">
+            <View style={commonStyles.section}>
+              <Text style={addDeliveryStyles.sectionTitle}>Paiement</Text>
             <View style={commonStyles.card}>
               {[
                 {
@@ -836,29 +868,33 @@ const getOrCreateMerchant = async () => {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
 
-          <View style={addDeliveryStyles.netIncomeCard}>
-            <View style={addDeliveryStyles.netIncomeContent}>
-              <Text style={addDeliveryStyles.netIncomeLabel}>TOTAL</Text>
-              <Text style={addDeliveryStyles.netIncomeSubtitle}>
-                {paymentType === "COLIS_DEJA_PAYE"
-                  ? "Déjà payé"
-                  : paymentType === "CLIENT_PAYE_LIVRAISON"
-                    ? "Frais de livraison uniquement"
-                    : paymentType === "LIVRAISON_DEJA_PAYEE"
-                      ? "Colis uniquement (livraison déjà payée)"
-                      : "Valeur + Frais"}
+            <View style={addDeliveryStyles.netIncomeCard}>
+              <View style={addDeliveryStyles.netIncomeContent}>
+                <Text style={addDeliveryStyles.netIncomeLabel}>TOTAL</Text>
+                <Text style={addDeliveryStyles.netIncomeSubtitle}>
+                  {paymentType === "COLIS_DEJA_PAYE"
+                    ? "Déjà payé"
+                    : paymentType === "CLIENT_PAYE_LIVRAISON"
+                      ? "Frais de livraison uniquement"
+                      : paymentType === "LIVRAISON_DEJA_PAYEE"
+                        ? "Colis uniquement (livraison déjà payée)"
+                        : "Valeur + Frais"}
+                </Text>
+              </View>
+              <Text style={addDeliveryStyles.netIncomeAmount}>
+                {calculateTotal()} FCFA
               </Text>
             </View>
-            <Text style={addDeliveryStyles.netIncomeAmount}>
-              {calculateTotal()} FCFA
-            </Text>
-          </View>
-        </View>
+            </View>
+            </TutorialTarget>
 
-        <View style={addDeliveryStyles.bottomSpacer} />
+            </View>
+            </TutorialTarget>
+
+            <View style={addDeliveryStyles.bottomSpacer} />
       </KeyboardAwareScrollView>
+      </TutorialScrollRegistrar>
 
       <BlurView style={addDeliveryStyles.actionButtons}>
         <TouchableOpacity
@@ -880,6 +916,17 @@ const getOrCreateMerchant = async () => {
           )}
         </TouchableOpacity>
       </BlurView>
+
+      {/* Tutoriel */}
+      <TutorialOverlay
+        visible={isTutorialVisible}
+        tutorial={tutorial}
+        currentStep={tutorialStep}
+        onNext={tutorialNext}
+        onPrev={tutorialPrev}
+        onClose={tutorialClose}
+      />
     </View>
+    </TutorialProvider>
   );
 }

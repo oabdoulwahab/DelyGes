@@ -26,6 +26,11 @@ import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { MerchantRepository } from "../src/repositories/merchant.repository";
 import { Formatters } from "../src/utils/formatters";
 import { Delivery, Merchant } from "../src/types";
+import { useTutorial } from "../src/hooks/useTutorial";
+import TutorialOverlay from "../components/TutorialOverlay";
+import { TutorialProvider } from "../src/context/TutorialContext";
+import TutorialTarget from "../components/TutorialTarget";
+import TutorialScrollRegistrar from "../components/TutorialScrollRegistrar";
 
 type DeliveryAccounting = Delivery & { month_key: string; year: string; month: string };
 
@@ -59,8 +64,7 @@ type ViewMode = "monthly" | "merchant" | "pending";
 
 export default function MerchantAccounting() {
   const scrollRef = useRef<any>(null);
-  const { user } = useAuth();
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const { user } = useAuth();  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [filteredMonthlyData, setFilteredMonthlyData] = useState<MonthlyData[]>(
     [],
   );
@@ -70,6 +74,17 @@ export default function MerchantAccounting() {
   const [expandedMerchants, setExpandedMerchants] = useState<number[]>([]);
   const { showConfirm, showSuccess, showError } = useModal();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Tutoriel
+  const {
+    isVisible: isTutorialVisible,
+    currentStep: tutorialStep,
+    tutorial,
+    nextStep: tutorialNext,
+    prevStep: tutorialPrev,
+    closeTutorial: tutorialClose,
+    showTutorial: tutorialShow,
+  } = useTutorial("merchant-accounting");
 
   // États pour les filtres de statut
   const [showOnlyPending, setShowOnlyPending] = useState(false);
@@ -769,8 +784,9 @@ export default function MerchantAccounting() {
 
   // ==================== RENDU PRINCIPAL ====================
 
-  return (
-    <View style={merchantAccountingStyles.container}>
+   return (
+     <TutorialProvider>
+       <View style={merchantAccountingStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       {/* En-tête */}
@@ -783,13 +799,19 @@ export default function MerchantAccounting() {
             <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
           </TouchableOpacity>
           <Text style={merchantAccountingStyles.headerTitle}>Comptabilité</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity
+            style={merchantAccountingStyles.backButton}
+            onPress={tutorialShow}
+          >
+            <MaterialIcons name="help-outline" size={24} color={COLORS.muted} />
+          </TouchableOpacity>
         </View>
       </BlurView>
 
-      {/* Barre de recherche et filtre */}
-      <View style={merchantAccountingStyles.searchContainer}>
-        <View style={merchantAccountingStyles.searchInputContainer}>
+       {/* Barre de recherche et filtre */}
+       <TutorialTarget id="input-search">
+       <View style={merchantAccountingStyles.searchContainer}>
+         <View style={merchantAccountingStyles.searchInputContainer}>
           <MaterialIcons
             name="search"
             size={20}
@@ -820,10 +842,11 @@ export default function MerchantAccounting() {
           {dateFilterEnabled && (
             <View style={merchantAccountingStyles.filterIndicator} />
           )}
-        </TouchableOpacity>
-      </View>
+         </TouchableOpacity>
+       </View>
+       </TutorialTarget>
 
-      {/* Indicateur de filtre actif */}
+       {/* Indicateur de filtre actif */}
       {dateFilterEnabled && (
         <View style={merchantAccountingStyles.dateFilterContainer}>
           <View style={merchantAccountingStyles.dateFilterContent}>
@@ -842,92 +865,98 @@ export default function MerchantAccounting() {
         </View>
       )}
 
-      {/* Switch de mode d'affichage */}
-      <View style={merchantAccountingStyles.modeSwitchContainer}>
-        <TouchableOpacity
-          style={[
-            merchantAccountingStyles.modeButton,
-            viewMode === "pending" && merchantAccountingStyles.modeButtonActive,
-          ]}
-          onPress={() => {
-            setViewMode("pending");
-            setShowOnlyPending(true);
-            setShowOnlyClosed(false);
-          }}
-        >
-          <MaterialIcons
-            name="pending-actions"
-            size={20}
-            color={viewMode === "pending" ? COLORS.background : COLORS.warning}
-          />
-          <Text
-            style={[
-              merchantAccountingStyles.modeButtonText,
-              viewMode === "pending" &&
-                merchantAccountingStyles.modeButtonTextActive,
-            ]}
-          >
-            En cours
-          </Text>
-        </TouchableOpacity>
+       {/* Switch de mode d'affichage */}
+       <View style={merchantAccountingStyles.modeSwitchContainer}>
+       <TutorialTarget id="tab-pending">
+       <TouchableOpacity
+         style={[
+           merchantAccountingStyles.modeButton,
+           viewMode === "pending" && merchantAccountingStyles.modeButtonActive,
+         ]}
+         onPress={() => {
+           setViewMode("pending");
+           setShowOnlyPending(true);
+           setShowOnlyClosed(false);
+         }}
+       >
+         <MaterialIcons
+           name="pending-actions"
+           size={20}
+           color={viewMode === "pending" ? COLORS.background : COLORS.warning}
+         />
+         <Text
+           style={[
+             merchantAccountingStyles.modeButtonText,
+             viewMode === "pending" &&
+               merchantAccountingStyles.modeButtonTextActive,
+           ]}
+         >
+           En cours
+         </Text>
+       </TouchableOpacity>
+       </TutorialTarget>
 
-        <TouchableOpacity
-          style={[
-            merchantAccountingStyles.modeButton,
-            viewMode === "merchant" &&
-              merchantAccountingStyles.modeButtonActive,
-          ]}
-          onPress={() => {
-            setViewMode("merchant");
-            setShowOnlyPending(false);
-            setShowOnlyClosed(false);
-          }}
-        >
-          <MaterialIcons
-            name="store"
-            size={20}
-            color={viewMode === "merchant" ? COLORS.background : COLORS.muted}
-          />
-          <Text
-            style={[
-              merchantAccountingStyles.modeButtonText,
-              viewMode === "merchant" &&
-                merchantAccountingStyles.modeButtonTextActive,
-            ]}
-          >
-            Par commerçant
-          </Text>
-        </TouchableOpacity>
+       <TutorialTarget id="tab-merchant">
+       <TouchableOpacity
+         style={[
+           merchantAccountingStyles.modeButton,
+           viewMode === "merchant" &&
+             merchantAccountingStyles.modeButtonActive,
+         ]}
+         onPress={() => {
+           setViewMode("merchant");
+           setShowOnlyPending(false);
+           setShowOnlyClosed(false);
+         }}
+       >
+         <MaterialIcons
+           name="store"
+           size={20}
+           color={viewMode === "merchant" ? COLORS.background : COLORS.muted}
+         />
+         <Text
+           style={[
+             merchantAccountingStyles.modeButtonText,
+             viewMode === "merchant" &&
+               merchantAccountingStyles.modeButtonTextActive,
+           ]}
+         >
+           Par commerçant
+         </Text>
+       </TouchableOpacity>
+       </TutorialTarget>
 
-        <TouchableOpacity
-          style={[
-            merchantAccountingStyles.modeButton,
-            viewMode === "monthly" && merchantAccountingStyles.modeButtonActive,
-          ]}
-          onPress={() => {
-            setViewMode("monthly");
-            setShowOnlyPending(false);
-            setShowOnlyClosed(false);
-          }}
-        >
-          <MaterialIcons
-            name="calendar-view-month"
-            size={20}
-            color={viewMode === "monthly" ? COLORS.background : COLORS.muted}
-          />
-          <Text
+       <TutorialTarget id="tab-monthly">
+       <TouchableOpacity
+         style={[
+           merchantAccountingStyles.modeButton,
+           viewMode === "monthly" && merchantAccountingStyles.modeButtonActive,
+         ]}
+         onPress={() => {
+           setViewMode("monthly");
+           setShowOnlyPending(false);
+           setShowOnlyClosed(false);
+         }}
+       >
+         <MaterialIcons
+           name="calendar-view-month"
+           size={20}
+           color={viewMode === "monthly" ? COLORS.background : COLORS.muted}
+         />
+         <Text
             style={[
               merchantAccountingStyles.modeButtonText,
               viewMode === "monthly" &&
                 merchantAccountingStyles.modeButtonTextActive,
             ]}
           >
-            Par mois
-          </Text>
-        </TouchableOpacity>
-      </View>
+             Par mois
+           </Text>
+         </TouchableOpacity>
+        </TutorialTarget>
+       </View>
 
-      {/* Résumé global */}
+       {/* Résumé global */}
       <View style={merchantAccountingStyles.globalSummary}>
         <View style={merchantAccountingStyles.globalCard}>
           <Text style={merchantAccountingStyles.globalLabel}>Livraisons</Text>
@@ -965,6 +994,7 @@ export default function MerchantAccounting() {
         </View>
       </View>
 
+      <TutorialScrollRegistrar scrollRef={scrollRef}>
       <KeyboardAwareScrollView
         ref={scrollRef}
         style={merchantAccountingStyles.scrollView}
@@ -1563,6 +1593,7 @@ export default function MerchantAccounting() {
             </View>
           ))}
       </KeyboardAwareScrollView>
+      </TutorialScrollRegistrar>
 
       {/* Modal de filtre */}
       <Modal
@@ -1723,6 +1754,17 @@ export default function MerchantAccounting() {
           </BlurView>
         </View>
       </Modal>
+
+      {/* Tutoriel */}
+      <TutorialOverlay
+        visible={isTutorialVisible}
+        tutorial={tutorial}
+        currentStep={tutorialStep}
+        onNext={tutorialNext}
+        onPrev={tutorialPrev}
+        onClose={tutorialClose}
+      />
     </View>
+    </TutorialProvider>
   );
 }

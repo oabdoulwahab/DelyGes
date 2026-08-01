@@ -31,6 +31,10 @@ import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { DeliveryService } from "../src/services/delivery.service";
 import { Formatters } from "../src/utils/formatters";
 import { Delivery } from "../src/types";
+import { useTutorial } from "../src/hooks/useTutorial";
+import TutorialOverlay from "../components/TutorialOverlay";
+import { TutorialProvider } from "../src/context/TutorialContext";
+import TutorialTarget from "../components/TutorialTarget";
 
 type TabType = "A_LIVRER" | "AUJOURDHUI" | "LIVREE" | "ANNULEE";
 
@@ -53,6 +57,17 @@ export default function Deliveries() {
   const { showConfirm, showSuccess, showError } = useModal();
   const { user } = useAuth();
   const { markAndSync } = useSync();
+
+  // Tutoriel
+  const {
+    isVisible: isTutorialVisible,
+    currentStep: tutorialStep,
+    tutorial,
+    nextStep: tutorialNext,
+    prevStep: tutorialPrev,
+    closeTutorial: tutorialClose,
+    showTutorial: tutorialShow,
+  } = useTutorial("deliveries");
 
   const loadDeliveryDates = useCallback(async () => {
     try {
@@ -778,8 +793,9 @@ export default function Deliveries() {
 
   const keyExtractor = useCallback((item: FlatItem) => item.key, []);
 
-  return (
-    <View style={commonStyles.container}>
+   return (
+     <TutorialProvider>
+       <View style={commonStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
 
       <BlurView intensity={95} style={deliveriesStyles.header}>
@@ -787,23 +803,28 @@ export default function Deliveries() {
           <Text style={deliveriesStyles.headerTitle}>
             Historique et Planning
           </Text>
-          <TouchableOpacity style={deliveriesStyles.doneButton}>
-            {/* <Text style={deliveriesStyles.doneButtonText}>Terminé</Text> */}
+          <TouchableOpacity
+            style={deliveriesStyles.doneButton}
+            onPress={tutorialShow}
+          >
+            <MaterialIcons name="help-outline" size={24} color={COLORS.muted} />
           </TouchableOpacity>
         </View>
       </BlurView>
 
-      <FlatList
-        style={deliveriesStyles.scrollView}
-        showsVerticalScrollIndicator={false}
+       <TutorialTarget id="list-deliveries" scrollable>
+       <FlatList
+         style={deliveriesStyles.scrollView}
+         showsVerticalScrollIndicator={false}
         contentContainerStyle={deliveriesStyles.scrollContent}
         data={flatItems}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         ListHeaderComponent={
           <>
-            <View style={deliveriesStyles.searchContainer}>
-              <View style={deliveriesStyles.searchInputContainer}>
+           <TutorialTarget id="input-search">
+           <View style={deliveriesStyles.searchContainer}>
+             <View style={deliveriesStyles.searchInputContainer}>
                 <MaterialIcons
                   name="search"
                   size={20}
@@ -835,11 +856,13 @@ export default function Deliveries() {
                 {dateFilterEnabled && (
                   <View style={deliveriesStyles.filterIndicator} />
                 )}
-              </TouchableOpacity>
-            </View>
+               </TouchableOpacity>
+             </View>
+             </TutorialTarget>
 
-            {dateFilterEnabled && (
-              <View style={deliveriesStyles.dateFilterContainer}>
+             {dateFilterEnabled && (
+               <TutorialTarget id="filter-date">
+               <View style={deliveriesStyles.dateFilterContainer}>
                 <View style={deliveriesStyles.dateFilterContent}>
                   <MaterialIcons
                     name="calendar-today"
@@ -853,52 +876,56 @@ export default function Deliveries() {
                     <MaterialIcons name="close" size={16} color={COLORS.danger} />
                   </TouchableOpacity>
                 </View>
-              </View>
-            )}
+               </View>
+               </TutorialTarget>
+             )}
 
-            <View style={deliveriesStyles.tabsContainer}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={deliveriesStyles.tabsScroll}
-              >
-                {(["A_LIVRER", "AUJOURDHUI", "LIVREE", "ANNULEE"] as TabType[]).map(
-                  (tab) => (
-                    <TouchableOpacity
-                      key={tab}
-                      style={[
-                        deliveriesStyles.tab,
-                        activeTab === tab && deliveriesStyles.activeTab,
-                      ]}
-                      onPress={() => setActiveTab(tab)}
-                    >
-                      <Text
-                        style={[
-                          deliveriesStyles.tabText,
-                          activeTab === tab && deliveriesStyles.activeTabText,
-                        ]}
-                      >
-                        {tab === "A_LIVRER" && "En cours"}
-                        {tab === "AUJOURDHUI" && "Aujourd'hui"}
-                        {tab === "LIVREE" && "Terminées"}
-                        {tab === "ANNULEE" && "Annulées"}
-                      </Text>
-                      <View
-                        style={[
-                          deliveriesStyles.tabIndicator,
-                          activeTab === tab && deliveriesStyles.activeTabIndicator,
-                        ]}
-                      />
-                    </TouchableOpacity>
-                  ),
-                )}
-              </ScrollView>
-            </View>
+             <TutorialTarget id="tab-status">
+             <View style={deliveriesStyles.tabsContainer}>
+               <ScrollView
+                 horizontal
+                 showsHorizontalScrollIndicator={false}
+                 style={deliveriesStyles.tabsScroll}
+               >
+                 {(["A_LIVRER", "AUJOURDHUI", "LIVREE", "ANNULEE"] as TabType[]).map(
+                   (tab) => (
+                     <TouchableOpacity
+                       key={tab}
+                       style={[
+                         deliveriesStyles.tab,
+                         activeTab === tab && deliveriesStyles.activeTab,
+                       ]}
+                       onPress={() => setActiveTab(tab)}
+                     >
+                       <Text
+                         style={[
+                           deliveriesStyles.tabText,
+                           activeTab === tab && deliveriesStyles.activeTabText,
+                         ]}
+                       >
+                         {tab === "A_LIVRER" && "En cours"}
+                         {tab === "AUJOURDHUI" && "Aujourd'hui"}
+                         {tab === "LIVREE" && "Terminées"}
+                         {tab === "ANNULEE" && "Annulées"}
+                       </Text>
+                       <View
+                         style={[
+                           deliveriesStyles.tabIndicator,
+                           activeTab === tab && deliveriesStyles.activeTabIndicator,
+                         ]}
+                       />
+                     </TouchableOpacity>
+                   ),
+                 )}
+               </ScrollView>
+             </View>
+             </TutorialTarget>
           </>
-        }
-      />
+         }
+       />
+       </TutorialTarget>
 
-      {selectedDeliveries.length > 0 && (
+       {selectedDeliveries.length > 0 && (
         <View style={deliveriesStyles.selectionBar}>
           <View style={deliveriesStyles.selectionInfo}>
             <Text style={deliveriesStyles.selectionCount}>
@@ -1128,6 +1155,17 @@ export default function Deliveries() {
           </BlurView>
         </View>
       </Modal>
+
+      {/* Tutoriel */}
+      <TutorialOverlay
+        visible={isTutorialVisible}
+        tutorial={tutorial}
+        currentStep={tutorialStep}
+        onNext={tutorialNext}
+        onPrev={tutorialPrev}
+        onClose={tutorialClose}
+      />
     </View>
+    </TutorialProvider>
   );
 }

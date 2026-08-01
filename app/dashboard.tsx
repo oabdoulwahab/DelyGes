@@ -25,6 +25,10 @@ import { db } from "../src/database/db";
 import { doc, updateDoc } from "firebase/firestore";
 import { db as firestore } from "../src/config/firebase";
 import { cacheInvalidate } from "../src/cache/cache";
+import { useTutorial } from "../src/hooks/useTutorial";
+import TutorialOverlay from "../components/TutorialOverlay";
+import { TutorialProvider, useTutorialContext } from "../src/context/TutorialContext";
+import TutorialTarget from "../components/TutorialTarget";
 
 interface DashboardState {
   todayEarnings: number;
@@ -65,17 +69,43 @@ const INITIAL_DASHBOARD: DashboardState = {
 };
 
 export default function Dashboard() {
+  return (
+    <TutorialProvider>
+      <DashboardContent />
+    </TutorialProvider>
+  );
+}
+
+function DashboardContent() {
   const { user, firebaseUser, refreshUser } = useAuth();
   const [data, setData] = useState<DashboardState>(INITIAL_DASHBOARD);
   const [userName, setUserName] = useState("");
   const { showAlert } = useModal();
   const goalAchievedRef = useRef(false);
   const lastGoalCheckRef = useRef("");
+  const scrollRef = useRef<any>(null);
+  const { registerScrollable, unregisterScrollable, setScrollOffset } = useTutorialContext();
+
+  useEffect(() => {
+    registerScrollable(scrollRef.current);
+    return () => unregisterScrollable();
+  }, [registerScrollable, unregisterScrollable]);
 
   // État du modal objectif du jour
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
   const [isSavingGoal, setIsSavingGoal] = useState(false);
+
+  // Tutoriel
+  const {
+    isVisible: isTutorialVisible,
+    currentStep: tutorialStep,
+    tutorial,
+    nextStep: tutorialNext,
+    prevStep: tutorialPrev,
+    closeTutorial: tutorialClose,
+    showTutorial: tutorialShow,
+  } = useTutorial("dashboard");
 
   const formattedDate = Formatters.formatDate(new Date(), "d MMM yyyy");
 
@@ -269,15 +299,24 @@ export default function Dashboard() {
           </View>
 
           <View style={dashboardStyles.headerActions}>
+            <TouchableOpacity
+              style={dashboardStyles.notificationButton}
+              onPress={tutorialShow}
+            >
+              <MaterialIcons name="help-outline" size={24} color={COLORS.muted} />
+            </TouchableOpacity>
             <NotificationBadge />
           </View>
         </View>
       </BlurView>
 
       <ScrollView
+        ref={scrollRef}
         style={dashboardStyles.content}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
+        scrollEventThrottle={16}
+        onScroll={(e) => setScrollOffset(e.nativeEvent.contentOffset.y)}
       >
         {/* En-tête avec date */}
         <View style={dashboardStyles.dateHeader}>
@@ -298,8 +337,9 @@ export default function Dashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* Carte Objectif du jour */}
-        <View style={dashboardStyles.goalCard}>
+          {/* Carte Objectif du jour */}
+          <TutorialTarget id="btn-edit-goal">
+            <View style={dashboardStyles.goalCard}>
           <View style={dashboardStyles.goalHeader}>
             <View style={dashboardStyles.goalTitleContainer}>
               <MaterialIcons name="flag" size={20} color={COLORS.primary} />
@@ -354,11 +394,13 @@ export default function Dashboard() {
               Plus que {Formatters.formatNumber(data.dailyGoal - data.todayEarnings)} FCFA à gagner !
             </Text>
           )}
-        </View>
+         </View>
+         </TutorialTarget>
 
-        {/* Cartes de revenus */}
-        <View style={dashboardStyles.statsGrid}>
-          <View style={dashboardStyles.mainCard}>
+         {/* Cartes de revenus */}
+         <TutorialTarget id="card-revenus">
+         <View style={dashboardStyles.statsGrid}>
+           <View style={dashboardStyles.mainCard}>
             <View style={dashboardStyles.cardHeader}>
               <Text style={dashboardStyles.cardLabel}>Revenus du jour</Text>
               <View style={dashboardStyles.iconContainer}>
@@ -380,6 +422,7 @@ export default function Dashboard() {
               </Text>
             </TouchableOpacity>
 
+            <TutorialTarget id="card-financial-summary">
             <View style={dashboardStyles.financeCard}>
               <Text style={dashboardStyles.financeTitle}>Résumé Financier</Text>
 
@@ -433,10 +476,11 @@ export default function Dashboard() {
                   Livraisons aujourd’hui
                 </Text>
                 <Text style={dashboardStyles.financeValue}>{data.todayCount}</Text>
-              </View>
-            </View>
+               </View>
+             </View>
+             </TutorialTarget>
 
-            <Text style={dashboardStyles.mainAmount}>
+             <Text style={dashboardStyles.mainAmount}>
               {Formatters.formatNumber(data.todayEarnings || 0)} FCFA
             </Text>
 
@@ -485,10 +529,12 @@ export default function Dashboard() {
               {Formatters.formatNumber(data.monthEarnings || 0)} FCFA
             </Text>
           </View>
-        </View>
+         </View>
+         </TutorialTarget>
 
-        {/* Planning du jour */}
-        <View style={dashboardStyles.scheduleSection}>
+         {/* Planning du jour */}
+         <TutorialTarget id="section-schedule">
+         <View style={dashboardStyles.scheduleSection}>
           <View style={dashboardStyles.scheduleHeader}>
             <Text style={dashboardStyles.scheduleTitle}>Planning du jour</Text>
             <TouchableOpacity onPress={() => router.push("/deliveries")} style={dashboardStyles.calendarButton}>
@@ -567,8 +613,9 @@ export default function Dashboard() {
               )}
             </ScrollView>
           </View>
-        </View>
-        <View style={dashboardStyles.bottomSpacer} />
+         </View>
+         </TutorialTarget>
+         <View style={dashboardStyles.bottomSpacer} />
       </ScrollView>
 
       {/* Modal de définition de l'objectif du jour */}
@@ -638,6 +685,16 @@ export default function Dashboard() {
           </View>
         </View>
       </Modal>
-    </View>
-  );
-}
+
+       {/* Tutoriel */}
+       <TutorialOverlay
+         visible={isTutorialVisible}
+         tutorial={tutorial}
+         currentStep={tutorialStep}
+         onNext={tutorialNext}
+         onPrev={tutorialPrev}
+         onClose={tutorialClose}
+       />
+     </View>
+   );
+ }

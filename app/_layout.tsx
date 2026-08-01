@@ -18,6 +18,7 @@ import {
 } from "../src/services/notification.service";
 import { addFirebaseColumns } from "../src/database/migrations/add_firebase_columns";
 import { addSyncQueueTable } from "../src/database/migrations/add_sync_queue";
+import { fixUserPhoneUnique } from "../src/database/migrations/fix_user_phone_unique";
 
 // 🔥 Écran de chargement avec timeout
 const LoadingScreen = ({ message = "Chargement..." }) => (
@@ -134,6 +135,7 @@ export default function Layout() {
         setInitMessage("Mise à jour de la structure...");
         await addFirebaseColumns();
         await addSyncQueueTable();
+        await fixUserPhoneUnique();
         
         setDbReady(true);
       } catch (error) {
