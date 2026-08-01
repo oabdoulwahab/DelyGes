@@ -39,6 +39,21 @@ class SyncService {
   private syncQueue: Array<{ table: string; id: number }> = [];
   private syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
+  // Résoudre le UID Firebase vers l'ID local SQLite de la table user
+  private async getLocalUserId(): Promise<number | null> {
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return null;
+      const user = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM user WHERE firebase_uid = ?",
+        [uid],
+      );
+      return user?.id ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   constructor() {
     NetInfo.addEventListener((state) => {
       const wasOnline = this.isOnline;
@@ -314,6 +329,9 @@ class SyncService {
   private async processMerchantBatch(
     batch: Array<{ firebaseId: string; data: DocumentData }>,
   ) {
+    const localUserId = await this.getLocalUserId();
+    if (localUserId === null) return;
+
     const queries = batch.map(async (item) => {
       return db.runAsync(
         `INSERT INTO merchants
@@ -324,7 +342,7 @@ class SyncService {
           item.data.phone || "",
           item.data.address || "",
           item.firebaseId,
-          auth.currentUser?.uid,
+          localUserId,
           item.data.created_at || new Date().toISOString(),
           item.data.updated_at || item.data.sync_updated_at || new Date().toISOString(),
         ],
@@ -337,8 +355,13 @@ class SyncService {
   private async processDeliveryBatch(
     batch: Array<{ firebaseId: string; data: DocumentData }>,
   ) {
+    const localUserId = await this.getLocalUserId();
+    if (localUserId === null) return;
+
+    let localMerchantId: number | null = null;
+
     const queries = batch.map(async (item) => {
-      let localMerchantId = null;
+      let localMerchantId: number | null = null;
       if (item.data.merchant_id) {
         const merchant = await db.getFirstAsync<{ id: number }>(
           "SELECT id FROM merchants WHERE firebase_id = ?",
@@ -367,7 +390,7 @@ class SyncService {
           item.data.status || "A_LIVRER",
           item.data.created_at || new Date().toISOString(),
           item.data.delivered_at || null,
-          auth.currentUser?.uid,
+          localUserId,
           item.firebaseId,
           item.data.updated_at || item.data.sync_updated_at || new Date().toISOString(),
         ],
@@ -525,31 +548,32 @@ class SyncService {
         return merchant.firebase_id;
       }
 
-      const firebaseUid = auth.currentUser.uid;
+       const firebaseUid = auth.currentUser.uid;
+       const localUserId = await this.getLocalUserId();
 
-      if (merchant.user_id !== firebaseUid) {
-        await db.runAsync("UPDATE merchants SET user_id = ? WHERE id = ?", [
-          firebaseUid,
-          merchantId,
-        ]);
-      }
+       if (localUserId !== null) {
+         await db.runAsync("UPDATE merchants SET user_id = ? WHERE id = ?", [
+           localUserId,
+           merchantId,
+         ]);
+       }
 
-      const firestoreData: Record<string, unknown> = {
-        name: merchant.name,
-        phone: merchant.phone || null,
-        address: merchant.address || null,
-        user_id: firebaseUid,
-        created_at: merchant.created_at || new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+       const firestoreData: Record<string, unknown> = {
+         name: merchant.name,
+         phone: merchant.phone || null,
+         address: merchant.address || null,
+         user_id: firebaseUid,
+         created_at: merchant.created_at || new Date().toISOString(),
+         updated_at: new Date().toISOString(),
+       };
 
-      const docRef = doc(collection(firestore, "merchants"));
-      await setDoc(docRef, firestoreData);
+       const docRef = doc(collection(firestore, "merchants"));
+       await setDoc(docRef, firestoreData);
 
-      await db.runAsync(
-        `UPDATE merchants SET firebase_id = ?, needs_sync = 0, user_id = ?, sync_updated_at = ? WHERE id = ?`,
-        [docRef.id, firebaseUid, new Date().toISOString(), merchantId],
-      );
+       await db.runAsync(
+         `UPDATE merchants SET firebase_id = ?, needs_sync = 0, user_id = ?, sync_updated_at = ? WHERE id = ?`,
+         [docRef.id, localUserId ?? firebaseUid, new Date().toISOString(), merchantId],
+       );
 
       // Nettoyer la file persistante
       await this.markSyncCompleted("merchants", merchantId);

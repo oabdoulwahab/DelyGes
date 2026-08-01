@@ -194,6 +194,36 @@ export const migrateFromOldDB = async (): Promise<void> => {
       }
     }
 
+    // ----- CORRECTION user_id : UID Firebase (string) → ID local SQLite (integer) -----
+    try {
+      const userRow = await db.getFirstAsync<{ id: number; firebase_uid: string | null }>(
+        "SELECT id, firebase_uid FROM user WHERE firebase_uid IS NOT NULL LIMIT 1",
+      );
+
+      if (userRow && userRow.firebase_uid) {
+        const localId = userRow.id;
+        const firebaseUid = userRow.firebase_uid;
+
+        const deliveriesUpdated = await db.runAsync(
+          `UPDATE deliveries SET user_id = ? WHERE user_id = ?`,
+          [localId, firebaseUid],
+        );
+        if (deliveriesUpdated.changes > 0) {
+          console.log(`➕ Corrections user_id deliveries: ${deliveriesUpdated.changes} ligne(s)`);
+        }
+
+        const merchantsUpdated = await db.runAsync(
+          `UPDATE merchants SET user_id = ? WHERE user_id = ?`,
+          [localId, firebaseUid],
+        );
+        if (merchantsUpdated.changes > 0) {
+          console.log(`➕ Corrections user_id merchants: ${merchantsUpdated.changes} ligne(s)`);
+        }
+      }
+    } catch (migrationError) {
+      console.error("⚠️ Erreur correction user_id:", migrationError);
+    }
+
     console.log("✅ Migration terminée");
   } catch (error) {
     console.error("❌ Erreur migration:", error);
