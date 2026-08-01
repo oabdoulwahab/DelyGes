@@ -103,16 +103,23 @@ export class StatsService {
 
   // Récupérer les livraisons dans une plage de dates
   private static async getDeliveriesInRange(userId: number, startDate: Date, endDate: Date) {
-    const startStr = startDate.toISOString();
-    const endStr = endDate.toISOString();
+    // Comparer sur la date locale (YYYY-MM-DD) via date() : compatible avec le
+    // format stocké par CURRENT_TIMESTAMP ("2026-08-01 10:30:00") et avec le
+    // format ISO éventuellement importé depuis Firestore ("2026-08-01T10:30:00.000Z").
+    const startStr = this.toLocalDateStr(startDate);
+    const endStr = this.toLocalDateStr(endDate);
 
-    console.log("🔍 Requête SQL:", `BETWEEN ${startStr} AND ${endStr}`);
+    console.log(
+      "🔍 Requête SQL:",
+      `date(delivered_at) >= ${startStr} AND date(delivered_at) < ${endStr}`,
+    );
 
     const result = await db.getAllAsync<Delivery>(
-      `SELECT id, status, delivered_at, delivery_fee, payment_type FROM deliveries 
+      `SELECT id, status, delivered_at, delivery_fee, payment_type, address, created_at FROM deliveries 
      WHERE user_id = ?
      AND status = 'LIVREE' 
-     AND delivered_at BETWEEN ? AND ?
+     AND date(delivered_at) >= ?
+     AND date(delivered_at) < ?
      ORDER BY delivered_at ASC`,
       [userId, startStr, endStr],
     );
@@ -309,7 +316,7 @@ export class StatsService {
 
     deliveries.forEach((d) => {
       // Extraire la ville/quartier de l'adresse (simplifié)
-      const addressParts = d.address.split(",");
+      const addressParts = (d.address || "").split(",");
       const zone = addressParts[addressParts.length - 1]?.trim() || "Autre";
 
       if (!zoneCount.has(zone)) {
@@ -331,46 +338,64 @@ export class StatsService {
       .slice(0, 3);
   }
 
-  // Définir les plages de dates selon la période
+  // Définir les plages de dates selon la période.
+  // startDate = début de la période courante.
+  // endDate   = fin EXCLUSIVE de la période courante (premier jour après).
+  // previousStartDate = début de la période précédente.
   private static getDateRange(period: Period) {
     const now = new Date();
     const startDate = new Date();
+    const endDate = new Date();
     const previousStartDate = new Date();
 
     switch (period) {
       case "day":
         startDate.setHours(0, 0, 0, 0);
-        previousStartDate.setDate(previousStartDate.getDate() - 1);
+        endDate.setDate(now.getDate() + 1);
+        endDate.setHours(0, 0, 0, 0);
+        previousStartDate.setDate(now.getDate() - 1);
         previousStartDate.setHours(0, 0, 0, 0);
         break;
 
       case "week":
-        startDate.setDate(startDate.getDate() - startDate.getDay() + 1); // Lundi
+        startDate.setDate(now.getDate() - now.getDay() + 1); // Lundi
         startDate.setHours(0, 0, 0, 0);
-        previousStartDate.setDate(previousStartDate.getDate() - 7);
+        endDate.setDate(startDate.getDate() + 7);
+        endDate.setHours(0, 0, 0, 0);
+        previousStartDate.setDate(startDate.getDate() - 7);
         previousStartDate.setHours(0, 0, 0, 0);
         break;
 
       case "month":
         startDate.setDate(1);
         startDate.setHours(0, 0, 0, 0);
-        previousStartDate.setMonth(previousStartDate.getMonth() - 1);
-        previousStartDate.setDate(1);
+        endDate.setMonth(now.getMonth() + 1, 1);
+        endDate.setHours(0, 0, 0, 0);
+        previousStartDate.setMonth(now.getMonth() - 1, 1);
         previousStartDate.setHours(0, 0, 0, 0);
         break;
 
       case "year":
         startDate.setMonth(0, 1);
         startDate.setHours(0, 0, 0, 0);
-        previousStartDate.setFullYear(previousStartDate.getFullYear() - 1);
+        endDate.setFullYear(now.getFullYear() + 1);
+        endDate.setMonth(0, 1);
+        endDate.setHours(0, 0, 0, 0);
+        previousStartDate.setFullYear(now.getFullYear() - 1);
         previousStartDate.setMonth(0, 1);
         previousStartDate.setHours(0, 0, 0, 0);
         break;
     }
 
-    const endDate = new Date();
-
     return { startDate, endDate, previousStartDate };
+  }
+
+  // Formater une date au format local YYYY-MM-DD (identique au dashboard)
+  private static toLocalDateStr(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
 
   // Statistiques par défaut (quand pas de données)

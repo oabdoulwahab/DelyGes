@@ -1,4 +1,12 @@
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { router, useFocusEffect } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -13,6 +21,10 @@ import { useAuth } from '../src/context/AuthContext';
 import { DashboardService } from '../src/services/dashboard.service';
 import { Formatters } from '../src/utils/formatters';
 import { Delivery } from '../src/types';
+import { db } from "../src/database/db";
+import { doc, updateDoc } from "firebase/firestore";
+import { db as firestore } from "../src/config/firebase";
+import { cacheInvalidate } from "../src/cache/cache";
 
 interface DashboardState {
   todayEarnings: number;
@@ -53,12 +65,17 @@ const INITIAL_DASHBOARD: DashboardState = {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, firebaseUser, refreshUser } = useAuth();
   const [data, setData] = useState<DashboardState>(INITIAL_DASHBOARD);
   const [userName, setUserName] = useState("");
   const { showAlert } = useModal();
   const goalAchievedRef = useRef(false);
   const lastGoalCheckRef = useRef("");
+
+  // État du modal objectif du jour
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
+  const [isSavingGoal, setIsSavingGoal] = useState(false);
 
   const formattedDate = Formatters.formatDate(new Date(), "d MMM yyyy");
 
@@ -143,6 +160,71 @@ export default function Dashboard() {
     }, [loadStats]),
   );
 
+  // Ouvrir le modal de définition d'objectif
+  const openGoalModal = () => {
+    setGoalInput(data.dailyGoal ? String(data.dailyGoal) : "");
+    setShowGoalModal(true);
+  };
+
+  // Sauvegarder l'objectif du jour
+  const saveDailyGoal = async () => {
+    if (!user?.id) return;
+
+    const numericValue = goalInput.replace(/[^0-9]/g, "");
+    const newGoal = numericValue ? parseInt(numericValue, 10) : 0;
+
+    if (newGoal <= 0) {
+      showAlert("Objectif invalide", "Veuillez saisir un montant supérieur à 0.");
+      return;
+    }
+
+    setIsSavingGoal(true);
+    try {
+      // 1. Sauvegarde locale SQLite
+      await db.runAsync(
+        `UPDATE user SET daily_goal = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [newGoal, user.id],
+      );
+
+      // 2. Synchronisation Firebase
+      if (firebaseUser) {
+        try {
+          const userRef = doc(firestore, "users", firebaseUser.uid);
+          await updateDoc(userRef, {
+            daily_goal: newGoal,
+            updated_at: new Date().toISOString(),
+          });
+        } catch (fbError) {
+          console.error("❌ Erreur synchronisation objectif Firebase:", fbError);
+        }
+      }
+
+      // 3. Rafraîchir l'utilisateur local
+      await refreshUser();
+
+      // 4. Invalider le cache dashboard pour recharger avec le nouvel objectif
+      cacheInvalidate(`dashboard:${user.id}`);
+
+      // 5. Mettre à jour l'état local immédiatement
+      setData((prev) => ({
+        ...prev,
+        dailyGoal: newGoal,
+        dailyProgress: prev.todayEarnings > 0 ? (prev.todayEarnings / newGoal) * 100 : 0,
+        goalAchievedToday: prev.todayEarnings >= newGoal,
+      }));
+
+      // 6. Fermer le modal
+      setShowGoalModal(false);
+
+      showAlert("Objectif mis à jour", `Votre objectif du jour est maintenant de ${Formatters.formatNumber(newGoal)} FCFA.`, "success");
+    } catch (error) {
+      console.error("❌ Erreur sauvegarde objectif:", error);
+      showAlert("Erreur", "Impossible de sauvegarder votre objectif. Veuillez réessayer.", "error");
+    } finally {
+      setIsSavingGoal(false);
+    }
+  };
+
   const monthProgress = Math.min((data.monthEarnings / data.monthGoal) * 100, 100);
 
   const getStatusColor = (status: string) => {
@@ -207,7 +289,7 @@ export default function Dashboard() {
             style={dashboardStyles.historyButton}
             onPress={() => router.push("/deliveries")}
           >
-            <Text style={dashboardStyles.historyText}>Voir l'historique</Text>
+            <Text style={dashboardStyles.historyText}>{"Voir l'historique"}</Text>
             <MaterialIcons
               name="chevron-right"
               size={16}
@@ -224,7 +306,7 @@ export default function Dashboard() {
               <Text style={dashboardStyles.goalTitle}>Objectif du jour</Text>
             </View>
             <TouchableOpacity 
-              onPress={() => router.push("/settings")}
+              onPress={openGoalModal}
               style={dashboardStyles.goalSettingsButton}
             >
               <MaterialIcons name="edit" size={18} color={COLORS.muted} />
@@ -480,7 +562,7 @@ export default function Dashboard() {
                 })
               ) : (
                 <Text style={dashboardStyles.noDeliveries}>
-                  Aucune livraison planifiée aujourd'hui
+                  {"Aucune livraison planifiée aujourd'hui"}
                 </Text>
               )}
             </ScrollView>
@@ -488,6 +570,74 @@ export default function Dashboard() {
         </View>
         <View style={dashboardStyles.bottomSpacer} />
       </ScrollView>
+
+      {/* Modal de définition de l'objectif du jour */}
+      <Modal
+        visible={showGoalModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowGoalModal(false)}
+      >
+        <View style={dashboardStyles.goalModalOverlay}>
+          <View style={dashboardStyles.goalModalContent}>
+            <View style={dashboardStyles.goalModalIconContainer}>
+              <MaterialIcons name="flag" size={32} color={COLORS.primary} />
+            </View>
+
+            <Text style={dashboardStyles.goalModalTitle}>
+              Objectif du jour
+            </Text>
+            <Text style={dashboardStyles.goalModalMessage}>
+              {"Définissez votre objectif de gains pour aujourd'hui"}
+            </Text>
+
+            <View style={dashboardStyles.goalInputContainer}>
+              <TextInput
+                style={dashboardStyles.goalModalInput}
+                value={goalInput}
+                onChangeText={(text) => setGoalInput(text.replace(/[^0-9]/g, ""))}
+                keyboardType="numeric"
+                placeholder="Ex : 15000"
+                placeholderTextColor={COLORS.muted}
+                autoFocus
+              />
+              <Text style={dashboardStyles.goalModalCurrency}>FCFA</Text>
+            </View>
+
+            <Text style={dashboardStyles.goalModalHint}>
+              {data.todayEarnings > 0
+                ? `Vous avez déjà gagné ${Formatters.formatNumber(data.todayEarnings)} FCFA aujourd'hui`
+                : "Commencez votre journée en fixant un objectif motivant"}
+            </Text>
+
+            <View style={dashboardStyles.goalModalButtonsContainer}>
+              <TouchableOpacity
+                style={[dashboardStyles.goalModalButton, dashboardStyles.goalModalButtonCancel]}
+                onPress={() => setShowGoalModal(false)}
+                disabled={isSavingGoal}
+              >
+                <Text style={[dashboardStyles.goalModalButtonText, dashboardStyles.goalModalButtonTextCancel]}>
+                  Annuler
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[dashboardStyles.goalModalButton, dashboardStyles.goalModalButtonPrimary]}
+                onPress={saveDailyGoal}
+                disabled={isSavingGoal}
+              >
+                {isSavingGoal ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={[dashboardStyles.goalModalButtonText, dashboardStyles.goalModalButtonTextPrimary]}>
+                    Enregistrer
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

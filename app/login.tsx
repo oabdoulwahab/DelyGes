@@ -67,16 +67,10 @@ const onSubmit = async (data: LoginFormData) => {
     setLoginError(null);
     await login(data.emailOrPhone, data.password);
 
-    // Recharger l'utilisateur Firebase pour obtenir l'état emailVerified le
-    // plus récent depuis Firebase Auth (jamais la valeur en mémoire).
-    const fbUser = auth.currentUser;
-    if (fbUser) {
-      try {
-        await fbUser.reload();
-      } catch (reloadError) {
-        console.error("⚠️ Échec du reload après connexion:", reloadError);
-      }
-    }
+    // Après signInWithEmailAndPassword, le emailVerified du token renvoyé
+    // est la valeur la plus récente depuis le serveur Firebase (pas de cache).
+    // Un reload() n'est nécessaire que sur l'écran de vérification, quand
+    // l'utilisateur a pu valider son email dans un navigateur externe entre-temps.
     const verified = auth.currentUser?.emailVerified ?? false;
 
     if (!verified) {

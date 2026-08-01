@@ -122,10 +122,8 @@ export default function AddDelivery() {
         merchant.name.toLowerCase().includes(merchantName.toLowerCase()),
       );
       setFilteredMerchants(filtered);
-      setShowSuggestions(filtered.length > 0);
     } else {
       setFilteredMerchants([]);
-      setShowSuggestions(false);
     }
   }, [merchantName, merchants]);
 
@@ -589,6 +587,7 @@ const getOrCreateMerchant = async () => {
                   onChangeText={(text) => {
                     setMerchantName(text);
                     setMerchantId(null);
+                    setShowSuggestions(text.trim().length > 0);
                     setErrors((prev) => ({ ...prev, merchantName: false }));
                   }}
                   onFocus={(e) => {
@@ -620,7 +619,7 @@ const getOrCreateMerchant = async () => {
                   </TouchableOpacity>
                 )}
               </View>
-              {showSuggestions && !isSaving && (
+              {showSuggestions && filteredMerchants.length > 0 && !isSaving && (
                 <View style={addDeliveryStyles.suggestionsContainer}>
                   {filteredMerchants.map((item) => (
                     <TouchableOpacity

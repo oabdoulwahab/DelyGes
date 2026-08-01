@@ -439,4 +439,94 @@ goalAchievedText: {
   fontWeight: 'bold',
   color: '#FFFFFF',
 },
+
+// Styles du modal objectif du jour
+goalModalOverlay: {
+  flex: 1,
+  backgroundColor: 'rgba(0,0,0,0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+  padding: 20,
+},
+goalModalContent: {
+  backgroundColor: COLORS.card,
+  borderRadius: 20,
+  padding: 24,
+  width: '100%',
+  maxWidth: 340,
+},
+goalModalIconContainer: {
+  alignItems: 'center',
+  marginBottom: 12,
+},
+goalModalTitle: {
+  fontSize: 20,
+  fontWeight: 'bold',
+  color: COLORS.white,
+  marginBottom: 8,
+  textAlign: 'center',
+},
+goalModalMessage: {
+  fontSize: 14,
+  color: COLORS.muted,
+  marginBottom: 20,
+  textAlign: 'center',
+},
+goalInputContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: COLORS.inputBackground,
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: COLORS.borderLight,
+  marginBottom: 12,
+  paddingHorizontal: 16,
+},
+goalModalInput: {
+  flex: 1,
+  paddingVertical: 14,
+  fontSize: 18,
+  fontWeight: 'bold',
+  color: COLORS.white,
+},
+goalModalCurrency: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: COLORS.muted,
+  marginLeft: 8,
+},
+goalModalHint: {
+  fontSize: 12,
+  color: COLORS.muted,
+  fontStyle: 'italic',
+  textAlign: 'center',
+  marginBottom: 20,
+},
+goalModalButtonsContainer: {
+  flexDirection: 'row',
+  gap: 12,
+},
+goalModalButton: {
+  flex: 1,
+  padding: 14,
+  borderRadius: 12,
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+goalModalButtonCancel: {
+  backgroundColor: COLORS.borderLight,
+},
+goalModalButtonPrimary: {
+  backgroundColor: COLORS.primary,
+},
+goalModalButtonText: {
+  fontSize: 16,
+  fontWeight: '600',
+},
+goalModalButtonTextCancel: {
+  color: COLORS.white,
+},
+goalModalButtonTextPrimary: {
+  color: '#FFFFFF',
+},
 });
