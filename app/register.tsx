@@ -95,8 +95,9 @@ export default function Register() {
         acceptCGU,
       });
 
-      // ✅ Si on arrive ici, l'inscription a réussi, on peut rediriger vers le dashboard
-      router.replace("/dashboard");
+      // ✅ L'inscription a réussi : rediriger vers l'écran de vérification
+      // d'email (l'accès au dashboard n'est possible qu'après vérification).
+      router.replace("/verify-email");
       
     } catch (error: any) {
       console.error("❌ Erreur inscription:", error);

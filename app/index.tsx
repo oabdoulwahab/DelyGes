@@ -5,7 +5,7 @@ import { useAuth } from "../src/context/AuthContext";
 // import { useEffect } from "react";
 
 export default function Index() {
-  const { isAuthenticated, authReady } = useAuth();
+  const { isAuthenticated, authReady, emailVerified } = useAuth();
   // useEffect(() => {
   //   completeReset();
   // }, []);
@@ -30,6 +30,9 @@ export default function Index() {
   console.log("🎯 Redirection finale. Authentifié:", isAuthenticated);
 
   if (isAuthenticated) {
+    if (!emailVerified) {
+      return <Redirect href="/verify-email" />;
+    }
     return <Redirect href="/dashboard" />;
   } else {
     return <Redirect href="/login" />;

@@ -18,6 +18,7 @@ import * as yup from "yup";
 
 // Import unique du nouveau Context
 import { useAuth } from "../src/context/AuthContext"; 
+import { auth } from "../src/config/firebase";
 import { COLORS } from "../styles/colors";
 import { loginStyles } from "../styles/loginStyles";
 import { useModal } from "../providers/ModalProvider";
@@ -65,9 +66,30 @@ const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
     setLoginError(null);
     await login(data.emailOrPhone, data.password);
-    // Afficher une alerte de succès
-    showAlert("Succès", "Vous êtes connecté !");
-    router.replace("/dashboard");
+
+    // Recharger l'utilisateur Firebase pour obtenir l'état emailVerified le
+    // plus récent depuis Firebase Auth (jamais la valeur en mémoire).
+    const fbUser = auth.currentUser;
+    if (fbUser) {
+      try {
+        await fbUser.reload();
+      } catch (reloadError) {
+        console.error("⚠️ Échec du reload après connexion:", reloadError);
+      }
+    }
+    const verified = auth.currentUser?.emailVerified ?? false;
+
+    if (!verified) {
+      showAlert(
+        "Vérification requise",
+        "Veuillez vérifier votre adresse email pour activer votre compte.",
+      );
+      router.replace("/verify-email");
+    } else {
+      // Afficher une alerte de succès
+      showAlert("Succès", "Vous êtes connecté !");
+      router.replace("/dashboard");
+    }
   } catch (e: any) {
     setLoginError(e.message || "Identifiants incorrects");
   } finally {

@@ -16,6 +16,7 @@ export default function NavigationTabs() {
     "/login",
     "/add-delivery",
     "/register",
+    "/verify-email",
   ];
   const shouldHideTabs = hideTabsOnScreens.some((path) =>
     pathname.includes(path),

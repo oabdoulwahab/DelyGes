@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 
 import NavigationTabs from "../components/NavigationTabs";
+import VerifyEmailScreen from "../src/components/VerifyEmailScreen";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { initializeDatabase } from "../src/database/db";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
@@ -27,7 +28,7 @@ const LoadingScreen = ({ message = "Chargement..." }) => (
 );
 
 function RootLayoutNav() {
-  const { isAuthenticated, authReady, user } = useAuth();
+  const { isAuthenticated, authReady, user, emailVerified } = useAuth();
   const [servicesReady, setServicesReady] = useState(false);
   const router = useRouter();
   
@@ -85,11 +86,22 @@ function RootLayoutNav() {
     return <LoadingScreen message={loadingMessage} />;
   }
 
+  // Garde globale : un utilisateur connecté dont l'email n'est pas vérifié
+  // est bloqué sur l'écran de vérification, quelle que soit la route
+  // demandée (y compris les deep links). Aucun écran protégé n'est monté.
+  const requiresEmailVerification = isAuthenticated && !emailVerified;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>
-        <Slot />
-        {isAuthenticated && <NavigationTabs />}
+        {requiresEmailVerification ? (
+          <VerifyEmailScreen />
+        ) : (
+          <>
+            <Slot />
+            {isAuthenticated && <NavigationTabs />}
+          </>
+        )}
       </View>
     </GestureHandlerRootView>
   );

@@ -10,6 +10,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser,
   updateProfile,
+  sendEmailVerification,
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { syncService } from "../services/sync.service";
@@ -31,6 +32,9 @@ interface AuthContextType {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  emailVerified: boolean;
+  reloadUser: () => Promise<boolean>;
+  sendVerificationEmail: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,6 +50,7 @@ export const AuthProvider = ({
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   // 1. Écouter les changements d'état Firebase
   useEffect(() => {
@@ -57,6 +62,7 @@ export const AuthProvider = ({
         fbUser ? fbUser.uid : "déconnecté",
       );
       setFirebaseUser(fbUser);
+      setEmailVerified(fbUser?.emailVerified ?? false);
 
       if (fbUser && isDbReady) {
         // Charger l'utilisateur depuis SQLite
@@ -323,6 +329,16 @@ const loadLocalUser = async (firebaseUid: string) => {
       setUser(newLocalUser);
       setIsAuthenticated(true);
       await SecureStore.setItemAsync(USER_KEY, String(newLocalUser!.id));
+
+      // 8. Envoyer l'email de vérification Firebase.
+      //    L'inscription reste valide même si l'envoi échoue : l'utilisateur
+      //    pourra le renvoyer depuis l'écran de vérification.
+      try {
+        await sendEmailVerification(fbUser);
+        console.log("📧 Email de vérification envoyé");
+      } catch (emailError) {
+        console.error("❌ Erreur envoi email de vérification:", emailError);
+      }
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       console.error("❌ Erreur inscription:", err.code, err.message);
@@ -370,6 +386,28 @@ const loadLocalUser = async (firebaseUid: string) => {
     }
   }, []);
 
+  // 6.5 Recharger l'utilisateur Firebase et retourner son état emailVerified
+  const reloadUser = useCallback(async () => {
+    const fbUser = auth.currentUser;
+    if (!fbUser) {
+      throw new Error("Utilisateur non connecté");
+    }
+    await fbUser.reload();
+    setFirebaseUser(auth.currentUser);
+    const verified = auth.currentUser?.emailVerified ?? false;
+    setEmailVerified(verified);
+    return verified;
+  }, []);
+
+  // 6.6 Envoyer l'email de vérification Firebase
+  const sendVerificationEmail = useCallback(async () => {
+    const fbUser = auth.currentUser;
+    if (!fbUser) {
+      throw new Error("Utilisateur non connecté");
+    }
+    await sendEmailVerification(fbUser);
+  }, []);
+
   useEffect(() => {
     if (isDbReady) {
       checkAuth();
@@ -382,13 +420,16 @@ const loadLocalUser = async (firebaseUid: string) => {
       firebaseUser,
       isAuthenticated,
       authReady,
+      emailVerified,
       login,
       register,
       logout,
       checkAuth,
       refreshUser,
+      reloadUser,
+      sendVerificationEmail,
     }),
-    [user, firebaseUser, isAuthenticated, authReady, login, register, logout, checkAuth, refreshUser]
+    [user, firebaseUser, isAuthenticated, authReady, emailVerified, login, register, logout, checkAuth, refreshUser, reloadUser, sendVerificationEmail]
   );
 
   return (
