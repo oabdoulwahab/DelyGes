@@ -14,9 +14,14 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { openBrowserAsync } from "expo-web-browser";
 import { COLORS } from "../styles/colors";
 import { registerStyles } from "../styles/registerStyles";
 import { useAuth } from "../src/context/AuthContext"; // Assure-toi que ce hook pointe vers ton contexte
+import {
+  LEGAL_TERMS_URL,
+  LEGAL_PRIVACY_URL,
+} from "../src/constants/legal";
 
 export default function Register() {
   const scrollRef = useRef<any>(null);
@@ -32,6 +37,16 @@ export default function Register() {
   
   // 🔥 IMPORTANT: On récupère la fonction register du contexte, plus checkAuth
   const { register } = useAuth(); 
+
+  // Ouvrir une page légale publique dans le navigateur (même approche que Paramètres)
+  const openLegalLink = async (url: string) => {
+    try {
+      await openBrowserAsync(url);
+    } catch (error) {
+      console.error("❌ Erreur ouverture lien légal:", error);
+      Alert.alert("Erreur", "Impossible d'ouvrir le lien");
+    }
+  };
 
   const handleRegister = async () => {
     // ✅ Garde TOUTES tes validations existantes
@@ -76,7 +91,8 @@ export default function Register() {
         name: fullName.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
-        password: password
+        password: password,
+        acceptCGU,
       });
 
       // ✅ Si on arrive ici, l'inscription a réussi, on peut rediriger vers le dashboard
@@ -231,7 +247,21 @@ export default function Register() {
             style={registerStyles.checkbox}
           />
           <Text style={registerStyles.checkboxText}>
-            J'accepte les Conditions Générales d'Utilisation
+            J'accepte les{" "}
+            <Text
+              style={registerStyles.checkboxLink}
+              onPress={() => openLegalLink(LEGAL_TERMS_URL)}
+            >
+              Conditions Générales d'Utilisation
+            </Text>{" "}
+            et la{" "}
+            <Text
+              style={registerStyles.checkboxLink}
+              onPress={() => openLegalLink(LEGAL_PRIVACY_URL)}
+            >
+              Politique de confidentialité
+            </Text>
+            .
           </Text>
         </View>
 

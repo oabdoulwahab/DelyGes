@@ -3,92 +3,107 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DelyGes — Gestion de livraisons</title>
+  <title>DelyGes — Gestion de livraisons pour livreurs</title>
   <meta
     name="description"
-    content="DelyGes, l'application de gestion de livraisons et de comptabilité pour livreurs indépendants."
+    content="DelyGes, l'application mobile de gestion de livraisons et de comptabilité destinée aux livreurs."
   />
-  <style>
-    :root {
-      --primary: #2563eb;
-      --text: #0f172a;
-      --text-muted: #475569;
-      --bg: #f8fafc;
-      --surface: #ffffff;
-      --border: #e2e8f0;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-        "Helvetica Neue", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 40px 32px;
-      max-width: 480px;
-      text-align: center;
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--primary);
-    }
-    .brand-mark {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: var(--primary);
-      color: #fff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-    }
-    h1 { font-size: 1.3rem; margin-top: 20px; }
-    p { color: var(--text-muted); margin-top: 10px; }
-    .links { margin-top: 24px; }
-    .links a {
-      display: inline-block;
-      margin: 6px 8px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    .links .primary { background: var(--primary); color: #fff; }
-    .links .secondary { border: 1px solid var(--border); color: var(--primary); }
-  </style>
+  <link rel="stylesheet" href="/delyges.css" />
 </head>
 <body>
-  <div class="card">
-    <span class="brand">
-      <span class="brand-mark">D</span>
-      DelyGes
-    </span>
-    <h1>Bienvenue sur le site officiel de DelyGes</h1>
-    <p>
-      DelyGes est une application mobile de gestion de livraisons et de
-      comptabilité pour livreurs indépendants. L'application est disponible
-      sur Android.
-    </p>
-    <div class="links">
-      <a class="primary" href="/delete-account">Supprimer mon compte</a>
-      <a class="secondary" href="mailto:delygest@gmail.com">Contacter le support</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">D</span>
+        <span>DelyGes<span class="brand-sub">DelyGest</span></span>
+      </a>
+      <nav class="main-nav">
+        <a href="/" class="active">Accueil</a>
+        <a href="/privacy-policy">Confidentialité</a>
+        <a href="/terms">CGU</a>
+        <a href="/legal">Mentions légales</a>
+        <a href="/contact">Contact</a>
+        <a href="/delete-account">Supprimer le compte</a>
+      </nav>
     </div>
-  </div>
+  </header>
+
+  <section class="hero">
+    <h1>DelyGes — La gestion simplifiée pour les livreurs</h1>
+    <p>
+      L'application mobile de gestion de livraisons et de comptabilité
+      destinée aux livreurs.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-light" href="/contact">Contacter le support</a>
+      <a class="btn btn-ghost" href="/delete-account" style="color:#fff;border-color:rgba(255,255,255,0.6)">Supprimer mon compte</a>
+    </div>
+  </section>
+
+  <main class="container wide">
+    <div class="card" style="text-align:center;padding:28px">
+      <h2 style="border-bottom:none">À propos de DelyGes</h2>
+      <p>
+        DelyGes est une application mobile destinée aux livreurs. Elle permet de
+        gérer l'activité de livraison au quotidien, sans être une plateforme de
+        mise en relation entre livreurs et clients.
+      </p>
+    </div>
+
+    <div class="grid">
+      <a class="link-card" href="/privacy-policy">
+        <div class="icon">🔒</div>
+        <h3>Politique de confidentialité</h3>
+        <p>Comment vos données sont collectées, utilisées et protégées.</p>
+      </a>
+      <a class="link-card" href="/terms">
+        <div class="icon">📄</div>
+        <h3>Conditions d'utilisation</h3>
+        <p>Les règles d'utilisation de l'application DelyGes.</p>
+      </a>
+      <a class="link-card" href="/legal">
+        <div class="icon">⚖️</div>
+        <h3>Mentions légales</h3>
+        <p>L'éditeur, le développeur et l'hébergement du service.</p>
+      </a>
+      <a class="link-card" href="/contact">
+        <div class="icon">💬</div>
+        <h3>Contact &amp; Support</h3>
+        <p>Contacter DelyGest pour toute question ou assistance.</p>
+      </a>
+      <a class="link-card" href="/delete-account">
+        <div class="icon">🗑️</div>
+        <h3>Supprimer mon compte</h3>
+        <p>Demander la suppression de votre compte DelyGes.</p>
+      </a>
+    </div>
+
+    <div class="card">
+      <h2>Fonctionnalités</h2>
+      <ul>
+        <li>Gérer les livraisons et suivre leurs statuts.</li>
+        <li>Suivre les revenus et les objectifs financiers.</li>
+        <li>Gérer les commerçants.</li>
+        <li>Suivre les encaissements et les reversements.</li>
+        <li>Consulter des statistiques d'activité.</li>
+        <li>Recevoir des notifications locales (rappels).</li>
+        <li>Synchroniser les données avec le cloud.</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <nav class="footer-nav">
+      <a href="/">Accueil</a>
+      <a href="/privacy-policy">Politique de confidentialité</a>
+      <a href="/terms">Conditions d'utilisation</a>
+      <a href="/legal">Mentions légales</a>
+      <a href="/delete-account">Suppression du compte</a>
+      <a href="/contact">Contact / Support</a>
+    </nav>
+    <p class="footer-brand">© <span id="year">2026</span> DelyGest — DelyGes</p>
+    <p class="footer-editor">Édité et développé par DelyGest et Ouedraogo Abdoul Wahab</p>
+    <p>Abidjan, Côte d'Ivoire · <a href="mailto:delygest@gmail.com">delygest@gmail.com</a></p>
+  </footer>
 </body>
 </html>

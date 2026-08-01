@@ -99,25 +99,9 @@ export const loginStyles = StyleSheet.create({
   },
   options: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     marginBottom: 24,
-  },
-  remember: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-  },
-  rememberText: {
-    fontSize: 14,
-    color: COLORS.muted,
   },
   forgot: {
     fontSize: 14,

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="index, nofollow" />
+  <title>Politique de confidentialité — DelyGes</title>
+  <meta
+    name="description"
+    content="Politique de confidentialité de l'application DelyGes : données collectées, finalités, stockage, conservation et droits des utilisateurs."
+  />
+  <link rel="stylesheet" href="/delyges.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">D</span>
+        <span>DelyGes<span class="brand-sub">DelyGest</span></span>
+      </a>
+      <nav class="main-nav">
+        <a href="/">Accueil</a>
+        <a href="/privacy-policy" class="active">Confidentialité</a>
+        <a href="/terms">CGU</a>
+        <a href="/legal">Mentions légales</a>
+        <a href="/contact">Contact</a>
+        <a href="/delete-account">Supprimer le compte</a>
+      </nav>
+    </div>
+  </header>
+
+  <header class="page-hero">
+    <h1>Politique de confidentialité</h1>
+    <p>Comment vos données sont collectées, utilisées et protégées.</p>
+    <div class="meta">
+      <span class="badge">Dernière mise à jour : 31 juillet 2026</span>
+      <span class="badge">Application mobile</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="card">
+      <h2>1. Qui sommes-nous ?</h2>
+      <p>
+        DelyGes est une application mobile de gestion de livraisons et de
+        comptabilité destinée aux livreurs.
+      </p>
+      <p><strong>Éditeur / marque :</strong> DelyGest</p>
+      <p><strong>Co-éditeur / développeur :</strong> Ouedraogo Abdoul Wahab</p>
+      <p><strong>Responsable / représentant :</strong> Soumahoro Yacouba</p>
+      <p><strong>Localisation :</strong> Abidjan, Côte d'Ivoire</p>
+      <p>
+        <strong>Contact :</strong>
+        <a href="mailto:delygest@gmail.com">delygest@gmail.com</a>
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>2. Données collectées</h2>
+      <p>
+        DelyGes ne collecte que les données strictement nécessaires au
+        fonctionnement du service.
+      </p>
+
+      <h3 style="margin-top:16px;font-size:1rem">Données du compte</h3>
+      <ul>
+        <li>Nom complet</li>
+        <li>Adresse email</li>
+        <li>Numéro de téléphone</li>
+        <li>Mot de passe (géré de manière sécurisée par Firebase Authentication)</li>
+        <li>Identifiant unique du compte (UID Firebase)</li>
+        <li>Identifiant utilisateur local</li>
+        <li>SIRET (facultatif)</li>
+        <li>Type de véhicule (facultatif)</li>
+        <li>Statut TVA (facultatif)</li>
+        <li>Objectifs financiers (quotidien, mensuel)</li>
+        <li>Préférences de notifications</li>
+      </ul>
+
+      <h3 style="margin-top:16px;font-size:1rem">Données de livraison</h3>
+      <ul>
+        <li>Nom du destinataire</li>
+        <li>Téléphone du destinataire</li>
+        <li>Adresse de livraison</li>
+        <li>Valeur du colis</li>
+        <li>Frais de livraison</li>
+        <li>Type de paiement</li>
+        <li>Montant encaissé</li>
+        <li>Montant à reverser</li>
+        <li>Profit</li>
+        <li>Statut de la livraison</li>
+        <li>Notes éventuelles</li>
+      </ul>
+
+      <h3 style="margin-top:16px;font-size:1rem">Données des commerçants</h3>
+      <ul>
+        <li>Nom</li>
+        <li>Téléphone</li>
+        <li>Adresse</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>3. Finalités du traitement</h2>
+      <ul>
+        <li>Création et gestion de votre compte utilisateur.</li>
+        <li>Fonctionnement de l'application (gestion des livraisons, commerçants, statistiques).</li>
+        <li>Sauvegarde cloud et synchronisation de vos données entre vos appareils.</li>
+        <li>Envoi de notifications locales (rappels d'activité).</li>
+        <li>Amélioration du service et assistance utilisateur.</li>
+      </ul>
+      <p>
+        DelyGes est un <strong>outil de gestion</strong> destiné aux livreurs. Il
+        n'est pas une plateforme de mise en relation entre livreurs et clients.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>4. Où vos données sont-elles stockées ?</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Composant</th>
+              <th>Rôle</th>
+              <th>Localisation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Firebase Authentication</strong></td>
+              <td>Compte utilisateur, email et mot de passe</td>
+              <td>Cloud (Google, datacenter eur3)</td>
+            </tr>
+            <tr>
+              <td><strong>Firebase Firestore</strong></td>
+              <td>Profil, livraisons, commerçants (synchronisation cloud)</td>
+              <td>Cloud (Google, datacenter eur3)</td>
+            </tr>
+            <tr>
+              <td><strong>SQLite</strong></td>
+              <td>Base de données locale de l'application (cache hors-ligne)</td>
+              <td>Sur votre appareil</td>
+            </tr>
+            <tr>
+              <td><strong>SecureStore</strong></td>
+              <td>Identifiant de session locale</td>
+              <td>Sur votre appareil (stockage sécurisé)</td>
+            </tr>
+            <tr>
+              <td><strong>AsyncStorage</strong></td>
+              <td>Persistance de session du SDK Firebase Authentication</td>
+              <td>Sur votre appareil</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        L'application stocke une copie locale de vos données (SQLite) pour
+        fonctionner hors-ligne et les synchronise avec Firestore lorsque vous
+        êtes connecté.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>5. Notifications</h2>
+      <p>
+        DelyGes utilise uniquement des <strong>notifications locales</strong>
+        générées sur votre appareil (rappels de livraisons en attente, objectifs
+        atteints, rappels d'inactivité). L'application n'utilise pas de
+        notifications push distantes et n'envoie pas votre appareil vers un
+        serveur de notification.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>6. Données que nous ne collectons pas</h2>
+      <ul>
+        <li>Position géographique / localisation (aucune permission de localisation)</li>
+        <li>Photos, images ou caméra</li>
+        <li>Contacts de l'appareil</li>
+        <li>Données d'analyse de navigation (aucun service d'analytics intégré)</li>
+        <li>Identifiants publicitaires</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>7. Durée de conservation</h2>
+      <p>
+        Vos données sont conservées <strong>tant que votre compte est actif</strong>.
+        Lorsque vous supprimez votre compte, vos données sont supprimées
+        <strong>immédiatement et définitivement</strong>, en particulier :
+      </p>
+      <ul>
+        <li>le compte Firebase Authentication ;</li>
+        <li>le profil utilisateur, les livraisons et les commerçants dans Firestore ;</li>
+        <li>les données locales (SQLite) et la session sécurisée de l'appareil.</li>
+      </ul>
+      <p>
+        Aucune donnée personnelle n'est conservée après la suppression de votre
+        compte, sauf si une obligation légale (comptable, fiscale ou judiciaire)
+        l'exige : seules les données strictement nécessaires seraient alors
+        conservées pendant la durée prévue par la loi.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>8. Sécurité</h2>
+      <ul>
+        <li>Les échanges avec les services Firebase sont chiffrés (HTTPS/TLS).</li>
+        <li>Votre mot de passe est géré et sécurisé par Firebase Authentication.</li>
+        <li>Les règles de sécurité Firestore restreignent l'accès à vos seules données.</li>
+        <li>La session locale est stockée dans le stockage sécurisé de votre appareil.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>9. Suppression du compte</h2>
+      <p>
+        Vous pouvez supprimer votre compte à tout moment depuis l'application :
+        <strong>Paramètres → « Supprimer le compte »</strong>. Vous devrez
+        confirmer votre identité en saisissant votre mot de passe. La
+        suppression est immédiate et irréversible.
+      </p>
+      <p>
+        Vous pouvez également demander la suppression par email :
+        <a href="mailto:delygest@gmail.com">delygest@gmail.com</a>.
+      </p>
+      <p>
+        Consultez notre page dédiée :
+        <a href="/delete-account">Supprimer mon compte DelyGes</a>.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>10. Vos droits</h2>
+      <p>
+        Vous disposez des droits suivants sur vos données personnelles, dans les
+        limites prévues par la réglementation applicable :
+      </p>
+      <ul>
+        <li><strong>Accès</strong> : savoir quelles données sont traitées.</li>
+        <li><strong>Rectification</strong> : corriger vos informations.</li>
+        <li><strong>Effacement</strong> : supprimer votre compte et vos données.</li>
+        <li><strong>Portabilité</strong> : récupérer vos données.</li>
+        <li><strong>Opposition</strong> et limitation du traitement.</li>
+      </ul>
+      <p>
+        Pour exercer ces droits, contactez-nous :
+        <a href="mailto:delygest@gmail.com">delygest@gmail.com</a>. Nous
+        répondons dans un délai raisonnable, en règle générale sous 30 jours.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>11. Modifications de cette politique</h2>
+      <p>
+        Cette politique peut être mise à jour à tout moment. La version en ligne
+        sur cette page fait foi. La date de dernière mise à jour est indiquée en
+        haut de cette page.
+      </p>
+    </div>
+
+    <div class="contact-box">
+      <p style="margin:0"><strong>Contact — DelyGest</strong></p>
+      <p style="margin:4px 0">Soumahoro Yacouba · Abidjan, Côte d'Ivoire</p>
+      <p style="margin:0">📧 <a href="mailto:delygest@gmail.com">delygest@gmail.com</a></p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <nav class="footer-nav">
+      <a href="/">Accueil</a>
+      <a href="/privacy-policy">Politique de confidentialité</a>
+      <a href="/terms">Conditions d'utilisation</a>
+      <a href="/legal">Mentions légales</a>
+      <a href="/delete-account">Suppression du compte</a>
+      <a href="/contact">Contact / Support</a>
+    </nav>
+    <p class="footer-brand">© <span id="year">2026</span> DelyGest — DelyGes</p>
+    <p class="footer-editor">Édité et développé par DelyGest et Ouedraogo Abdoul Wahab</p>
+    <p>Abidjan, Côte d'Ivoire · <a href="mailto:delygest@gmail.com">delygest@gmail.com</a></p>
+  </footer>
+</body>
+</html>

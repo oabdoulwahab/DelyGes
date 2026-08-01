@@ -13,7 +13,11 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { syncService } from "../services/sync.service";
-import { User } from "../types";
+import { User, RegisterData } from "../types";
+import {
+  CURRENT_TERMS_VERSION,
+  CURRENT_PRIVACY_POLICY_VERSION,
+} from "../constants/legal";
 
 const USER_KEY = "AUTH_USER_ID";
 
@@ -27,13 +31,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   refreshUser: () => Promise<void>;
-}
-
-interface RegisterData {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -228,6 +225,16 @@ const loadLocalUser = async (firebaseUid: string) => {
 
   // 5. Inscription
   const register = useCallback(async (data: RegisterData) => {
+    // Vérifier que l'utilisateur a explicitement accepté les CGU et la
+    // Politique de confidentialité AVANT toute création de compte.
+    if (!data.acceptCGU) {
+      throw new Error(
+        "Vous devez accepter les Conditions Générales d'Utilisation et la Politique de confidentialité",
+      );
+    }
+
+    const consentAt = new Date().toISOString();
+
     try {
       console.log("📝 Tentative d'inscription...");
 
@@ -264,6 +271,10 @@ const loadLocalUser = async (firebaseUid: string) => {
         created_at: new Date().toISOString(),
         monthly_goal: 250000,
         daily_goal: 15000,
+        termsAcceptedAt: consentAt,
+        privacyAcceptedAt: consentAt,
+        termsVersion: CURRENT_TERMS_VERSION,
+        privacyPolicyVersion: CURRENT_PRIVACY_POLICY_VERSION,
       });
 
       console.log("✅ Document Firestore créé");
@@ -279,8 +290,9 @@ const loadLocalUser = async (firebaseUid: string) => {
       // Insérer le nouvel utilisateur
       const result = await sqliteDb.runAsync(
         `INSERT INTO user 
-       (name, email, phone, firebase_uid, password, created_at, daily_goal) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (name, email, phone, firebase_uid, password, created_at, daily_goal,
+        terms_accepted_at, privacy_accepted_at, terms_version, privacy_policy_version) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.name,
           data.email,
@@ -289,6 +301,10 @@ const loadLocalUser = async (firebaseUid: string) => {
           "firebase_managed",
           new Date().toISOString(),
           15000,
+          consentAt,
+          consentAt,
+          CURRENT_TERMS_VERSION,
+          CURRENT_PRIVACY_POLICY_VERSION,
         ],
       );
 

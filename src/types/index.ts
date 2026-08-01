@@ -18,6 +18,10 @@ export type User = {
   delivery_created_notifications?: number;
   daily_summary_notifications?: number;
   daily_goal_notifications?: number;
+  terms_accepted_at?: string | null;
+  privacy_accepted_at?: string | null;
+  terms_version?: string | null;
+  privacy_policy_version?: string | null;
 };
 
 export type UserCreateDTO = Omit<User, "id" | "created_at" | "updated_at">;
@@ -141,15 +145,13 @@ export type MonthlyStats = {
 export type LoginCredentials = {
   emailOrPhone: string;
   password: string;
-  rememberMe?: boolean;
 };
 
 export type RegisterData = {
   name: string;
-  email?: string;
+  email: string;
   phone: string;
   password: string;
-  confirmPassword: string;
   acceptCGU: boolean;
 };
 

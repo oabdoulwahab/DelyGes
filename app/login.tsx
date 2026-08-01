@@ -11,7 +11,6 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { router } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import Checkbox from "expo-checkbox";
 import { LinearGradient } from "expo-linear-gradient";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -28,13 +27,11 @@ import { useModal } from "../providers/ModalProvider";
 const loginSchema = yup.object({
   emailOrPhone: yup.string().required("Email ou téléphone requis"),
   password: yup.string().required("Mot de passe requis"),
-  rememberMe: yup.boolean().required(),
 });
 
 type LoginFormData = {
   emailOrPhone: string;
   password: string;
-  rememberMe: boolean;
 };
 
 /* ---------------- SCREEN ---------------- */
@@ -58,7 +55,6 @@ export default function Login() {
     defaultValues: {
       emailOrPhone: "",
       password: "",
-      rememberMe: false,
     },
     mode: "onChange",
   });
@@ -194,15 +190,6 @@ const onSubmit = async (data: LoginFormData) => {
 
           {/* OPTIONS */}
           <View style={loginStyles.options}>
-            <View style={loginStyles.remember}>
-              <Checkbox
-                value={false}
-                color={COLORS.primary}
-                style={loginStyles.checkbox}
-              />
-              <Text style={loginStyles.rememberText}>Rester connecté</Text>
-            </View>
-
             <TouchableOpacity onPress={handleForgotPassword}>
               <Text style={loginStyles.forgot}>Mot de passe oublié ?</Text>
             </TouchableOpacity>

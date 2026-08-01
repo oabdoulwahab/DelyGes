@@ -149,6 +149,10 @@ export const migrateFromOldDB = async (): Promise<void> => {
       { name: "delivery_created_notifications", type: "INTEGER DEFAULT 1" },
       { name: "daily_summary_notifications", type: "INTEGER DEFAULT 0" },
       { name: "daily_goal_notifications", type: "INTEGER DEFAULT 1" },
+      { name: "terms_accepted_at", type: "TEXT" },
+      { name: "privacy_accepted_at", type: "TEXT" },
+      { name: "terms_version", type: "TEXT" },
+      { name: "privacy_policy_version", type: "TEXT" },
     ];
 
     for (const column of userColumnsToAdd) {

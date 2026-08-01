@@ -26,6 +26,7 @@ import { useAutoSave } from "../src/hooks/useAutoSave";
 import { useModal } from "../providers/ModalProvider";
 import * as Updates from "expo-updates";
 import * as Application from "expo-application";
+import { openBrowserAsync } from "expo-web-browser";
 import { auth, db as firestore } from "../src/config/firebase";
 import {
   updateProfile,
@@ -364,6 +365,16 @@ export default function Settings() {
     } catch (error) {
       console.error("❌ Erreur lors de l'export:", error);
       showError("Erreur", "Impossible d'exporter les données");
+    }
+  };
+
+  // Ouvrir une page légale publique dans le navigateur
+  const openLegalLink = async (url: string) => {
+    try {
+      await openBrowserAsync(url);
+    } catch (error) {
+      console.error("❌ Erreur ouverture lien:", error);
+      showError("Erreur", "Impossible d'ouvrir le lien");
     }
   };
 
@@ -961,6 +972,97 @@ export default function Settings() {
                   Supprimer le compte
                 </Text>
               </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Section: Informations légales */}
+        <View style={commonStyles.section}>
+          <Text style={settingsStyles.sectionTitle}>INFORMATIONS LÉGALES</Text>
+
+          <View style={commonStyles.card}>
+            <TouchableOpacity
+              style={settingsStyles.cardItem}
+              onPress={() =>
+                openLegalLink("https://delyges-app.web.app/privacy-policy")
+              }
+            >
+              <View style={settingsStyles.cardItemLeft}>
+                <MaterialIcons
+                  name="privacy-tip"
+                  size={20}
+                  color={COLORS.muted}
+                />
+                <Text style={settingsStyles.cardItemLabel}>
+                  Politique de confidentialité
+                </Text>
+              </View>
+              <MaterialIcons
+                name="open-in-new"
+                size={16}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={settingsStyles.cardItem}
+              onPress={() => openLegalLink("https://delyges-app.web.app/terms")}
+            >
+              <View style={settingsStyles.cardItemLeft}>
+                <MaterialIcons
+                  name="description"
+                  size={20}
+                  color={COLORS.muted}
+                />
+                <Text style={settingsStyles.cardItemLabel}>
+                  Conditions d&apos;utilisation
+                </Text>
+              </View>
+              <MaterialIcons
+                name="open-in-new"
+                size={16}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={settingsStyles.cardItem}
+              onPress={() => openLegalLink("https://delyges-app.web.app/legal")}
+            >
+              <View style={settingsStyles.cardItemLeft}>
+                <MaterialIcons name="gavel" size={20} color={COLORS.muted} />
+                <Text style={settingsStyles.cardItemLabel}>
+                  Mentions légales
+                </Text>
+              </View>
+              <MaterialIcons
+                name="open-in-new"
+                size={16}
+                color={COLORS.muted}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[settingsStyles.cardItem, settingsStyles.cardItemNoBorder]}
+              onPress={() =>
+                openLegalLink("https://delyges-app.web.app/contact")
+              }
+            >
+              <View style={settingsStyles.cardItemLeft}>
+                <MaterialIcons
+                  name="support-agent"
+                  size={20}
+                  color={COLORS.muted}
+                />
+                <Text style={settingsStyles.cardItemLabel}>
+                  Contacter le support
+                </Text>
+              </View>
+              <MaterialIcons
+                name="open-in-new"
+                size={16}
+                color={COLORS.muted}
+              />
             </TouchableOpacity>
           </View>
         </View>

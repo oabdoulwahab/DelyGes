@@ -105,6 +105,11 @@ export const registerStyles = StyleSheet.create({
     color: COLORS.muted,
     lineHeight: 20,
   },
+  checkboxLink: {
+    color: COLORS.primary,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
   button: {
     backgroundColor: COLORS.primary,
     height: 56,
