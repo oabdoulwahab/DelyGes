@@ -7,10 +7,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { MaterialIcons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
+import NetInfo from "@react-native-community/netinfo";
+import * as Contacts from "expo-contacts";
 import { commonStyles } from "../styles/common";
 import { addDeliveryStyles } from "../styles/addDeliveryStyles";
 import { COLORS } from "../styles/colors";
@@ -21,7 +22,6 @@ import { useSync } from "../src/hooks/useSync";
 import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { MerchantRepository } from "../src/repositories/merchant.repository";
 import { MerchantService } from "../src/services/merchant.service";
-import { FinancialCalculations } from "../src/utils/financialCalculations";
 import { Formatters } from "../src/utils/formatters";
 import { Delivery, Merchant, PaymentType } from "../src/types";
 import { useTutorial } from "../src/hooks/useTutorial";
@@ -30,8 +30,90 @@ import { TutorialProvider } from "../src/context/TutorialContext";
 import TutorialTarget from "../components/TutorialTarget";
 import TutorialScrollRegistrar from "../components/TutorialScrollRegistrar";
 
+type PaymentOption = {
+  key: PaymentType;
+  title: string;
+  description: string;
+  icon: keyof typeof MaterialIcons.glyphMap;
+};
+
+const PAYMENT_OPTIONS: PaymentOption[] = [
+  {
+    key: "CLIENT_PAYE_TOUT",
+    title: "Client paie tout",
+    description:
+      "Le client remet la valeur totale (Colis + Frais de course) en cash.",
+    icon: "account-balance-wallet",
+  },
+  {
+    key: "CLIENT_PAYE_LIVRAISON",
+    title: "Colis déjà payé",
+    description:
+      "Le destinataire paie uniquement tes frais de livraison sur place.",
+    icon: "moped",
+  },
+  {
+    key: "LIVRAISON_DEJA_PAYEE",
+    title: "Client paie seulement le colis",
+    description:
+      "La livraison est prise en charge par le commerçant partenaire.",
+    icon: "inventory-2",
+  },
+  {
+    key: "COLIS_DEJA_PAYE",
+    title: "Course 100% prépayée",
+    description:
+      "Aucun encaissement requis sur place. Simple remise en main propre.",
+    icon: "verified",
+  },
+];
+
+const parseAmount = (text: string): number => {
+  if (!text) return 0;
+  const n = Number(text.replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+// Moteur de calcul temps réel — mêmes formules que la sauvegarde.
+// Source unique de vérité pour l'affichage ET la persistance.
+export function computeAmounts(
+  parcelValueNum: number,
+  deliveryFeeNum: number,
+  paymentType: PaymentType,
+): { amountCollected: number; amountToReturn: number; profit: number } {
+  switch (paymentType) {
+    case "CLIENT_PAYE_TOUT":
+      return {
+        amountCollected: parcelValueNum + deliveryFeeNum,
+        amountToReturn: parcelValueNum,
+        profit: deliveryFeeNum,
+      };
+    case "CLIENT_PAYE_LIVRAISON":
+      return {
+        amountCollected: deliveryFeeNum,
+        amountToReturn: 0,
+        profit: deliveryFeeNum,
+      };
+    case "LIVRAISON_DEJA_PAYEE":
+      return {
+        amountCollected: parcelValueNum,
+        amountToReturn: parcelValueNum,
+        profit: 0,
+      };
+    case "COLIS_DEJA_PAYE":
+      return { amountCollected: 0, amountToReturn: 0, profit: 0 };
+    default:
+      return {
+        amountCollected: parcelValueNum + deliveryFeeNum,
+        amountToReturn: parcelValueNum,
+        profit: deliveryFeeNum,
+      };
+  }
+}
+
 export default function AddDelivery() {
   const scrollRef = useRef<any>(null);
+  const merchantSearchRef = useRef<TextInput>(null);
   const { id } = useLocalSearchParams<{ id: string }>();
   const isEditing = !!id;
   const { user, isAuthenticated } = useAuth();
@@ -45,11 +127,14 @@ export default function AddDelivery() {
   const [merchantName, setMerchantName] = useState("");
   const [merchantId, setMerchantId] = useState<number | null>(null);
   const [paymentType, setPaymentType] = useState<PaymentType>("CLIENT_PAYE_TOUT");
+  const [notes, setNotes] = useState("");
   const { markAndSync } = useSync();
 
   const [loading, setLoading] = useState(isEditing);
   const [isSaving, setIsSaving] = useState(false);
   const [savingProgress, setSavingProgress] = useState("");
+  const [isImportingContact, setIsImportingContact] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
   const [errors, setErrors] = useState({
     recipientName: false,
     phone: false,
@@ -74,10 +159,32 @@ export default function AddDelivery() {
     showTutorial: tutorialShow,
   } = useTutorial("add-delivery");
 
-  // 🔥 Ref pour éviter les doubles soumissions
+  // Ref pour éviter les doubles soumissions
   const isSubmitting = useRef(false);
-  // 🔥 Ref pour stocker la promesse de synchronisation en cours
-  const syncPromiseRef = useRef<Promise<any> | null>(null);
+
+  useEffect(() => {
+    const unsub = NetInfo.addEventListener((state) => {
+      setIsConnected(state.isConnected ?? true);
+    });
+    NetInfo.fetch().then((s) => setIsConnected(s.isConnected ?? true));
+    return () => unsub();
+  }, []);
+
+  const userInitial = useMemo(() => {
+    const name = user?.name || "?";
+    return name.trim().charAt(0).toUpperCase() || "?";
+  }, [user?.name]);
+
+  // Calculateur temps réel
+  const amounts = useMemo(() => {
+    const parcelNum = parseAmount(parcelValue);
+    const feeNum = parseAmount(deliveryFee);
+    return {
+      parcelNum,
+      feeNum,
+      ...computeAmounts(parcelNum, feeNum, paymentType),
+    };
+  }, [parcelValue, deliveryFee, paymentType]);
 
   useEffect(() => {
     if (isEditing) {
@@ -106,6 +213,7 @@ export default function AddDelivery() {
         setParcelValue((delivery.parcel_value ?? 0).toString());
         setDeliveryFee(delivery.delivery_fee.toString());
         setPaymentType(delivery.payment_type);
+        setNotes(delivery.notes || "");
 
         if (delivery.merchant_id) {
           const merchant = await MerchantRepository.findById(delivery.merchant_id);
@@ -159,23 +267,19 @@ export default function AddDelivery() {
     switch (paymentType) {
       case "CLIENT_PAYE_TOUT":
         financialValidation = {
-          parcelValue:
-            !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
-          deliveryFee:
-            !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
+          parcelValue: !parcelValue.trim() || parseAmount(parcelValue) <= 0,
+          deliveryFee: !deliveryFee.trim() || parseAmount(deliveryFee) <= 0,
         };
         break;
       case "CLIENT_PAYE_LIVRAISON":
         financialValidation = {
           parcelValue: false,
-          deliveryFee:
-            !deliveryFee.trim() || Number(deliveryFee.replace(",", ".")) <= 0,
+          deliveryFee: !deliveryFee.trim() || parseAmount(deliveryFee) <= 0,
         };
         break;
       case "LIVRAISON_DEJA_PAYEE":
         financialValidation = {
-          parcelValue:
-            !parcelValue.trim() || Number(parcelValue.replace(",", ".")) <= 0,
+          parcelValue: !parcelValue.trim() || parseAmount(parcelValue) <= 0,
           deliveryFee: false,
         };
         break;
@@ -191,30 +295,77 @@ export default function AddDelivery() {
     setErrors(newErrors);
     return !Object.values(newErrors).some((error) => error);
   };
-const getOrCreateMerchant = async () => {
-  if (!merchantName.trim() || !user?.id) return null;
 
-  try {
-    const merchantId = await MerchantService.getOrCreate(
-      merchantName.trim(),
-      phone.trim() || undefined,
-    );
+  const getOrCreateMerchant = async () => {
+    if (!merchantName.trim() || !user?.id) return null;
 
-    if (merchantId) {
-      markAndSync("merchants", merchantId).catch(e =>
-        console.log("⚠️ Sync différée commerçant:", e)
+    try {
+      const merchantIdValue = await MerchantService.getOrCreate(
+        merchantName.trim(),
+        phone.trim() || undefined,
       );
-    }
 
-    return merchantId;
-  } catch (error) {
-    console.error("❌ Erreur getOrCreateMerchant:", error);
-    return null;
-  }
-};
+      if (merchantIdValue) {
+        markAndSync("merchants", merchantIdValue).catch((e) =>
+          console.log("⚠️ Sync différée commerçant:", e),
+        );
+      }
+
+      return merchantIdValue;
+    } catch (error) {
+      console.error("❌ Erreur getOrCreateMerchant:", error);
+      return null;
+    }
+  };
+
+  // Import depuis le répertoire du téléphone
+  const importFromContacts = async () => {
+    if (isImportingContact) return;
+    setIsImportingContact(true);
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== "granted") {
+        showAlert(
+          "Accès refusé",
+          "Autorisez l'accès aux contacts pour pré-remplir le destinataire, ou saisissez manuellement.",
+        );
+        return;
+      }
+      const contact = await Contacts.presentContactPickerAsync();
+      if (contact) {
+        if (contact.name) {
+          setRecipientName(contact.name);
+          setErrors((prev) => ({ ...prev, recipientName: false }));
+        }
+        const firstPhone = contact.phoneNumbers?.[0]?.number;
+        if (firstPhone) {
+          setPhone(firstPhone);
+          setErrors((prev) => ({ ...prev, phone: false }));
+        }
+        const postal =
+          contact.addresses?.[0];
+        if (postal && !address) {
+          const parts = [
+            postal.street,
+            postal.city,
+            postal.region,
+          ].filter(Boolean);
+          if (parts.length > 0) setAddress(parts.join(", "));
+        }
+      }
+    } catch (e) {
+      console.error("❌ Erreur import contact:", e);
+      showAlert(
+        "Contacts indisponibles",
+        "Impossible d'ouvrir le répertoire sur cet appareil. Saisissez manuellement.",
+      );
+    } finally {
+      setIsImportingContact(false);
+    }
+  };
 
   const handleSave = async () => {
-    // 🔥 Empêcher les doubles soumissions
+    // Empêcher les doubles soumissions
     if (isSubmitting.current) {
       console.log("⚠️ Soumission déjà en cours, ignorée");
       return;
@@ -230,53 +381,32 @@ const getOrCreateMerchant = async () => {
       return;
     }
 
-    // 🔥 Marquer comme en cours de soumission
+    // Marquer comme en cours de soumission
     isSubmitting.current = true;
     setIsSaving(true);
-    setSavingProgress("Enregistrement...");
+    setSavingProgress("Validation locale...");
 
     try {
-      const parcelValueNum = parcelValue
-        ? Number(parcelValue.replace(",", ".") || 0)
-        : 0;
-      const deliveryFeeNum = deliveryFee
-        ? Number(deliveryFee.replace(",", ".") || 0)
-        : 0;
+      const parcelValueNum = parseAmount(parcelValue);
+      const deliveryFeeNum = parseAmount(deliveryFee);
 
-      // 🔥 Créer/récupérer le commerçant (la sync est lancée en arrière-plan)
+      // Créer/récupérer le commerçant (la sync est lancée en arrière-plan)
       setSavingProgress("Préparation du commerçant...");
       const merchantIdValue = await getOrCreateMerchant();
       console.log("🏪 Merchant ID local:", merchantIdValue);
 
-      // Calculer les montants
-      let amountCollected = 0;
-      let amountToReturn = 0;
-      let profit = 0;
+      // Calculer les montants (mêmes formules que le calculateur temps réel)
+      const { amountCollected, amountToReturn, profit } = computeAmounts(
+        parcelValueNum,
+        deliveryFeeNum,
+        paymentType,
+      );
 
-      switch (paymentType) {
-        case "CLIENT_PAYE_TOUT":
-          amountCollected = parcelValueNum + deliveryFeeNum;
-          amountToReturn = parcelValueNum;
-          profit = deliveryFeeNum;
-          break;
-        case "CLIENT_PAYE_LIVRAISON":
-          amountCollected = deliveryFeeNum;
-          amountToReturn = 0;
-          profit = deliveryFeeNum;
-          break;
-        case "LIVRAISON_DEJA_PAYEE":
-          amountCollected = parcelValueNum;
-          amountToReturn = parcelValueNum;
-          profit = 0;
-          break;
-        case "COLIS_DEJA_PAYE":
-          amountCollected = 0;
-          amountToReturn = 0;
-          profit = 0;
-          break;
-      }
+      setSavingProgress(
+        isConnected ? "Sauvegarde..." : "Sauvegarde locale (hors-ligne)...",
+      );
 
-      setSavingProgress("Sauvegarde...");
+      const trimmedNotes = notes.trim();
 
       if (isEditing) {
         await DeliveryRepository.update(Number(id), {
@@ -289,14 +419,15 @@ const getOrCreateMerchant = async () => {
           payment_type: paymentType,
           amount_collected: amountCollected,
           amount_to_return: amountToReturn,
-          profit: profit,
+          profit,
           needs_sync: 1,
+          notes: trimmedNotes,
         });
 
-        markAndSync("deliveries", Number(id)).catch(e => 
-          console.log("⚠️ Sync différée livraison:", e)
+        markAndSync("deliveries", Number(id)).catch((e) =>
+          console.log("⚠️ Sync différée livraison:", e),
         );
-        
+
         showSuccess("Succès", "Livraison modifiée avec succès");
       } else {
         const newDelivery = await DeliveryRepository.create({
@@ -309,31 +440,39 @@ const getOrCreateMerchant = async () => {
           payment_type: paymentType,
           amount_collected: amountCollected,
           amount_to_return: amountToReturn,
-          profit: profit,
+          profit,
           user_id: user.id,
+          notes: trimmedNotes,
         });
 
-        markAndSync("deliveries", newDelivery.id).catch(e => 
-          console.log("⚠️ Sync différée livraison:", e)
+        // Offline-first : sauvegarde locale immédiate, sync différée
+        markAndSync("deliveries", newDelivery.id).catch((e) =>
+          console.log("⚠️ Sync différée livraison:", e),
         );
 
-        sendDeliveryCreatedNotification(user.id, 1).catch(e => 
-          console.log("⚠️ Notification différée:", e)
+        sendDeliveryCreatedNotification(user.id, 1).catch((e) =>
+          console.log("⚠️ Notification différée:", e),
         );
-        
-        showSuccess("Succès", "Livraison ajoutée avec succès");
+
+        setSavingProgress("Course sauvegardée !");
+        showSuccess(
+          "Succès",
+          isConnected
+            ? "Livraison ajoutée avec succès"
+            : "Course enregistrée localement — sera synchronisée dès retour réseau ☁️",
+        );
       }
 
-      // 🔥 Retour immédiat, ne pas attendre
+      // Retour immédiat, ne pas attendre
       setSavingProgress("");
       router.back();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Erreur:", error);
       showError("Erreur", "Impossible d'enregistrer la livraison");
       setIsSaving(false);
       setSavingProgress("");
     } finally {
-      // 🔥 Réinitialiser le flag de soumission après un court délai
+      // Réinitialiser le flag de soumission après un court délai
       setTimeout(() => {
         isSubmitting.current = false;
       }, 500);
@@ -342,14 +481,15 @@ const getOrCreateMerchant = async () => {
 
   const handleCancel = () => {
     if (isSaving) return; // Empêcher d'annuler pendant la sauvegarde
-    
+
     if (
       recipientName ||
       phone ||
       address ||
       parcelValue ||
       deliveryFee ||
-      merchantName
+      merchantName ||
+      notes
     ) {
       showConfirm(
         "Annuler",
@@ -392,25 +532,17 @@ const getOrCreateMerchant = async () => {
     setErrors((prev) => ({ ...prev, merchantName: false }));
   };
 
-  const calculateTotal = () => {
-    const parcelNum = parcelValue
-      ? Number(parcelValue.replace(",", ".") || 0)
-      : 0;
-    const deliveryNum = deliveryFee
-      ? Number(deliveryFee.replace(",", ".") || 0)
-      : 0;
-    switch (paymentType) {
-      case "CLIENT_PAYE_TOUT":
-        return Formatters.formatNumber(parcelNum + deliveryNum, 2);
-      case "CLIENT_PAYE_LIVRAISON":
-        return Formatters.formatNumber(deliveryNum, 2);
-      case "LIVRAISON_DEJA_PAYEE":
-        return Formatters.formatNumber(parcelNum, 2);
-      case "COLIS_DEJA_PAYE":
-        return "0,00";
-      default:
-        return "0,00";
-    }
+  const clearMerchant = () => {
+    setMerchantName("");
+    setMerchantId(null);
+    setShowSuggestions(false);
+    setFilteredMerchants([]);
+  };
+
+  const handleNewMerchant = () => {
+    clearMerchant();
+    setErrors((prev) => ({ ...prev, merchantName: false }));
+    requestAnimationFrame(() => merchantSearchRef.current?.focus());
   };
 
   if (loading) {
@@ -428,505 +560,677 @@ const getOrCreateMerchant = async () => {
     );
   }
 
+  const hasSelectedMerchant = merchantName.trim().length > 0;
+
   return (
     <TutorialProvider>
-      <View style={commonStyles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
-      <BlurView intensity={95} style={addDeliveryStyles.header}>
-        <TouchableOpacity
-          onPress={handleCancel}
-          style={addDeliveryStyles.cancelButton}
-          disabled={isSaving}
-        >
-          <Text style={[
-            addDeliveryStyles.cancelButtonText,
-            isSaving && { opacity: 0.5 }
-          ]}>
-            Annuler
-          </Text>
-        </TouchableOpacity>
-        <Text style={addDeliveryStyles.headerTitle}>
-          {isEditing ? "Modifier la Livraison" : "Ajouter une Livraison"}
-        </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <View style={[commonStyles.container, { backgroundColor: "#F8F9FC" }]}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+        {/* En-tête : retour, titre, Sync, avatar */}
+        <View style={addDeliveryStyles.header}>
+          <View style={addDeliveryStyles.headerLeft}>
+            <TouchableOpacity
+              style={addDeliveryStyles.backButton}
+              onPress={handleCancel}
+              accessibilityLabel="Retour"
+              disabled={isSaving}
+            >
+              <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
+            </TouchableOpacity>
+            <Text style={addDeliveryStyles.headerTitle} numberOfLines={1}>
+              {isEditing ? "Modifier la course" : "Nouvelle Course"}
+            </Text>
+          </View>
+          <View style={addDeliveryStyles.headerRight}>
+            <View style={addDeliveryStyles.syncPill}>
+              <View
+                style={[
+                  addDeliveryStyles.syncDot,
+                  { backgroundColor: isConnected ? COLORS.primary : "#D97706" },
+                ]}
+              />
+              <Text style={addDeliveryStyles.syncText}>
+                {isConnected ? "Sync" : "Off"}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={addDeliveryStyles.avatar}
+              onPress={() => router.push("/settings")}
+              accessibilityLabel="Profil"
+            >
+              <Text style={addDeliveryStyles.avatarText}>{userInitial}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={tutorialShow}
+              style={addDeliveryStyles.backButton}
+              accessibilityLabel="Aide"
+            >
+              <MaterialIcons name="help-outline" size={22} color={COLORS.muted} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bannière saisie express */}
+        <View style={addDeliveryStyles.expressBanner}>
           <TouchableOpacity
-            onPress={tutorialShow}
-            style={addDeliveryStyles.cancelButton}
-          >
-            <MaterialIcons name="help-outline" size={22} color={COLORS.muted} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleSave}
-            style={addDeliveryStyles.saveButtonHeader}
+            style={addDeliveryStyles.closeButton}
+            onPress={handleCancel}
+            accessibilityLabel="Fermer la saisie express"
             disabled={isSaving}
           >
-            {isSaving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={addDeliveryStyles.saveButtonHeaderText}>
-                Enregistrer
-              </Text>
-            )}
+            <MaterialIcons name="close" size={20} color={COLORS.white} />
           </TouchableOpacity>
+          <View style={addDeliveryStyles.expressTitle}>
+            <Text style={addDeliveryStyles.expressTitleText}>
+              Nouvelle livraison
+            </Text>
+            <Text style={addDeliveryStyles.expressSubtitle}>
+              Saisie express • 15 secondes
+            </Text>
+          </View>
+          <View
+            style={[
+              addDeliveryStyles.offlineBadge,
+              isConnected && addDeliveryStyles.offlineBadgeOnline,
+            ]}
+          >
+            <MaterialIcons
+              name={isConnected ? "sync" : "cloud-queue"}
+              size={14}
+              color={isConnected ? COLORS.successText : COLORS.infoText}
+            />
+            <Text
+              style={[
+                addDeliveryStyles.offlineBadgeText,
+                isConnected && addDeliveryStyles.offlineBadgeTextOnline,
+              ]}
+            >
+              {isConnected ? "En ligne • Sync auto" : "Mode hors-ligne actif"}
+            </Text>
+          </View>
         </View>
-      </BlurView>
 
-      <TutorialScrollRegistrar scrollRef={scrollRef}>
-      <KeyboardAwareScrollView
-        ref={scrollRef}
-        style={addDeliveryStyles.scrollView}
-        contentContainerStyle={addDeliveryStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        enableOnAndroid={true}
-        enableAutomaticScroll={true}
-        extraScrollHeight={180}
-        keyboardOpeningTime={100}
-      >
-        {/* Section Logistique */}
-        <TutorialTarget id="input-recipient-name">
-        <View style={commonStyles.section}>
-          <Text style={addDeliveryStyles.sectionTitle}>
-            Informations de livraison
-          </Text>
-          <View style={commonStyles.card}>
-            <View
-              style={[
-                addDeliveryStyles.inputGroup,
-                errors.recipientName && addDeliveryStyles.inputError,
-              ]}
-            >
-              <Text style={addDeliveryStyles.inputLabel}>
-                Destinataire <Text style={addDeliveryStyles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={addDeliveryStyles.input}
-                placeholder="ex: Jean Dupont"
-                placeholderTextColor={COLORS.muted}
-                value={recipientName}
-                onChangeText={(text) => {
-                  setRecipientName(text);
-                  setErrors((prev) => ({ ...prev, recipientName: false }));
-                }}
-                autoCapitalize="words"
-                editable={!isSaving}
-                onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
-              />
-              {errors.recipientName && (
-                <Text style={addDeliveryStyles.errorText}>
-                  Ce champ est obligatoire
-                </Text>
-              )}
-            </View>
+        <TutorialScrollRegistrar scrollRef={scrollRef}>
+          <KeyboardAwareScrollView
+            ref={scrollRef}
+            style={addDeliveryStyles.scrollView}
+            contentContainerStyle={addDeliveryStyles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            enableOnAndroid
+            enableAutomaticScroll
+            extraScrollHeight={180}
+            keyboardOpeningTime={100}
+          >
+            {/* 1. Destinataire */}
+            <TutorialTarget id="input-recipient-name">
+              <View style={addDeliveryStyles.sectionCard}>
+                <View style={addDeliveryStyles.sectionHeader}>
+                  <View style={addDeliveryStyles.sectionTitleRow}>
+                    <MaterialIcons
+                      name="person-pin-circle"
+                      size={18}
+                      color={COLORS.primary}
+                    />
+                    <Text style={addDeliveryStyles.sectionTitle}>
+                      1. Destinataire
+                    </Text>
+                  </View>
+                  <Text style={addDeliveryStyles.requiredHint}>
+                    * Champs obligatoires
+                  </Text>
+                </View>
 
-            <View
-              style={[
-                addDeliveryStyles.inputGroup,
-                errors.phone && addDeliveryStyles.inputError,
-              ]}
-            >
-              <Text style={addDeliveryStyles.inputLabel}>
-                Téléphone <Text style={addDeliveryStyles.required}>*</Text>
-              </Text>
-              <TextInput
-                style={addDeliveryStyles.input}
-                placeholder="05 06 34 56 78"
-                placeholderTextColor={COLORS.muted}
-                value={phone}
-                onChangeText={(text) => {
-                  setPhone(text);
-                  setErrors((prev) => ({ ...prev, phone: false }));
-                }}
-                keyboardType="phone-pad"
-                editable={!isSaving}
-                onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
-              />
-              {errors.phone && (
-                <Text style={addDeliveryStyles.errorText}>
-                  Ce champ est obligatoire
-                </Text>
-              )}
-            </View>
+                <View style={addDeliveryStyles.fieldGroup}>
+                  <Text style={addDeliveryStyles.inputLabel}>
+                    Nom & Prénom <Text style={addDeliveryStyles.required}>*</Text>
+                  </Text>
+                  <View
+                    style={[
+                      addDeliveryStyles.inputBox,
+                      errors.recipientName && addDeliveryStyles.inputBoxError,
+                    ]}
+                  >
+                    <MaterialIcons name="person" size={20} color={COLORS.muted} />
+                    <TextInput
+                      style={addDeliveryStyles.input}
+                      placeholder="ex: Fatou Ndiaye"
+                      placeholderTextColor={COLORS.placeholder}
+                      value={recipientName}
+                      onChangeText={(text) => {
+                        setRecipientName(text);
+                        setErrors((prev) => ({ ...prev, recipientName: false }));
+                      }}
+                      autoCapitalize="words"
+                      returnKeyType="next"
+                      editable={!isSaving}
+                      onFocus={(e) =>
+                        scrollRef.current?.scrollToFocusedInput(e.target)
+                      }
+                    />
+                  </View>
+                  {errors.recipientName && (
+                    <Text style={addDeliveryStyles.errorText}>
+                      Ce champ est obligatoire
+                    </Text>
+                  )}
+                </View>
 
-            <View
-              style={[
-                addDeliveryStyles.inputGroup,
-                addDeliveryStyles.inputGroupWithIcon,
-                errors.address && addDeliveryStyles.inputError,
-              ]}
-            >
-              <MaterialIcons
-                name="location-on"
-                size={20}
-                color={errors.address ? COLORS.danger : COLORS.primary}
-                style={addDeliveryStyles.inputIcon}
-              />
-              <View style={addDeliveryStyles.inputContent}>
-                <Text style={addDeliveryStyles.inputLabel}>
-                  Adresse de livraison{" "}
-                  <Text style={addDeliveryStyles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={addDeliveryStyles.input}
-                  placeholder="Angré petro ivoire ,Yopougon, Abidjan"
-                  placeholderTextColor={COLORS.muted}
-                  value={address}
-                  onChangeText={(text) => {
-                    setAddress(text);
-                    setErrors((prev) => ({ ...prev, address: false }));
-                  }}
-                  editable={!isSaving}
-                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
-                />
-                {errors.address && (
+                <View style={addDeliveryStyles.fieldGroup}>
+                  <Text style={addDeliveryStyles.inputLabel}>
+                    Téléphone <Text style={addDeliveryStyles.required}>*</Text>
+                  </Text>
+                  <View
+                    style={[
+                      addDeliveryStyles.inputBox,
+                      errors.phone && addDeliveryStyles.inputBoxError,
+                    ]}
+                  >
+                    <MaterialIcons name="call" size={20} color={COLORS.muted} />
+                    <TextInput
+                      style={addDeliveryStyles.input}
+                      placeholder="+225 07 77 12 34 56"
+                      placeholderTextColor={COLORS.placeholder}
+                      value={phone}
+                      onChangeText={(text) => {
+                        setPhone(text);
+                        setErrors((prev) => ({ ...prev, phone: false }));
+                      }}
+                      keyboardType="phone-pad"
+                      returnKeyType="next"
+                      editable={!isSaving}
+                      onFocus={(e) =>
+                        scrollRef.current?.scrollToFocusedInput(e.target)
+                      }
+                    />
+                    <TouchableOpacity
+                      style={addDeliveryStyles.contactButton}
+                      onPress={importFromContacts}
+                      accessibilityLabel="Importer depuis le répertoire"
+                      disabled={isSaving || isImportingContact}
+                    >
+                      {isImportingContact ? (
+                        <ActivityIndicator size="small" color={COLORS.primary} />
+                      ) : (
+                        <MaterialIcons
+                          name="contact-phone"
+                          size={18}
+                          color={COLORS.primary}
+                        />
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {errors.phone && (
+                    <Text style={addDeliveryStyles.errorText}>
+                      Ce champ est obligatoire
+                    </Text>
+                  )}
+                </View>
+
+                <View style={addDeliveryStyles.fieldGroup}>
+                  <Text style={addDeliveryStyles.inputLabel}>
+                    Adresse & Repères{" "}
+                    <Text style={addDeliveryStyles.required}>*</Text>
+                  </Text>
+                  <View
+                    style={[
+                      addDeliveryStyles.inputBox,
+                      errors.address && addDeliveryStyles.inputBoxError,
+                    ]}
+                  >
+                    <MaterialIcons
+                      name="location-on"
+                      size={20}
+                      color={COLORS.muted}
+                    />
+                    <TextInput
+                      style={addDeliveryStyles.input}
+                      placeholder="ex: Cocody, Rue des Jardins, Imm. B porte 12"
+                      placeholderTextColor={COLORS.placeholder}
+                      value={address}
+                      onChangeText={(text) => {
+                        setAddress(text);
+                        setErrors((prev) => ({ ...prev, address: false }));
+                      }}
+                      returnKeyType="next"
+                      editable={!isSaving}
+                      onFocus={(e) =>
+                        scrollRef.current?.scrollToFocusedInput(e.target)
+                      }
+                    />
+                  </View>
+                  {errors.address && (
+                    <Text style={addDeliveryStyles.errorText}>
+                      Ce champ est obligatoire
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </TutorialTarget>
+
+            {/* 2. Commerçant partenaire */}
+            <TutorialTarget id="input-merchant-search">
+              <View style={addDeliveryStyles.sectionCard}>
+                <View style={addDeliveryStyles.sectionHeader}>
+                  <View style={addDeliveryStyles.sectionTitleRow}>
+                    <MaterialIcons
+                      name="storefront"
+                      size={18}
+                      color={COLORS.primary}
+                    />
+                    <Text style={addDeliveryStyles.sectionTitle}>
+                      2. Commerçant partenaire
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={addDeliveryStyles.merchantRow}>
+                  {hasSelectedMerchant && (
+                    <View style={addDeliveryStyles.merchantChip}>
+                      <View style={addDeliveryStyles.merchantDot} />
+                      <Text
+                        style={addDeliveryStyles.merchantChipText}
+                        numberOfLines={1}
+                      >
+                        {merchantName.trim()}
+                      </Text>
+                      {!isSaving && (
+                        <TouchableOpacity
+                          style={addDeliveryStyles.merchantChipClose}
+                          onPress={clearMerchant}
+                          accessibilityLabel="Retirer le commerçant"
+                        >
+                          <MaterialIcons
+                            name="close"
+                            size={16}
+                            color={COLORS.successText}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                  {!isSaving && (
+                    <TouchableOpacity
+                      style={addDeliveryStyles.newMerchantButton}
+                      onPress={handleNewMerchant}
+                      accessibilityLabel="Nouveau commerçant"
+                    >
+                      <MaterialIcons
+                        name="add-circle"
+                        size={16}
+                        color={COLORS.infoText}
+                      />
+                      <Text style={addDeliveryStyles.newMerchantText}>
+                        + Nouveau
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                <View
+                  style={[
+                    addDeliveryStyles.searchBox,
+                    errors.merchantName && addDeliveryStyles.inputBoxError,
+                  ]}
+                >
+                  <MaterialIcons name="search" size={18} color={COLORS.muted} />
+                  <TextInput
+                    ref={merchantSearchRef}
+                    style={addDeliveryStyles.input}
+                    placeholder="Changer ou rechercher un commerçant..."
+                    placeholderTextColor={COLORS.placeholder}
+                    value={merchantName}
+                    onChangeText={(text) => {
+                      setMerchantName(text);
+                      setMerchantId(null);
+                      setShowSuggestions(text.trim().length > 0);
+                      setErrors((prev) => ({ ...prev, merchantName: false }));
+                    }}
+                    onFocus={(e) => {
+                      if (
+                        merchantName.trim().length > 0 &&
+                        filteredMerchants.length > 0
+                      )
+                        setShowSuggestions(true);
+                      scrollRef.current?.scrollToFocusedInput(e.target);
+                    }}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                    editable={!isSaving}
+                  />
+                </View>
+
+                {showSuggestions &&
+                  filteredMerchants.length > 0 &&
+                  !isSaving && (
+                    <View style={addDeliveryStyles.suggestionsContainer}>
+                      {filteredMerchants.slice(0, 5).map((item) => (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={addDeliveryStyles.suggestionItem}
+                          onPress={() => selectMerchant(item)}
+                        >
+                          <MaterialIcons
+                            name="store"
+                            size={18}
+                            color={COLORS.primary}
+                          />
+                          <View style={addDeliveryStyles.suggestionContent}>
+                            <Text
+                              style={addDeliveryStyles.suggestionName}
+                              numberOfLines={1}
+                            >
+                              {item.name}
+                            </Text>
+                            {!!item.phone && (
+                              <Text style={addDeliveryStyles.suggestionPhone}>
+                                {item.phone}
+                              </Text>
+                            )}
+                          </View>
+                          <MaterialIcons
+                            name="check-circle"
+                            size={18}
+                            color={COLORS.primary}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                {errors.merchantName && (
                   <Text style={addDeliveryStyles.errorText}>
                     Ce champ est obligatoire
                   </Text>
                 )}
               </View>
-            </View>
-          </View>
-         </View>
-         </TutorialTarget>
+            </TutorialTarget>
 
-         {/* Section Commerçant */}
-         <TutorialTarget id="input-merchant-search">
-         <View style={commonStyles.section}>
-           <Text style={addDeliveryStyles.sectionTitle}>Commerçant</Text>
-          <View style={commonStyles.card}>
-            <View
-              style={[
-                addDeliveryStyles.inputGroup,
-                errors.merchantName && addDeliveryStyles.inputError,
-              ]}
-            >
-              <Text style={addDeliveryStyles.inputLabel}>
-                Nom du commerçant{" "}
-                <Text style={addDeliveryStyles.required}>*</Text>
-              </Text>
-              <View style={addDeliveryStyles.merchantInputContainer}>
-                <TextInput
-                  style={[
-                    addDeliveryStyles.input,
-                    showSuggestions && addDeliveryStyles.inputWithSuggestions,
-                  ]}
-                  placeholder="ex: Boutique du Centre"
-                  placeholderTextColor={COLORS.muted}
-                  value={merchantName}
-                  onChangeText={(text) => {
-                    setMerchantName(text);
-                    setMerchantId(null);
-                    setShowSuggestions(text.trim().length > 0);
-                    setErrors((prev) => ({ ...prev, merchantName: false }));
-                  }}
-                  onFocus={(e) => {
-                    if (
-                      merchantName.trim().length > 0 &&
-                      filteredMerchants.length > 0
-                    )
-                      setShowSuggestions(true);
-                    scrollRef.current?.scrollToFocusedInput(e.target);
-                  }}
-                  autoCapitalize="words"
-                  editable={!isSaving}
-                />
-                {merchantName.length > 0 && !isSaving && (
-                  <TouchableOpacity
-                    style={addDeliveryStyles.clearButton}
-                    onPress={() => {
-                      setMerchantName("");
-                      setMerchantId(null);
-                      setShowSuggestions(false);
-                      setFilteredMerchants([]);
-                    }}
-                  >
+            {/* 3. Mode de paiement */}
+            <TutorialTarget id="selector-payment-type">
+              <View style={addDeliveryStyles.sectionCard}>
+                <View style={addDeliveryStyles.sectionHeader}>
+                  <View style={addDeliveryStyles.sectionTitleRow}>
                     <MaterialIcons
-                      name="close"
-                      size={20}
-                      color={COLORS.muted}
+                      name="payments"
+                      size={18}
+                      color={COLORS.primary}
                     />
-                  </TouchableOpacity>
-                )}
-              </View>
-              {showSuggestions && filteredMerchants.length > 0 && !isSaving && (
-                <View style={addDeliveryStyles.suggestionsContainer}>
-                  {filteredMerchants.map((item) => (
+                    <Text style={addDeliveryStyles.sectionTitle}>
+                      3. Mode de paiement
+                    </Text>
+                  </View>
+                </View>
+
+                {PAYMENT_OPTIONS.map((item) => {
+                  const selected = paymentType === item.key;
+                  return (
                     <TouchableOpacity
-                      key={item.id}
-                      style={addDeliveryStyles.suggestionItem}
-                      onPress={() => selectMerchant(item)}
+                      key={item.key}
+                      style={[
+                        addDeliveryStyles.paymentOption,
+                        selected && addDeliveryStyles.paymentSelected,
+                      ]}
+                      onPress={() => {
+                        setPaymentType(item.key);
+                        setErrors((prev) => ({
+                          ...prev,
+                          parcelValue: false,
+                          deliveryFee: false,
+                        }));
+                      }}
+                      disabled={isSaving}
+                      activeOpacity={0.8}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selected }}
                     >
-                      <MaterialIcons
-                        name="store"
-                        size={18}
-                        color={COLORS.primary}
-                        style={addDeliveryStyles.suggestionIcon}
-                      />
-                      <View style={addDeliveryStyles.suggestionContent}>
-                        <Text style={addDeliveryStyles.suggestionName}>
-                          {item.name}
-                        </Text>
-                        {item.phone && (
-                          <Text style={addDeliveryStyles.suggestionPhone}>
-                            {item.phone}
-                          </Text>
+                      <View
+                        style={[
+                          addDeliveryStyles.radioOuter,
+                          selected && addDeliveryStyles.radioOuterSelected,
+                        ]}
+                      >
+                        {selected && (
+                          <View style={addDeliveryStyles.radioInner} />
                         )}
                       </View>
-                      <MaterialIcons
-                        name="check-circle"
-                        size={18}
-                        color={COLORS.primary}
-                        style={addDeliveryStyles.suggestionCheck}
-                      />
+                      <View style={addDeliveryStyles.paymentContent}>
+                        <View style={addDeliveryStyles.paymentTitleRow}>
+                          <MaterialIcons
+                            name={item.icon}
+                            size={18}
+                            color={
+                              selected ? COLORS.primary : COLORS.muted
+                            }
+                          />
+                          <Text style={addDeliveryStyles.paymentText}>
+                            {item.title}
+                          </Text>
+                        </View>
+                        <Text style={addDeliveryStyles.paymentDescription}>
+                          {item.description}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-              {errors.merchantName && (
-                <Text style={addDeliveryStyles.errorText}>
-                  Ce champ est obligatoire
-                </Text>
-              )}
-              {merchantId && (
-                <View style={addDeliveryStyles.selectedMerchantInfo}>
-                  <MaterialIcons
-                    name="check-circle"
-                    size={16}
-                    color={COLORS.success}
-                  />
-                  <Text style={addDeliveryStyles.selectedMerchantText}>
-                    Commerçant existant sélectionné
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-         </View>
-         </TutorialTarget>
+                  );
+                })}
+              </View>
+            </TutorialTarget>
 
-         {/* Section Détails financiers */}
-         <TutorialTarget id="input-parcel-value">
-         <View style={commonStyles.section}>
-           <Text style={addDeliveryStyles.sectionTitle}>Détails financiers</Text>
-          <View style={addDeliveryStyles.financialGrid}>
-            <View
-              style={[
-                addDeliveryStyles.financialCard,
-                paymentType === "CLIENT_PAYE_TOUT" &&
-                  errors.parcelValue &&
-                  addDeliveryStyles.inputError,
-              ]}
-            >
+            {/* 4. Montants */}
+            <TutorialTarget id="input-parcel-value">
+              <View style={addDeliveryStyles.sectionCard}>
+                <View style={addDeliveryStyles.sectionHeader}>
+                  <View style={addDeliveryStyles.sectionTitleRow}>
+                    <MaterialIcons
+                      name="calculate"
+                      size={18}
+                      color={COLORS.primary}
+                    />
+                    <Text style={addDeliveryStyles.sectionTitle}>
+                      4. Montants en FCFA
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={addDeliveryStyles.financialGrid}>
+                  <View style={addDeliveryStyles.financialCard}>
+                    <Text style={addDeliveryStyles.inputLabel}>
+                      Valeur colis
+                    </Text>
+                    <View
+                      style={[
+                        addDeliveryStyles.amountBox,
+                        errors.parcelValue &&
+                          addDeliveryStyles.amountBoxError,
+                      ]}
+                    >
+                      <TextInput
+                        style={addDeliveryStyles.financialInput}
+                        placeholder="25 000"
+                        placeholderTextColor={COLORS.placeholder}
+                        value={parcelValue}
+                        onChangeText={(text) => {
+                          handleCurrencyChange(text, setParcelValue);
+                          setErrors((prev) => ({
+                            ...prev,
+                            parcelValue: false,
+                          }));
+                        }}
+                        keyboardType="decimal-pad"
+                        returnKeyType="next"
+                        editable={!isSaving}
+                        onFocus={(e) =>
+                          scrollRef.current?.scrollToFocusedInput(e.target)
+                        }
+                      />
+                      <Text style={addDeliveryStyles.currencySymbol}>FCFA</Text>
+                    </View>
+                    {errors.parcelValue && (
+                      <Text style={addDeliveryStyles.errorText}>
+                        Valeur supérieure à 0 requise
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={addDeliveryStyles.financialCard}>
+                    <Text style={addDeliveryStyles.inputLabel}>Ta course</Text>
+                    <View
+                      style={[
+                        addDeliveryStyles.amountBox,
+                        errors.deliveryFee &&
+                          addDeliveryStyles.amountBoxError,
+                      ]}
+                    >
+                      <TextInput
+                        style={[
+                          addDeliveryStyles.financialInput,
+                          addDeliveryStyles.financialInputGain,
+                        ]}
+                        placeholder="1 500"
+                        placeholderTextColor={COLORS.placeholder}
+                        value={deliveryFee}
+                        onChangeText={(text) => {
+                          handleCurrencyChange(text, setDeliveryFee);
+                          setErrors((prev) => ({
+                            ...prev,
+                            deliveryFee: false,
+                          }));
+                        }}
+                        keyboardType="decimal-pad"
+                        returnKeyType="done"
+                        editable={!isSaving}
+                        onFocus={(e) =>
+                          scrollRef.current?.scrollToFocusedInput(e.target)
+                        }
+                      />
+                      <Text style={addDeliveryStyles.currencySymbol}>FCFA</Text>
+                    </View>
+                    {errors.deliveryFee && (
+                      <Text style={addDeliveryStyles.errorText}>
+                        Valeur supérieure à 0 requise
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Synthèse dynamique temps réel */}
+                <View style={addDeliveryStyles.summaryBox}>
+                  <View style={addDeliveryStyles.summaryRow}>
+                    <Text style={addDeliveryStyles.summaryLabel}>
+                      À encaisser du client
+                    </Text>
+                    <Text style={addDeliveryStyles.summaryEncaisser}>
+                      {Formatters.formatNumber(amounts.amountCollected)} FCFA
+                    </Text>
+                  </View>
+                  <View style={addDeliveryStyles.summaryDivider} />
+                  <View style={addDeliveryStyles.summaryRow}>
+                    <Text style={addDeliveryStyles.summaryLabel}>
+                      À reverser au marchand
+                    </Text>
+                    <Text style={addDeliveryStyles.summaryReverser}>
+                      {Formatters.formatNumber(amounts.amountToReturn)} FCFA
+                    </Text>
+                  </View>
+                  <View style={addDeliveryStyles.benefitBox}>
+                    <Text style={addDeliveryStyles.benefitLabel}>
+                      <MaterialIcons
+                        name="verified"
+                        size={18}
+                        color={COLORS.successText}
+                      />{" "}
+                      Ton bénéfice net course
+                    </Text>
+                    <Text style={addDeliveryStyles.benefitAmount}>
+                      {Formatters.formatNumber(amounts.profit)} FCFA
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </TutorialTarget>
+
+            {/* Instructions facultatives */}
+            <View style={addDeliveryStyles.sectionCard}>
               <Text style={addDeliveryStyles.inputLabel}>
-                Valeur du colis{" "}
-                {(paymentType === "CLIENT_PAYE_TOUT" ||
-                  paymentType === "LIVRAISON_DEJA_PAYEE") && (
-                  <Text style={addDeliveryStyles.required}>*</Text>
-                )}
+                Instructions de livraison{" "}
+                <Text style={addDeliveryStyles.optional}>(Facultatif)</Text>
               </Text>
-              <View style={addDeliveryStyles.currencyInput}>
-                <Text
-                  style={[
-                    addDeliveryStyles.currencySymbol,
-                    (paymentType === "CLIENT_PAYE_TOUT" ||
-                      paymentType === "LIVRAISON_DEJA_PAYEE") &&
-                      errors.parcelValue && { color: COLORS.danger },
-                  ]}
-                >
-                  FCFA
-                </Text>
+              <View style={addDeliveryStyles.notesBox}>
+                <MaterialIcons
+                  name="description"
+                  size={18}
+                  color={COLORS.muted}
+                  style={{ marginTop: 2 }}
+                />
                 <TextInput
-                  style={[
-                    addDeliveryStyles.financialInput,
-                    paymentType === "CLIENT_PAYE_TOUT" &&
-                      errors.parcelValue && { color: COLORS.danger },
-                  ]}
-                  placeholder={
-                    paymentType !== "CLIENT_PAYE_TOUT" ? " " : "0,00"
+                  style={addDeliveryStyles.notesInput}
+                  placeholder="ex: Appeler avant d'arriver au portail, code 204..."
+                  placeholderTextColor={COLORS.placeholder}
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  numberOfLines={2}
+                  editable={!isSaving}
+                  onFocus={(e) =>
+                    scrollRef.current?.scrollToFocusedInput(e.target)
                   }
-                  placeholderTextColor={COLORS.muted}
-                  value={parcelValue}
-                  onChangeText={(text) => {
-                    handleCurrencyChange(text, setParcelValue);
-                    setErrors((prev) => ({ ...prev, parcelValue: false }));
-                  }}
-                  keyboardType="decimal-pad"
-                  editable={!isSaving}
-                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
                 />
               </View>
-              {paymentType === "CLIENT_PAYE_TOUT" && errors.parcelValue && (
-                <Text style={addDeliveryStyles.errorText}>
-                  Valeur supérieure à 0 requise
-                </Text>
-              )}
             </View>
-
-            <View
-              style={[
-                addDeliveryStyles.financialCard,
-                paymentType !== "COLIS_DEJA_PAYE" &&
-                  paymentType !== "LIVRAISON_DEJA_PAYEE" &&
-                  errors.deliveryFee &&
-                  addDeliveryStyles.inputError,
-              ]}
-            >
-              <Text style={addDeliveryStyles.inputLabel}>
-                Frais de livraison{" "}
-                {paymentType !== "COLIS_DEJA_PAYE" &&
-                  paymentType !== "LIVRAISON_DEJA_PAYEE" && (
-                    <Text style={addDeliveryStyles.required}>*</Text>
-                  )}
-              </Text>
-              <View style={addDeliveryStyles.currencyInput}>
-                <Text
-                  style={[
-                    addDeliveryStyles.currencySymbol,
-                    paymentType !== "COLIS_DEJA_PAYE" &&
-                      errors.deliveryFee && { color: COLORS.danger },
-                  ]}
-                >
-                  FCFA
-                </Text>
-                <TextInput
-                  style={[
-                    addDeliveryStyles.financialInput,
-                    paymentType !== "COLIS_DEJA_PAYE" &&
-                      errors.deliveryFee && { color: COLORS.danger },
-                  ]}
-                  placeholder={paymentType === "COLIS_DEJA_PAYE" ? " " : "0,00"}
-                  placeholderTextColor={COLORS.muted}
-                  value={deliveryFee}
-                  onChangeText={(text) => {
-                    handleCurrencyChange(text, setDeliveryFee);
-                    setErrors((prev) => ({ ...prev, deliveryFee: false }));
-                  }}
-                  keyboardType="decimal-pad"
-                  editable={!isSaving}
-                  onFocus={(e) => scrollRef.current?.scrollToFocusedInput(e.target)}
-                />
-              </View>
-              {paymentType !== "COLIS_DEJA_PAYE" && errors.deliveryFee && (
-                <Text style={addDeliveryStyles.errorText}>
-                  Valeur supérieure à 0 requise
-                </Text>
-              )}
-             </View>
-            </View>
-
-            <TutorialTarget id="selector-payment-type">
-            <View style={commonStyles.section}>
-              <Text style={addDeliveryStyles.sectionTitle}>Paiement</Text>
-            <View style={commonStyles.card}>
-              {[
-                {
-                  key: "CLIENT_PAYE_TOUT",
-                  label: "Client paie colis et livraison",
-                  description: "Le client paie tout à la livraison",
-                },
-                {
-                  key: "CLIENT_PAYE_LIVRAISON",
-                  label: "Client paie livraison seulement",
-                  description:
-                    "Le colis est déjà payé, client paie la livraison",
-                },
-                {
-                  key: "LIVRAISON_DEJA_PAYEE",
-                  label: "Livraison déjà payée",
-                  description:
-                    "Frais de livraison déjà payés, client paie le colis",
-                },
-                {
-                  key: "COLIS_DEJA_PAYE",
-                  label: "Colis et livraison déjà payés",
-                  description: "Tout est déjà payé en ligne",
-                },
-              ].map((item) => (
-                <TouchableOpacity
-                  key={item.key}
-                  style={[
-                    addDeliveryStyles.paymentOption,
-                    paymentType === item.key &&
-                      addDeliveryStyles.paymentSelected,
-                  ]}
-                  onPress={() => {
-                    setPaymentType(item.key as PaymentType);
-                    setErrors((prev) => ({
-                      ...prev,
-                      parcelValue: false,
-                      deliveryFee: false,
-                    }));
-                  }}
-                  disabled={isSaving}
-                >
-                  <Text style={addDeliveryStyles.paymentText}>
-                    {item.label}
-                  </Text>
-                  <Text style={addDeliveryStyles.paymentDescription}>
-                    {item.description}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={addDeliveryStyles.netIncomeCard}>
-              <View style={addDeliveryStyles.netIncomeContent}>
-                <Text style={addDeliveryStyles.netIncomeLabel}>TOTAL</Text>
-                <Text style={addDeliveryStyles.netIncomeSubtitle}>
-                  {paymentType === "COLIS_DEJA_PAYE"
-                    ? "Déjà payé"
-                    : paymentType === "CLIENT_PAYE_LIVRAISON"
-                      ? "Frais de livraison uniquement"
-                      : paymentType === "LIVRAISON_DEJA_PAYEE"
-                        ? "Colis uniquement (livraison déjà payée)"
-                        : "Valeur + Frais"}
-                </Text>
-              </View>
-              <Text style={addDeliveryStyles.netIncomeAmount}>
-                {calculateTotal()} FCFA
-              </Text>
-            </View>
-            </View>
-            </TutorialTarget>
-
-            </View>
-            </TutorialTarget>
 
             <View style={addDeliveryStyles.bottomSpacer} />
-      </KeyboardAwareScrollView>
-      </TutorialScrollRegistrar>
+          </KeyboardAwareScrollView>
+        </TutorialScrollRegistrar>
 
-      <BlurView style={addDeliveryStyles.actionButtons}>
-        <TouchableOpacity
-          style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.7 }]}
-          onPress={handleSave}
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={addDeliveryStyles.saveButtonText}>
-                {savingProgress || "Enregistrement..."}
-              </Text>
-            </View>
-          ) : (
-            <Text style={addDeliveryStyles.saveButtonText}>
-              {isEditing ? "Modifier la livraison" : "Enregistrer la livraison"}
+        {/* CTA fixe */}
+        <View style={addDeliveryStyles.actionButtons}>
+          <TouchableOpacity
+            style={[addDeliveryStyles.saveButton, isSaving && { opacity: 0.85 }]}
+            onPress={handleSave}
+            disabled={isSaving}
+            activeOpacity={0.95}
+          >
+            {isSaving ? (
+              <View style={addDeliveryStyles.saveButtonSaving}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={addDeliveryStyles.saveButtonText}>
+                  {savingProgress || "Enregistrement..."}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <MaterialIcons name="check-circle" size={22} color="#FFFFFF" />
+                <Text style={addDeliveryStyles.saveButtonText}>
+                  {isEditing
+                    ? "Enregistrer les modifications"
+                    : "Enregistrer la course (15s)"}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <View style={addDeliveryStyles.syncHint}>
+            <MaterialIcons
+              name="cloud-done"
+              size={13}
+              color={COLORS.primary}
+            />
+            <Text style={addDeliveryStyles.syncHintText}>
+              Sera synchronisé automatiquement dès retour réseau
             </Text>
-          )}
-        </TouchableOpacity>
-      </BlurView>
+          </View>
+        </View>
 
-      {/* Tutoriel */}
-      <TutorialOverlay
-        visible={isTutorialVisible}
-        tutorial={tutorial}
-        currentStep={tutorialStep}
-        onNext={tutorialNext}
-        onPrev={tutorialPrev}
-        onClose={tutorialClose}
-      />
-    </View>
+        {/* Tutoriel */}
+        <TutorialOverlay
+          visible={isTutorialVisible}
+          tutorial={tutorial}
+          currentStep={tutorialStep}
+          onNext={tutorialNext}
+          onPrev={tutorialPrev}
+          onClose={tutorialClose}
+        />
+      </View>
     </TutorialProvider>
   );
 }

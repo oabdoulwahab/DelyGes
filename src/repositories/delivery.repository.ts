@@ -125,8 +125,8 @@ export class DeliveryRepository {
         `INSERT INTO deliveries 
          (recipient_name, phone, address, parcel_value, delivery_fee, 
           merchant_id, payment_type, amount_collected, amount_to_return,
-          profit, status, user_id, created_at, needs_sync)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+          profit, status, user_id, created_at, needs_sync, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
         [
           deliveryData.recipient_name,
           deliveryData.phone || null,
@@ -141,6 +141,7 @@ export class DeliveryRepository {
           'A_LIVRER',
           deliveryData.user_id,
           new Date().toISOString(),
+          deliveryData.notes || null,
         ]
       );
 
@@ -243,6 +244,11 @@ export class DeliveryRepository {
       if (deliveryData.needs_sync !== undefined) {
         updates.push('needs_sync = ?');
         params.push(deliveryData.needs_sync);
+      }
+
+      if (deliveryData.notes !== undefined) {
+        updates.push('notes = ?');
+        params.push(deliveryData.notes);
       }
 
       if (updates.length === 0) {
@@ -533,6 +539,27 @@ export class DeliveryRepository {
     } catch (error) {
       console.error('Erreur findReversedWithDates:', error);
       throw new DatabaseError('Impossible de récupérer les livraisons reversées');
+    }
+  }
+
+  // Marquer comme reversées toutes les livraisons livrées d'une plage
+  // (clôture mensuelle). Additif : ne modifie aucune méthode existante.
+  static async markReversedInRange(
+    userId: number,
+    fromDate: string,
+    toDateExclusive: string,
+  ): Promise<number> {
+    try {
+      const result = await DatabaseService.execute(
+        `UPDATE deliveries SET reversed = 1, needs_sync = 1
+         WHERE user_id = ? AND status = 'LIVREE' AND reversed != 1
+         AND date(delivered_at) >= ? AND date(delivered_at) < ?`,
+        [userId, fromDate, toDateExclusive],
+      );
+      return result.changes ?? 0;
+    } catch (error) {
+      console.error("Erreur markReversedInRange:", error);
+      throw new DatabaseError("Impossible de clôturer la période");
     }
   }
 

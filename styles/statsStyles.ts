@@ -1,350 +1,938 @@
 import { StyleSheet } from "react-native";
 import { COLORS } from "./colors";
-import { SPACING } from "./spacing";
 
+// Refonte maquette Delygest — Page Statistiques & Clôture
+// Fond #F8F9FC, cartes blanches radius prononcé + ombres légères,
+// badges pastel, barres dynamiques.
 export const statsStyles = StyleSheet.create({
-  // Header
+  // ---------- Header ----------
   header: {
     paddingTop: 48,
-    paddingBottom: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: COLORS.white,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
   },
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  brandName: {
+    color: COLORS.white,
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  versionPill: {
+    backgroundColor: COLORS.borderVeryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  versionText: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  syncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: COLORS.successSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  syncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+  },
+  syncText: {
+    color: COLORS.successText,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
+  notifBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.danger,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  notifBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+    lineHeight: 12,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(0,168,89,0.2)",
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
 
-  // Scroll
+  // ---------- Scroll ----------
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 130,
+    gap: 14,
   },
 
-  // Period selector
-  periodContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
-  },
-  periodSelector: {
+  // ---------- Bannière félicitation ----------
+  congratsBanner: {
     flexDirection: "row",
-    height: 48,
-    backgroundColor: COLORS.card,
-    borderRadius: 24,
-    padding: 4,
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    backgroundColor: "#D1FAE5",
+    opacity: 1,
+    borderRadius: 14,
+    padding: 13,
+    marginHorizontal: 16,
+    marginTop: 14,
   },
-  periodOption: {
+  congratsLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 20,
+    minWidth: 0,
   },
-  periodOptionActive: {
-    backgroundColor: COLORS.primary,
-  },
-  periodText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.muted,
-  },
-  periodTextActive: {
+  congratsText: {
+    fontSize: 13,
     color: COLORS.white,
+    fontWeight: "500",
+    flexShrink: 1,
   },
-
-  // Revenue section
-  revenueSection: {
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
+  congratsName: {
+    fontWeight: "800",
+    color: COLORS.primaryDark,
   },
-  revenueTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  revenueHeader: {
+  proPill: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.sm,
-    marginBottom: SPACING.xs,
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 999,
+    flexShrink: 0,
   },
-  revenueAmount: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  revenueBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.primarySoft,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    borderRadius: 16,
-    gap: 2,
-  },
-  revenueBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
+  proPillText: {
+    fontSize: 10,
+    fontWeight: "800",
     color: COLORS.primary,
   },
-  revenueDate: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginBottom: SPACING.md,
-  },
 
-  // Chart
-  chartContainer: {
-    marginTop: SPACING.md,
+  // ---------- Titre + période ----------
+  titleBlock: {
+    paddingHorizontal: 16,
+    gap: 10,
   },
-  chartLabels: {
+  titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: SPACING.xs,
-    marginTop: SPACING.sm,
+    alignItems: "center",
+    gap: 8,
   },
-  chartLabel: {
-    fontSize: 12,
-    fontWeight: "500",
+  overline: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     color: COLORS.muted,
   },
-
-  // KPI Grid
-  kpiGrid: {
+  pageTitle: {
+    fontSize: 21,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: -0.4,
+    marginTop: 2,
+  },
+  monthPill: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: SPACING.md,
-    gap: SPACING.sm,
-    marginTop: SPACING.lg,
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#E2E7FF",
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+    borderRadius: 999,
+    flexShrink: 0,
   },
-  kpiCard: {
-    flex: 1,
-    minWidth: "45%",
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
+  monthPillText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.white,
   },
-  kpiIconContainer: {
+  monthNav: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  monthNavButton: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: COLORS.primarySoft,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: SPACING.sm,
   },
-  kpiLabel: {
+  periodTabs: {
+    flexDirection: "row",
+    backgroundColor: "#EEF1F6",
+    borderRadius: 14,
+    padding: 4,
+    gap: 4,
+  },
+  periodTab: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  periodTabActive: {
+    backgroundColor: COLORS.primaryDark,
+    shadowColor: "#0F6841",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  periodTabText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.muted,
+  },
+  periodTabTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+  periodTabDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#9FF5C1",
+  },
+
+  // ---------- Carte blanche générique ----------
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 17,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: -0.2,
+  },
+  cardSubtitle: {
     fontSize: 12,
     color: COLORS.muted,
-    marginBottom: SPACING.xs,
-  },
-  kpiValue: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginBottom: SPACING.xs,
-  },
-  kpiChange: {
-    fontSize: 11,
     fontWeight: "500",
-    color: COLORS.primary,
+    marginTop: 2,
   },
 
-  // Sources section
-  sourcesSection: {
-    paddingHorizontal: SPACING.md,
-    marginTop: SPACING.xl,
+  // ---------- Hero bénéfice ----------
+  heroTopRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
-  sourcesTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginBottom: SPACING.md,
-  },
-  sourcesContainer: {
+  growthBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    gap: SPACING.lg,
+    gap: 4,
+    backgroundColor: "rgba(0,168,89,0.14)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
   },
-
-  // Donut chart
-  donutContainer: {
-    width: 120,
-    height: 120,
-    position: "relative",
+  growthBadgeDown: {
+    backgroundColor: "rgba(239,68,68,0.12)",
   },
-  donutCenter: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: "center",
-    justifyContent: "center",
+  growthText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.successText,
   },
-  donutTotalLabel: {
+  growthTextDown: {
+    color: COLORS.danger,
+  },
+  heroLabel: {
     fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     color: COLORS.muted,
   },
-  donutTotal: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-
-  // Legend
-  legendContainer: {
-    flex: 1,
-    gap: SPACING.sm,
-  },
-  legendItem: {
+  heroAmountRow: {
     flexDirection: "row",
+    alignItems: "baseline",
+    gap: 7,
+    marginTop: 2,
+  },
+  heroAmount: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: COLORS.primaryDark,
+    letterSpacing: -0.8,
+  },
+  heroCurrency: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.primaryDark,
+    opacity: 0.75,
+  },
+  goalBox: {
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    padding: 13,
+    gap: 8,
+  },
+  goalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
   },
-  legendColor: {
-    width: 12,
+  goalTitle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  goalPct: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  goalTrack: {
     height: 12,
-    borderRadius: 6,
-    marginRight: SPACING.sm,
+    backgroundColor: "#E2E7FF",
+    borderRadius: 999,
+    overflow: "hidden",
   },
-  legendLabel: {
+  goalFill: {
+    height: "100%",
+    backgroundColor: COLORS.primaryDark,
+    borderRadius: 999,
+  },
+  goalHint: {
+    flexDirection: "row",
+    gap: 7,
+    alignItems: "flex-start",
+  },
+  goalHintText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.white,
+    fontWeight: "500",
+    lineHeight: 17,
+    minWidth: 0,
   },
-  legendValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.white,
+  goalHintStrong: {
+    fontWeight: "800",
+    color: COLORS.primary,
   },
-
-  // Zones section
-  zonesSection: {
-    paddingHorizontal: SPACING.md,
-    marginTop: SPACING.xl,
-    marginBottom: SPACING.xl,
+  metricGrid: {
+    flexDirection: "row",
+    gap: 8,
   },
-  zonesTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginBottom: SPACING.md,
+  metricCell: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: "rgba(240,243,249,0.7)",
+    borderRadius: 14,
+    padding: 10,
+    gap: 3,
   },
-  zoneItem: {
+  metricHead: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    marginBottom: SPACING.sm,
-    gap: SPACING.md,
+    gap: 4,
   },
-  zoneRank: {
+  metricLabel: {
+    fontSize: 8.5,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: COLORS.muted,
+  },
+  metricValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: -0.3,
+  },
+  metricUnit: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  metricSub: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.primary,
+  },
+  metricSubMuted: {
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+
+  // ---------- Histogramme ----------
+  chartHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  chartCountPill: {
+    backgroundColor: COLORS.background,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  chartCountText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.muted,
+  },
+  barsRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-end",
+    height: 150,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+    paddingBottom: 0,
+  },
+  barCol: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 5,
+    height: "100%",
+  },
+  barValue: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: COLORS.muted,
+  },
+  barValuePic: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  bar: {
+    width: "100%",
+    borderTopLeftRadius: 9,
+    borderTopRightRadius: 9,
+    backgroundColor: "rgba(0,168,89,0.22)",
+    minHeight: 6,
+  },
+  barPic: {
+    backgroundColor: COLORS.primaryDark,
+    shadowColor: "#0F6841",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  barLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.muted,
+    paddingBottom: 7,
+  },
+  barLabelPic: {
+    color: COLORS.primary,
+    fontWeight: "800",
+  },
+  picPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    backgroundColor: "#FFDDB8",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  picPillText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#92400E",
+  },
+  chartFoot: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  chartFootLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  chartFootDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 3,
+    backgroundColor: COLORS.primaryDark,
+    flexShrink: 0,
+  },
+  chartFootText: {
+    fontSize: 11,
+    color: COLORS.muted,
+    fontWeight: "500",
+    flexShrink: 1,
+  },
+  chartFootTotal: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.white,
+    flexShrink: 0,
+  },
+
+  // ---------- Paiements ----------
+  segmentedBar: {
+    flexDirection: "row",
+    height: 12,
+    borderRadius: 999,
+    overflow: "hidden",
+    backgroundColor: COLORS.background,
+  },
+  payRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F6F8FB",
+    borderRadius: 14,
+    padding: 11,
+  },
+  payLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  payIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  payName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  paySub: {
+    fontSize: 11,
+    color: COLORS.muted,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  payRight: {
+    alignItems: "flex-end",
+    flexShrink: 0,
+  },
+  payAmount: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  payTag: {
+    fontSize: 10,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+
+  // ---------- Marchands / zones ----------
+  merchantRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F6F8FB",
+    borderRadius: 14,
+    padding: 11,
+  },
+  merchantAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.primarySoft,
+    backgroundColor: "#E2E7FF",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
-  zoneRankText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.primary,
+  zoneLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.7,
+    textTransform: "uppercase",
+    color: COLORS.muted,
   },
-  zoneContent: {
+  zoneGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  zoneCell: {
     flex: 1,
-  },
-  zoneHeader: {
+    minWidth: "45%",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.xs,
+    backgroundColor: "#F6F8FB",
+    borderRadius: 12,
+    padding: 10,
+    gap: 6,
+  },
+  zoneLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  zoneDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    flexShrink: 0,
   },
   zoneName: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
     color: COLORS.white,
+    flexShrink: 1,
   },
-  zoneDeliveries: {
-    fontSize: 16,
-    fontWeight: "bold",
+  zonePct: {
+    fontSize: 12,
+    fontWeight: "800",
     color: COLORS.primary,
-  },
-  zoneDeliveriesLabel: {
-    fontSize: 11,
-    color: COLORS.muted,
-    marginTop: 2,
-    textAlign: "right",
-  },
-  progressBar: {
-    height: 6,
-    backgroundColor: COLORS.borderLight,
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: COLORS.primary,
-    borderRadius: 3,
+    flexShrink: 0,
   },
 
-  tabsContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    paddingBottom: 8,
-    backgroundColor: COLORS.background,
-    zIndex: 4,
-    marginBottom: SPACING.md,
-  },
-  tabsScroll: {
-    paddingHorizontal: SPACING.md,
-  },
-  tab: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 24,
+  // ---------- Audit / clôture ----------
+  auditHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.background,
+    paddingBottom: 12,
   },
-  activeTab: {},
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.muted,
-    marginBottom: 6,
+  auditTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    flex: 1,
+    minWidth: 0,
   },
-  activeTabText: {
-    color: COLORS.primary,
-    fontWeight: "700",
+  auditIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.successSoft,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
-  tabIndicator: {
-    height: 3,
-    width: "100%",
-    backgroundColor: "transparent",
-    borderRadius: 1.5,
+  readyPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: COLORS.successSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    flexShrink: 0,
   },
-  activeTabIndicator: {
+  readyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: COLORS.primary,
+  },
+  readyText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.successText,
+  },
+  readyPillClosed: {
+    backgroundColor: "#E2E7FF",
+  },
+  readyTextClosed: {
+    color: COLORS.infoText,
+  },
+  auditRows: {
+    gap: 9,
+  },
+  auditRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  auditLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    fontSize: 12,
+    color: COLORS.muted,
+    fontWeight: "500",
+    flex: 1,
+    minWidth: 0,
+  },
+  auditValue: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+    flexShrink: 0,
+  },
+  auditSub: {
+    fontSize: 10,
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+  upToDatePill: {
+    backgroundColor: "rgba(0,168,89,0.14)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  upToDateText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  ecartValue: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.danger,
+  },
+  ecartOk: {
+    color: COLORS.successText,
+  },
+  closeButton: {
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: COLORS.primaryDark,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#0F6841",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  closeButtonDisabled: {
+    opacity: 0.6,
+  },
+  closeButtonText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  shareButton: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: COLORS.background,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  shareButtonText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  auditNote: {
+    fontSize: 10.5,
+    textAlign: "center",
+    color: COLORS.muted,
+    lineHeight: 15,
+  },
+
+  // ---------- Bottom sheet ----------
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(19,27,46,0.5)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 34,
+    gap: 13,
+    maxHeight: "85%",
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D8DEE9",
+    alignSelf: "center",
+  },
+  sheetHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  sheetTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+    flexShrink: 1,
+  },
+  sheetClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  sheetText: {
+    fontSize: 13,
+    color: COLORS.muted,
+    lineHeight: 19,
+  },
+  sheetTextStrong: {
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  sheetSummary: {
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    padding: 14,
+    gap: 9,
+  },
+  sheetRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  sheetLabel: {
+    fontSize: 12,
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+  sheetValue: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  sheetValueGreen: {
+    color: COLORS.primary,
+  },
+  sheetCancel: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetCancelText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.muted,
+  },
+
+  // ---------- État vide ----------
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 26,
+    marginHorizontal: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  emptyText: {
+    color: COLORS.muted,
+    textAlign: "center",
+    fontSize: 13,
+    marginTop: 10,
+    lineHeight: 18,
   },
 });

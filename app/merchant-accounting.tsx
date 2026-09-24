@@ -1,9 +1,9 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import endOfMonth from "date-fns/endOfMonth";
-import format from "date-fns/format";
-import isSameDay from "date-fns/isSameDay";
-import startOfMonth from "date-fns/startOfMonth";
-import fr from "date-fns/locale/fr";
+import { endOfMonth } from "date-fns/endOfMonth";
+import { format } from "date-fns/format";
+import { isSameDay } from "date-fns/isSameDay";
+import { startOfMonth } from "date-fns/startOfMonth";
+import { fr } from "date-fns/locale/fr";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import { useEffect, useState, useRef } from "react";

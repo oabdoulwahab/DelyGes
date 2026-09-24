@@ -2,8 +2,11 @@ import { StyleSheet } from "react-native";
 import { COLORS } from "./colors";
 import { SPACING } from "./spacing";
 
+// Refonte maquette Delygest — Formulaire Saisie Express Nouvelle Livraison
+// Fond #F8F9FC, cartes blanches radius prononcé, champs #F0F3F9,
+// radios sélectionnées fond bleu-violet + radio vert, CTA vert forêt fixe.
 export const addDeliveryStyles = StyleSheet.create({
-  // Loading
+  // ---------- Loading ----------
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -16,20 +19,568 @@ export const addDeliveryStyles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Header
+  // ---------- Header ----------
   header: {
     paddingTop: 48,
-    paddingBottom: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flex: 1,
+    minWidth: 0,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    marginLeft: -8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 22,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: -0.2,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 0,
+  },
+  syncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: COLORS.successSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  syncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+  },
+  syncText: {
+    color: COLORS.successText,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(0,168,89,0.2)",
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  // ---------- Bannière saisie express ----------
+  expressBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#E2E7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  expressTitle: {
+    flex: 1,
+    minWidth: 0,
+  },
+  expressTitleText: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: -0.2,
+  },
+  expressSubtitle: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: COLORS.muted,
+    letterSpacing: 0.2,
+    marginTop: 1,
+  },
+  offlineBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#E2E7FF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  offlineBadgeOnline: {
+    backgroundColor: COLORS.successSoft,
+  },
+  offlineBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.infoText,
+    letterSpacing: 0.2,
+  },
+  offlineBadgeTextOnline: {
+    color: COLORS.successText,
+  },
+
+  // ---------- Scroll ----------
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 150,
+    gap: 14,
+  },
+
+  // ---------- Cartes sections ----------
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 15,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: -0.2,
+  },
+  requiredHint: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: COLORS.muted,
+  },
+
+  // ---------- Champs ----------
+  fieldGroup: {
+    gap: 5,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: COLORS.muted,
+    letterSpacing: 0.4,
+  },
+  required: {
+    color: COLORS.danger,
+  },
+  inputBox: {
+    minHeight: 48,
+    backgroundColor: "#F0F3F9",
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+  inputBoxError: {
+    borderWidth: 1.5,
+    borderColor: COLORS.danger,
+    backgroundColor: COLORS.dangerSoft,
+  },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    fontWeight: "600",
+    color: COLORS.white,
+    paddingVertical: 12,
+  },
+  contactButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#E2E7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  notesBox: {
+    backgroundColor: "#F0F3F9",
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 9,
+  },
+  notesInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    color: COLORS.white,
+    minHeight: 52,
+    textAlignVertical: "top",
+    paddingTop: 2,
+  },
+  errorText: {
+    fontSize: 12,
+    color: COLORS.danger,
+    fontStyle: "italic",
+  },
+
+  // ---------- Commerçant ----------
+  merchantRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  merchantChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.successSoft,
+    paddingLeft: 12,
+    paddingRight: 8,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  merchantDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+  },
+  merchantChipText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.successText,
+  },
+  merchantChipClose: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  newMerchantButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#F0F3F9",
+    paddingHorizontal: 13,
+    paddingVertical: 9,
+    borderRadius: 999,
+    minHeight: 40,
+  },
+  newMerchantText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.infoText,
+  },
+  searchBox: {
+    minHeight: 44,
+    backgroundColor: "#F0F3F9",
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+  },
+
+  // ---------- Suggestions ----------
+  suggestionsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    maxHeight: 210,
+  },
+  suggestionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderVeryLight,
+  },
+  suggestionContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  suggestionName: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  suggestionPhone: {
+    color: COLORS.muted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  // ---------- Paiement radio ----------
+  paymentOption: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: 13,
+    borderRadius: 12,
+    backgroundColor: "#F0F3F9",
+    borderWidth: 1.5,
+    borderColor: "transparent",
+    minHeight: 64,
+  },
+  paymentSelected: {
+    backgroundColor: "#EDE9FE",
+    borderColor: COLORS.primary,
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#B6BFD0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+    flexShrink: 0,
+    backgroundColor: "#FFFFFF",
+  },
+  radioOuterSelected: {
+    borderColor: COLORS.primary,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.primary,
+  },
+  paymentContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  paymentTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  paymentText: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  paymentDescription: {
+    fontSize: 12,
+    color: COLORS.muted,
+    marginTop: 3,
+    lineHeight: 17,
+  },
+
+  // ---------- Montants ----------
+  financialGrid: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  financialCard: {
+    flex: 1,
+    minWidth: 0,
+    gap: 5,
+  },
+  amountBox: {
+    minHeight: 52,
+    backgroundColor: "#F0F3F9",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  amountBoxError: {
+    borderWidth: 1.5,
+    borderColor: COLORS.danger,
+    backgroundColor: COLORS.dangerSoft,
+  },
+  financialInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 19,
+    fontWeight: "800",
+    color: COLORS.white,
+    paddingVertical: 10,
+  },
+  financialInputGain: {
+    color: COLORS.primary,
+  },
+  currencySymbol: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.muted,
+    flexShrink: 0,
+  },
+  summaryBox: {
+    backgroundColor: "#F0F3F9",
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  summaryLabel: {
+    fontSize: 13,
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+  summaryEncaisser: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: COLORS.primary,
+    letterSpacing: -0.3,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: "#D8DEE9",
+  },
+  summaryReverser: {
+    fontSize: 16,
+    fontWeight: "800",
     color: COLORS.white,
   },
+  benefitBox: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.successSoft,
+    borderRadius: 12,
+    padding: 11,
+  },
+  benefitLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.successText,
+  },
+  benefitAmount: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: COLORS.primary,
+    letterSpacing: -0.3,
+  },
+
+  // ---------- CTA fixe ----------
+  actionButtons: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 26,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+    alignItems: "center",
+    gap: 7,
+  },
+  saveButton: {
+    width: "100%",
+    height: 52,
+    backgroundColor: COLORS.primaryDark,
+    borderRadius: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#0F6841",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  saveButtonSaving: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  syncHint: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  syncHintText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: COLORS.muted,
+    letterSpacing: 0.2,
+  },
+  bottomSpacer: {
+    height: 20,
+  },
+  optional: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: "normal",
+  },
+
+  // ---------- Legacy (compat conservée) ----------
   cancelButton: {
     paddingHorizontal: 8,
     paddingVertical: 6,
@@ -47,108 +598,26 @@ export const addDeliveryStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-
-  // Scroll
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 140,
-  },
-
-  // Sections
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.muted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-
-  // Inputs
   inputGroup: {
     padding: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.borderVeryLight,
-  },
-  inputGroupWithIcon: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: COLORS.muted,
-    marginBottom: 4,
-  },
-  input: {
-    fontSize: 16,
-    color: COLORS.white,
-    padding: 0,
-    margin: 0,
-    // merged from below
-    paddingVertical: 8,
-    minHeight: 40,
-  },
-  inputIcon: {
-    marginRight: 12,
-    marginTop: 2,
-  },
-  inputContent: {
-    flex: 1,
   },
   inputError: {
     borderLeftWidth: 3,
     borderLeftColor: COLORS.danger,
     backgroundColor: COLORS.dangerSoft,
   },
-  required: {
-    color: COLORS.danger,
+  merchantInputContainer: {
+    position: "relative",
+    zIndex: 1000,
   },
-  errorText: {
-    fontSize: 12,
-    color: COLORS.danger,
-    marginTop: 4,
-    fontStyle: "italic",
+  clearButton: {
+    position: "absolute",
+    right: 12,
+    top: "50%",
+    transform: [{ translateY: -10 }],
   },
-
-  // Financial inputs
-  financialGrid: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 12,
-  },
-  financialCard: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  currencyInput: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-  currencySymbol: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: COLORS.white,
-    marginRight: 8,
-  },
-  financialInput: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: COLORS.white,
-    flex: 1,
-    padding: 0,
-    margin: 0,
-  },
-
-  // Net income card
   netIncomeCard: {
     backgroundColor: COLORS.primarySoft,
     borderColor: COLORS.primary,
@@ -159,156 +628,5 @@ export const addDeliveryStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 16,
-  },
-  netIncomeContent: {
-    flex: 1,
-  },
-  netIncomeLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: COLORS.primary,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  netIncomeSubtitle: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginTop: 2,
-  },
-  netIncomeAmount: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: COLORS.white,
-  },
-
-  // Payment options
-  paymentOption: {
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    marginBottom: 8,
-  },
-  paymentSelected: {
-    backgroundColor: COLORS.primarySoft,
-    borderColor: COLORS.primary,
-  },
-  paymentText: {
-    color: COLORS.white,
-    fontSize: 15,
-  },
-
-  paymentDescription: {
-  fontSize: 11,
-  color: COLORS.muted,
-  marginTop: 2,
-},
-
-  // Merchant suggestions
-  merchantInputContainer: {
-    position: "relative",
-    // width: "100%",
-    zIndex: 1000,
-  },
-  inputWithSuggestions: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  clearButton: {
-    position: "absolute",
-    right: 12,
-    top: "50%",
-    transform: [{ translateY: -10 }],
-  },
-
-  suggestionsContainer: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    borderRadius: 12,
-
-    // Positionnement flottant
-    position: "absolute",
-    top: 80, // S'affiche juste en dessous du champ de saisie
-    left: 0,
-    right: 0,
-    zIndex: 5000,
-
-    // Ombre pour décoller du fond
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-
-    maxHeight: 200,
-  },
-  suggestionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  suggestionIcon: {
-    marginRight: 12,
-  },
-  suggestionContent: {
-    flex: 1,
-  },
-  suggestionName: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  suggestionPhone: {
-    color: COLORS.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  suggestionCheck: {
-    marginLeft: 8,
-  },
-  selectedMerchantInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    gap: 6,
-  },
-  selectedMerchantText: {
-    color: COLORS.success,
-    fontSize: 12,
-  },
-
-  // Action buttons
-  saveButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-  actionButtons: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: COLORS.background,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  bottomSpacer: {
-    height: 20,
-  },
-  optional: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontWeight: "normal",
   },
 });

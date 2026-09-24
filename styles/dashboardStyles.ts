@@ -2,531 +2,931 @@ import { StyleSheet } from "react-native";
 import { COLORS } from "./colors";
 import { SPACING } from "./spacing";
 
+// Refonte maquette Delygest Mobile v1.0.3 :
+// fond #F8F9FC, cartes blanches radius prononcé + ombres légères,
+// hero vert foncé, badges pastel, touch targets >= 44px.
 export const dashboardStyles = StyleSheet.create({
-  // Header
+  // ---------- Top bar ----------
   header: {
     paddingTop: 48,
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.md,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  profileSection: {
+  brandRow: {
     flexDirection: "row",
-    gap: 12,
     alignItems: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
   },
-
-  // Avatar avec initiale
-  profileImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: COLORS.primarySoft,
-  },
-  profileInitial: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-
-  greeting: {
-    color: COLORS.muted,
-    fontSize: 12,
-  },
-  name: {
+  brandName: {
     color: COLORS.white,
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  versionPill: {
+    backgroundColor: COLORS.borderVeryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  versionText: {
+    color: COLORS.muted,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
   headerActions: {
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
+    flexShrink: 0,
+  },
+  syncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: COLORS.successSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  syncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+  },
+  syncText: {
+    color: COLORS.successText,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
   notificationButton: {
-    padding: 8,
-    borderRadius: 20,
-  },
-
-  // Content
-  content: {
-    padding: 16,
-    marginTop: 20,
-  },
-
-  // Date header
-  dateHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  dateText: {
-    color: COLORS.white,
-    fontSize: 24,
-    fontWeight: "bold",
-    marginTop: 4,
-  },
-  historyButton: {
-    flexDirection: "row",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
-    gap: 2,
+    justifyContent: "center",
   },
-  historyText: {
-    color: COLORS.muted,
-    fontSize: 12,
-  },
-
-  // Stats grid
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 16,
-  },
-  mainCard: {
-    backgroundColor: COLORS.card,
-    padding: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    width: "100%",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  cardLabel: {
-    color: COLORS.muted,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  iconContainer: {
-    padding: 8,
-    backgroundColor: COLORS.primarySoft,
+  notifBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
     borderRadius: 8,
+    backgroundColor: COLORS.danger,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
   },
-  mainAmount: {
-    color: COLORS.white,
-    fontSize: 36,
+  notifBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
     fontWeight: "800",
-    marginTop: 8,
+    lineHeight: 12,
   },
-  trendContainer: {
+  profileImage: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(0,168,89,0.2)",
+  },
+  profileInitial: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  // ---------- Greeting ----------
+  greetingRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  greeting: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+  },
+  greetingSub: {
+    color: COLORS.muted,
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 3,
+    flexDirection: "row",
+  },
+  syncedBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginTop: 12,
+    gap: 5,
+    backgroundColor: COLORS.successSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
   },
-  trendBadge: {
+  syncedText: {
+    color: COLORS.successText,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  // ---------- Content ----------
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 170,
+    gap: 12,
+  },
+
+  // ---------- Hero revenus ----------
+  heroCard: {
+    borderRadius: 20,
+    padding: 16,
+    backgroundColor: COLORS.primaryDark,
+    shadowColor: "#0F6841",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
+    overflow: "hidden",
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  heroLabel: {
+    color: "#9FF5C1",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+  },
+  flashBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 8,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 999,
   },
-  trendBadgeUp: {
-    backgroundColor: "rgba(16, 185, 129, 0.2)",
+  flashText: {
+    color: "#9FF5C1",
+    fontSize: 11,
+    fontWeight: "800",
   },
-  trendBadgeDown: {
-    backgroundColor: "rgba(239, 68, 68, 0.2)",
-  },
-  trendText: {
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  trendLabel: {
-    color: COLORS.muted,
-    fontSize: 12,
-  },
-  secondaryCard: {
-    backgroundColor: COLORS.card,
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    flex: 1,
-    minWidth: "45%",
-  },
-  secondaryLabel: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  secondaryAmount: {
-    color: COLORS.white,
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 4,
-  },
-
-  // Finance card
-  financeCard: {
-    backgroundColor: COLORS.card,
-    padding: 20,
-    borderRadius: 20,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  financeTitle: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  financeRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  financeLabel: {
-    color: COLORS.muted,
-    fontSize: 13,
-  },
-  financeValue: {
-    color: COLORS.white,
-    fontWeight: "bold",
-  },
-
-  // Accounting button
-  accountingButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    padding: 14,
-    borderRadius: 14,
-    marginTop: 16,
-  },
-  accountingText: {
+  heroAmount: {
     color: "#FFFFFF",
-    fontWeight: "bold",
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -0.8,
   },
-
-  scheduleScrollContainer: {
-    maxHeight: 300, // Limite la hauteur avant que le scroll n'apparaisse
-    marginTop: 8,
-    borderRadius: 12,
-    // backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    padding: 0,
+  heroCurrency: {
+    fontSize: 14,
+    fontWeight: "700",
+    opacity: 0.9,
   },
-
-  scheduleScrollContent: {
-    paddingVertical: 2,
-    paddingHorizontal: 1,
-  },
-  // Schedule section
-  scheduleSection: {
-    marginBottom: 70,
-  },
-  scheduleHeader: {
+  heroProgressRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginTop: 6,
   },
-  scheduleTitle: {
-    color: COLORS.white,
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  calendarButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: COLORS.card,
-  },
-
-  // Delivery card
-  deliveryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-    padding: 16,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    marginBottom: 8, // Réduire de 12 à 8
-  },
-  timeContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timeText: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  deliveryInfo: {
-    flex: 1,
-  },
-  deliveryName: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  deliveryAddress: {
-    color: COLORS.muted,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  deliveryRight: {
-    alignItems: "flex-end",
-  },
-  deliveryFee: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 4,
-  },
-  statusText: {
-    fontSize: 10,
+  heroProgressLabel: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
     fontWeight: "500",
   },
-  noDeliveries: {
-    color: COLORS.muted,
-    textAlign: "center",
-    padding: 20,
+  heroProgressValue: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+    backgroundColor: "rgba(0,0,0,0.25)",
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 7,
+    overflow: "hidden",
   },
-
-  // Floating button
-  floatingButton: {
-    position: "absolute",
-    bottom: 110,
-    right: 16,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 24,
+  progressTrack: {
+    height: 12,
+    backgroundColor: "rgba(0,0,0,0.28)",
+    borderRadius: 999,
+    overflow: "hidden",
+    marginTop: 8,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: "#9FF5C1",
+    borderRadius: 999,
+  },
+  heroDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    marginVertical: 10,
+  },
+  heroMotivation: {
+    color: "rgba(255,255,255,0.96)",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  heroMotivationStrong: {
+    fontWeight: "800",
+    color: "#FFDDB8",
+    textDecorationLine: "underline",
+  },
+  heroStatsRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginTop: 10,
+  },
+  heroStat: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  heroStatDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  heroStatText: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  heroStatSep: {
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 12,
+  },
+  goalEditButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  goalAchievedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 12,
+    paddingVertical: 9,
+    marginTop: 10,
+  },
+  goalAchievedText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+
+  // ---------- Reversement ----------
+  reverserCard: {
+    backgroundColor: "#FFFBEB",
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  floatingButtonText: {
-    fontWeight: "bold",
+  reverserHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  reverserIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  reverserTitle: {
+    color: "#78350F",
     fontSize: 14,
+    fontWeight: "800",
+    flex: 1,
+  },
+  reverserCount: {
+    backgroundColor: "#FDE68A",
+    color: "#92400E",
+    fontSize: 10,
+    fontWeight: "800",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+  reverserSub: {
+    color: "rgba(146,64,14,0.9)",
+    fontSize: 12,
+    marginTop: 3,
+  },
+  reverserButton: {
+    marginTop: 10,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  reverserButtonText: {
+    color: "#78350F",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  // ---------- Filtres statut ----------
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  filterChip: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    borderRadius: 14,
+    minHeight: 48,
+    borderWidth: 1.5,
+    borderColor: "transparent",
+  },
+  filterChipALivrer: {
+    backgroundColor: "#FEF3C7",
+  },
+  filterChipLivrees: {
+    backgroundColor: "#D1FAE5",
+  },
+  filterChipAnnulees: {
+    backgroundColor: "#EDE9FE",
+    flex: 0.85,
+  },
+  filterChipActive: {
+    borderColor: COLORS.primary,
+  },
+  filterChipLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  filterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  filterCount: {
+    fontSize: 13,
+    fontWeight: "800",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+
+  // ---------- Section prochaines courses ----------
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  sectionTitle: {
+    color: COLORS.white,
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  zoneBadge: {
+    backgroundColor: COLORS.successSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  zoneText: {
+    color: COLORS.successText,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  mapButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    minHeight: 44,
+    paddingHorizontal: 8,
+  },
+  mapButtonText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  // ---------- Cartes courses ----------
+  deliveryCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 15,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  deliveryCardDelivered: {
+    opacity: 0.92,
+  },
+  cardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  cardZone: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
+  },
+  cardZoneText: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: "800",
+    flexShrink: 1,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  statusBadgeALivrer: {
+    backgroundColor: "#FEF3C7",
+  },
+  statusBadgeLivree: {
+    backgroundColor: "#D1FAE5",
+  },
+  statusBadgeAnnulee: {
+    backgroundColor: "#EDE9FE",
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  customerBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    padding: 11,
+    gap: 8,
+  },
+  customerName: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  customerMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+  customerMetaText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: "500",
+    flexShrink: 1,
+  },
+  merchantText: {
+    color: COLORS.infoText,
+    fontWeight: "700",
+  },
+  phoneText: {
+    color: COLORS.muted,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.2,
+  },
+  callButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    flexShrink: 0,
+  },
+  financeGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  financeCell: {
+    flex: 1,
+    borderRadius: 12,
+    padding: 10,
+  },
+  financeCellEncaisser: {
+    backgroundColor: "#F1F5F9",
+  },
+  financeCellGain: {
+    backgroundColor: "rgba(0,168,89,0.12)",
+  },
+  financeLabel: {
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: COLORS.muted,
+  },
+  financeLabelGain: {
+    color: COLORS.primaryDark,
+  },
+  financeAmount: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+    marginTop: 3,
+  },
+  financeAmountGain: {
+    color: COLORS.primaryDark,
+  },
+  financeUnit: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  financeHint: {
+    fontSize: 10,
+    fontWeight: "500",
+    color: COLORS.muted,
+    marginTop: 1,
+  },
+  actionsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  gpsButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: COLORS.primaryDark,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  gpsButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  deliverButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#E2E7FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  deliverButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  // carte simplifiée
+  simpleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  simpleAmount: {
+    alignItems: "flex-end",
+  },
+  simpleFee: {
+    color: COLORS.white,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  simpleGain: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 2,
+  },
+  simpleActions: {
+    flexDirection: "row",
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderVeryLight,
+    paddingTop: 10,
+  },
+  callPill: {
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 11,
+    backgroundColor: COLORS.background,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  callPillText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  detailsPill: {
+    flex: 1,
+    height: 40,
+    borderRadius: 11,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  detailsPillText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  deliveredMeta: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  deliveredMetaText: {
+    fontSize: 12,
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+  deliveredAmount: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.successText,
+  },
+
+  // ---------- Bannière soleil / offline ----------
+  sunBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#E2E7FF",
+    borderRadius: 14,
+    padding: 12,
+  },
+  sunBannerText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 15,
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+
+  // ---------- FAB ----------
+  fabWrapper: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 118,
+  },
+  fab: {
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: COLORS.primaryDark,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#0F6841",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  fabText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  // ---------- Modals ----------
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 22,
+    width: "100%",
+    maxWidth: 360,
+  },
+  modalIcon: {
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 19,
+    fontWeight: "800",
+    color: COLORS.white,
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  modalMessage: {
+    fontSize: 13,
+    color: COLORS.muted,
+    marginBottom: 16,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  modalSummaryBox: {
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+    marginBottom: 16,
+  },
+  modalSummaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modalSummaryLabel: {
+    fontSize: 12,
+    color: COLORS.muted,
+    fontWeight: "600",
+  },
+  modalSummaryValue: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  goalInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    marginBottom: 10,
+    paddingHorizontal: 16,
+  },
+  goalModalInput: {
+    flex: 1,
+    paddingVertical: 14,
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  goalModalCurrency: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.muted,
+    marginLeft: 8,
+  },
+  goalModalHint: {
+    fontSize: 12,
+    color: COLORS.muted,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginBottom: 18,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  modalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalButtonCancel: {
+    backgroundColor: COLORS.borderVeryLight,
+  },
+  modalButtonPrimary: {
+    backgroundColor: COLORS.primaryDark,
+  },
+  modalButtonTextCancel: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  modalButtonTextPrimary: {
+    fontSize: 15,
+    fontWeight: "800",
     color: "#FFFFFF",
   },
   bottomSpacer: {
-    height: 70, // Ajustez cette valeur selon la hauteur de votre tab bar
+    height: 30,
   },
 
-goalCard: {
-  backgroundColor: COLORS.card,
-  borderRadius: 20,
-  padding: 16,
-  marginBottom: 16,
-  borderWidth: 1,
-  borderColor: COLORS.borderLight,
-},
-goalHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 12,
-},
-goalTitleContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 8,
-},
-goalTitle: {
-  fontSize: 16,
-  fontWeight: '600',
-  color: COLORS.white,
-},
-goalSettingsButton: {
-  padding: 4,
-},
-goalAmountContainer: {
-  flexDirection: 'row',
-  alignItems: 'baseline',
-  marginBottom: 12,
-},
-goalCurrentAmount: {
-  fontSize: 28,
-  fontWeight: 'bold',
-  color: COLORS.primary,
-},
-goalTargetAmount: {
-  fontSize: 18,
-  color: COLORS.muted,
-  marginLeft: 4,
-},
-progressBarContainer: {
-  height: 10,
-  backgroundColor: COLORS.borderLight,
-  borderRadius: 5,
-  overflow: 'hidden',
-  marginBottom: 8,
-},
-progressBarFill: {
-  height: '100%',
-  backgroundColor: COLORS.primary,
-  borderRadius: 5,
-},
-goalFooter: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  marginBottom: 8,
-},
-goalProgressText: {
-  fontSize: 14,
-  color: COLORS.primary,
-  fontWeight: '500',
-},
-goalRemainingText: {
-  fontSize: 14,
-  color: COLORS.muted,
-},
-goalMotivationText: {
-  fontSize: 14,
-  color: COLORS.muted,
-  fontStyle: 'italic',
-  textAlign: 'center',
-  marginTop: 8,
-  paddingTop: 8,
-  borderTopWidth: 1,
-  borderTopColor: COLORS.borderLight,
-},
-goalAchievedBadge: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  justifyContent: 'center',
-  gap: 8,
-  backgroundColor: COLORS.success,
-  borderRadius: 12,
-  paddingVertical: 8,
-  marginTop: 8,
-},
-goalAchievedText: {
-  fontSize: 14,
-  fontWeight: 'bold',
-  color: '#FFFFFF',
-},
+  // ---------- États vides ----------
+  emptyState: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 26,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  emptyText: {
+    color: COLORS.muted,
+    textAlign: "center",
+    fontSize: 13,
+    marginTop: 10,
+    lineHeight: 18,
+  },
 
-// Styles du modal objectif du jour
-goalModalOverlay: {
-  flex: 1,
-  backgroundColor: 'rgba(0,0,0,0.5)',
-  justifyContent: 'center',
-  alignItems: 'center',
-  padding: 20,
-},
-goalModalContent: {
-  backgroundColor: COLORS.card,
-  borderRadius: 20,
-  padding: 24,
-  width: '100%',
-  maxWidth: 340,
-},
-goalModalIconContainer: {
-  alignItems: 'center',
-  marginBottom: 12,
-},
-goalModalTitle: {
-  fontSize: 20,
-  fontWeight: 'bold',
-  color: COLORS.white,
-  marginBottom: 8,
-  textAlign: 'center',
-},
-goalModalMessage: {
-  fontSize: 14,
-  color: COLORS.muted,
-  marginBottom: 20,
-  textAlign: 'center',
-},
-goalInputContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: COLORS.inputBackground,
-  borderRadius: 12,
-  borderWidth: 1,
-  borderColor: COLORS.borderLight,
-  marginBottom: 12,
-  paddingHorizontal: 16,
-},
-goalModalInput: {
-  flex: 1,
-  paddingVertical: 14,
-  fontSize: 18,
-  fontWeight: 'bold',
-  color: COLORS.white,
-},
-goalModalCurrency: {
-  fontSize: 16,
-  fontWeight: '600',
-  color: COLORS.muted,
-  marginLeft: 8,
-},
-goalModalHint: {
-  fontSize: 12,
-  color: COLORS.muted,
-  fontStyle: 'italic',
-  textAlign: 'center',
-  marginBottom: 20,
-},
-goalModalButtonsContainer: {
-  flexDirection: 'row',
-  gap: 12,
-},
-goalModalButton: {
-  flex: 1,
-  padding: 14,
-  borderRadius: 12,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-goalModalButtonCancel: {
-  backgroundColor: COLORS.borderLight,
-},
-goalModalButtonPrimary: {
-  backgroundColor: COLORS.primary,
-},
-goalModalButtonText: {
-  fontSize: 16,
-  fontWeight: '600',
-},
-goalModalButtonTextCancel: {
-  color: COLORS.white,
-},
-goalModalButtonTextPrimary: {
-  color: '#FFFFFF',
-},
+  // ---------- Legacy (compat autres usages) ----------
+  dateHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 },
+  historyButton: { flexDirection: "row", alignItems: "center", gap: 2 },
+  historyText: { color: COLORS.muted, fontSize: 12 },
+  mainCard: { backgroundColor: COLORS.card, padding: 20, borderRadius: 20, borderWidth: 1, borderColor: COLORS.borderLight, width: "100%" },
+  secondaryCard: { backgroundColor: COLORS.card, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.borderLight, flex: 1, minWidth: "45%" },
+  scheduleSection: { marginBottom: 70 },
 });

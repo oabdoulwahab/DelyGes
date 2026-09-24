@@ -99,6 +99,7 @@ export type DeliveryCreateDTO = {
   amount_collected?: number;
   amount_to_return?: number;
   profit?: number;
+  notes?: string;
 };
 
 export type DeliveryUpdateDTO = Partial<{
@@ -115,6 +116,7 @@ export type DeliveryUpdateDTO = Partial<{
   amount_to_return: number;
   profit: number;
   needs_sync: number;
+  notes?: string;
 }>;
 
 export type DeliveryFilters = {
