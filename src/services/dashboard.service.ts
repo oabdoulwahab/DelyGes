@@ -120,7 +120,7 @@ export class DashboardService {
          FROM deliveries d
          WHERE d.user_id = ?
          AND d.status = 'LIVREE'
-         AND d.reversed = 0`,
+         AND (d.reversed IS NULL OR d.reversed = 0)`,
         [userIdNum],
       ),
       DatabaseService.getOne<{ daily_goal: number; monthly_goal: number }>(

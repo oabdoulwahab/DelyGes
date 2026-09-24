@@ -552,7 +552,8 @@ export class DeliveryRepository {
     try {
       const result = await DatabaseService.execute(
         `UPDATE deliveries SET reversed = 1, needs_sync = 1
-         WHERE user_id = ? AND status = 'LIVREE' AND reversed != 1
+         WHERE user_id = ? AND status = 'LIVREE'
+         AND (reversed IS NULL OR reversed != 1)
          AND date(delivered_at) >= ? AND date(delivered_at) < ?`,
         [userId, fromDate, toDateExclusive],
       );
@@ -574,7 +575,7 @@ export class DeliveryRepository {
          FROM deliveries d
          WHERE d.user_id = ?
          AND d.status = 'LIVREE'
-         AND d.reversed != 1
+         AND (d.reversed IS NULL OR d.reversed != 1)
          ORDER BY d.delivered_at DESC`,
         [userId],
       );

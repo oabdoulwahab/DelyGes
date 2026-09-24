@@ -4,6 +4,7 @@ import { Delivery } from "../types";
 import { MerchantRepository } from "../repositories/merchant.repository";
 import { DeliveryRepository } from "../repositories/delivery.repository";
 import { Formatters } from "../utils/formatters";
+import { detectCommune } from "../utils/communes";
 
 export type ReportGranularity = "week" | "month" | "year";
 
@@ -79,27 +80,6 @@ export interface PeriodReport {
   };
   closure: MonthClosure | null;
 }
-
-// Communes d'Abidjan reconnues dans les adresses libres
-const COMMUNES = [
-  "Port-Bouët",
-  "Port-Bouet",
-  "Grand-Bassam",
-  "Attécoubé",
-  "Attecoube",
-  "Bingerville",
-  "Treichville",
-  "Koumassi",
-  "Marcory",
-  "Plateau",
-  "Yopougon",
-  "Cocody",
-  "Adjamé",
-  "Adjame",
-  "Abobo",
-  "Anyama",
-  "Songon",
-];
 
 const ZONE_COLORS = ["#00A859", "#5BB8FE", "#FFB95F", "#B9BEC9"];
 
@@ -327,7 +307,7 @@ export class PeriodReportService {
     // Zones chaudes (communes détectées dans les adresses)
     const zoneCount = new Map<string, number>();
     delivered.forEach((d) => {
-      const commune = this.detectCommune(d.address);
+      const commune = detectCommune(d.address);
       zoneCount.set(commune, (zoneCount.get(commune) || 0) + 1);
     });
     const zones: ZoneShare[] = Array.from(zoneCount.entries())
@@ -449,20 +429,6 @@ export class PeriodReportService {
       if (idx >= 0) buckets[idx].value += d.delivery_fee || 0;
     });
     return buckets;
-  }
-
-  private static detectCommune(address?: string): string {
-    const a = (address || "").toLowerCase();
-    for (const commune of COMMUNES) {
-      if (a.includes(commune.toLowerCase())) {
-        // Normaliser les variantes sans accent
-        if (commune === "Port-Bouet") return "Port-Bouët";
-        if (commune === "Attecoube") return "Attécoubé";
-        if (commune === "Adjame") return "Adjamé";
-        return commune;
-      }
-    }
-    return "Autre";
   }
 
   // Clôture mensuelle : fige les reversements + enregistre le certificat

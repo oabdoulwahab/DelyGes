@@ -1,744 +1,821 @@
 import { StyleSheet } from "react-native";
 import { COLORS } from "./colors";
-import { SPACING } from "./spacing";
 
+// Refonte maquette Delygest — Page Reversements Commerçants
+// Fond #F8F9FC, cartes blanches radius prononcé + ombres légères,
+// hero sombre bleu nuit, canaux colorés, jauge vert/rouge.
 export const merchantAccountingStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-
-  // Header
+  // ---------- Header ----------
   header: {
     paddingTop: 48,
-    paddingBottom: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLight,
   },
   headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  backButton: {
-    width: 40,
-    height: 40,
+  brandRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+  brandName: {
     color: COLORS.white,
+    fontSize: 19,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
-
-  // Search
-  searchContainer: {
-    flexDirection: "row",
-    gap: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.md,
+  versionPill: {
+    backgroundColor: COLORS.borderVeryLight,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    paddingHorizontal: SPACING.sm,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  searchIcon: {
-    marginRight: SPACING.xs,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    color: COLORS.white,
-    fontSize: 16,
-  },
-  filterButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    position: "relative",
-  },
-  filterButtonActive: {
-    borderColor: COLORS.primary,
-  },
-  filterIndicator: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.primary,
-  },
-
-  // Date filter
-  dateFilterContainer: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  dateFilterContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.sm,
-    backgroundColor: COLORS.card,
-    padding: SPACING.sm,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.primary + "30",
-  },
-  dateFilterText: {
-    flex: 1,
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-
-  // Tabs
-  tabsContainer: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-    paddingBottom: SPACING.xs,
-  },
-  tabsScroll: {
-    paddingHorizontal: SPACING.md,
-  },
-  tab: {
-    paddingHorizontal: SPACING.sm,
-    paddingVertical: SPACING.xs,
-    marginRight: SPACING.lg,
-    alignItems: "center",
-  },
-  activeTab: {},
-  tabText: {
-    fontSize: 14,
-    fontWeight: "500",
+  versionText: {
     color: COLORS.muted,
-    marginBottom: SPACING.xs,
-  },
-  activeTabText: {
-    color: COLORS.primary,
-    fontWeight: "700",
-  },
-  tabIndicator: {
-    height: 3,
-    width: "100%",
-    backgroundColor: "transparent",
-    borderRadius: 1.5,
-  },
-  activeTabIndicator: {
-    backgroundColor: COLORS.primary,
-  },
-
-  // Global summary
-  globalSummary: {
-    flexDirection: "row",
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-    gap: SPACING.xs,
-  },
-  globalCard: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    padding: SPACING.xs,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-  },
-  globalLabel: {
     fontSize: 10,
-    color: COLORS.muted,
-    marginBottom: 2,
+    fontWeight: "700",
+    letterSpacing: 0.4,
   },
-  globalValue: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: COLORS.white,
+  headerActions: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  syncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: COLORS.successSoft,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  syncDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.primary,
+  },
+  syncText: {
+    color: COLORS.successText,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  notificationButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notifBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: COLORS.danger,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  notifBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "800",
+    lineHeight: 12,
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(0,168,89,0.2)",
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
   },
 
-  // Scroll
+  // ---------- Scroll ----------
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING.md,
-    paddingBottom: 120,
+    paddingBottom: 130,
+    gap: 14,
   },
 
-  // Merchant card
-  merchantCard: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    marginBottom: SPACING.md,
-    borderWidth: 1,
-    borderColor: COLORS.borderLight,
-    overflow: "hidden",
+  // ---------- Titre section ----------
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
-  merchantCardClosed: {
-    borderColor: COLORS.success + "30",
-    opacity: 0.8,
+  pageTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: COLORS.white,
+    letterSpacing: -0.2,
   },
-  merchantHeader: {
+  pageSubtitle: {
     flexDirection: "row",
     alignItems: "center",
-    padding: SPACING.md,
+    gap: 4,
+    fontSize: 12,
+    color: COLORS.muted,
+    fontWeight: "500",
+    marginTop: 3,
+  },
+  securePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#E2E7FF",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  secureText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.infoText,
+  },
+
+  // ---------- Hero sombre ----------
+  heroCard: {
+    borderRadius: 20,
+    padding: 18,
+    marginHorizontal: 16,
+    backgroundColor: "#1F2A44",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 5,
+    gap: 10,
+    overflow: "hidden",
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  heroLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: "#9FF5C1",
+    flex: 1,
+    minWidth: 0,
+  },
+  heroCountPill: {
+    backgroundColor: "rgba(159,245,193,0.18)",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  heroCountText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#9FF5C1",
+  },
+  heroAmountRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 8,
+  },
+  heroAmount: {
+    fontSize: 33,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.8,
+  },
+  heroCurrency: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#9FF5C1",
+  },
+  heroInner: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 14,
+    padding: 12,
+  },
+  heroInnerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  heroInnerLabel: {
+    fontSize: 12,
+    color: "#D8DEE9",
+    fontWeight: "500",
+    flexShrink: 1,
+  },
+  heroInnerValue: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    flexShrink: 0,
+  },
+
+  // ---------- Tabs ----------
+  tabsRow: {
+    flexDirection: "row",
+    backgroundColor: "#EEF1F6",
+    borderRadius: 14,
+    padding: 4,
+    gap: 4,
+    marginHorizontal: 16,
+  },
+  tab: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  tabActive: {
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: COLORS.muted,
+  },
+  tabTextActive: {
+    color: COLORS.white,
+    fontWeight: "800",
+  },
+  tabCount: {
+    fontSize: 10,
+    fontWeight: "800",
+    backgroundColor: COLORS.successSoft,
+    color: COLORS.successText,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 999,
+    overflow: "hidden",
+  },
+
+  // ---------- Carte blanche ----------
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 16,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    gap: 12,
+  },
+
+  // ---------- Focus marchand ----------
+  merchantHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  merchantLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    flex: 1,
+    minWidth: 0,
   },
   merchantAvatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primarySoft,
+    borderRadius: 14,
+    backgroundColor: "#FFDDB8",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: SPACING.sm,
+    flexShrink: 0,
   },
-  merchantInitial: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  merchantInfo: {
-    flex: 1,
-  },
-  merchantNameContainer: {
+  merchantNameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
-    marginBottom: SPACING.xs,
+    gap: 5,
   },
   merchantName: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: COLORS.white,
+    flexShrink: 1,
   },
-  closedBadge: {
+  merchantSub: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
-    backgroundColor: COLORS.success + "20",
-    paddingHorizontal: SPACING.xs,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  closedBadgeText: {
-    fontSize: 10,
-    color: COLORS.success,
-    fontWeight: "600",
-  },
-  merchantContact: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.xs,
-    marginBottom: 2,
-  },
-  merchantContactText: {
+    gap: 5,
     fontSize: 12,
     color: COLORS.muted,
-    flex: 1,
+    fontWeight: "500",
+    marginTop: 3,
   },
-  deliveryCount: {
+  merchantDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: COLORS.primary,
+  },
+  collectedBox: {
     alignItems: "flex-end",
-    marginRight: SPACING.xs,
+    flexShrink: 0,
   },
-  deliveryCountNumber: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  deliveryCountLabel: {
-    fontSize: 10,
-    color: COLORS.muted,
-  },
-
-  // Expanded content
-  expandedContent: {
-    padding: SPACING.md,
-    paddingTop: 0,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  financialSection: {
-    backgroundColor: COLORS.card,
-    padding: SPACING.sm,
-    borderRadius: 12,
-    marginBottom: SPACING.md,
-  },
-  financialRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: SPACING.xs,
-  },
-  financialLabel: {
-    fontSize: 13,
-    color: COLORS.muted,
-  },
-  financialValue: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: COLORS.white,
-  },
-
-  // Recent deliveries
-  recentDeliveries: {
-    marginBottom: SPACING.md,
-  },
-  recentDeliveriesTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.muted,
+  collectedLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    letterSpacing: 0.6,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: SPACING.xs,
-  },
-  deliveryPreview: {
-    backgroundColor: COLORS.card,
-    padding: SPACING.sm,
-    borderRadius: 12,
-    marginBottom: SPACING.xs,
-  },
-  deliveryPreviewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: SPACING.xs,
-  },
-  deliveryPreviewName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.white,
-  },
-  deliveryPreviewDate: {
-    fontSize: 11,
     color: COLORS.muted,
   },
-  deliveryPreviewAddress: {
+  collectedValue: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.primary,
+    marginTop: 2,
+  },
+  dueLine: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#FFFBEB",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  dueLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#92400E",
+  },
+  dueValue: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#92400E",
+  },
+
+  // ---------- Bloc versement ----------
+  payBox: {
+    backgroundColor: "#F6F8FB",
+    borderRadius: 16,
+    padding: 14,
+    gap: 12,
+  },
+  payHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  payTitle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  partialPill: {
+    backgroundColor: "#E2E7FF",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  partialText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: COLORS.infoText,
+  },
+  fieldLabel: {
     fontSize: 12,
     color: COLORS.muted,
-    marginBottom: SPACING.xs,
-  },
-  deliveryPreviewFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  deliveryPreviewFee: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  reversedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.xs,
-  },
-  reversedBadgeText: {
-    fontSize: 11,
-    color: COLORS.success,
-  },
-  moreDeliveries: {
-    fontSize: 11,
-    color: COLORS.muted,
-    textAlign: "center",
-    marginTop: SPACING.xs,
-  },
-
-  // Close button
-  closeButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: SPACING.sm,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: SPACING.xs,
-  },
-  closeButtonText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-  },
-
-  // Empty state
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginTop: SPACING.md,
-  },
-  emptyStateText: {
-    fontSize: 14,
-    color: COLORS.muted,
-    textAlign: "center",
-    marginTop: SPACING.xs,
-    paddingHorizontal: 32,
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: COLORS.card,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
-    maxHeight: "90%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: SPACING.lg,
-  },
-  modalCloseButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.white,
-    textAlign: "center",
-    flex: 1,
-  },
-  modalResetButton: {
-    width: 40,
-    alignItems: "flex-end",
-  },
-  modalResetText: {
-    color: COLORS.primary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalScrollView: {
-    paddingHorizontal: 20,
-    maxHeight: 500,
-  },
-  modalSection: {
-    marginBottom: 32,
-  },
-  modalSectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.white,
-    marginBottom: SPACING.md,
-  },
-
-  // Period buttons
-  periodButtonsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: SPACING.sm,
-    marginBottom: 20,
-  },
-  periodButton: {
-    height: 40,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  periodButtonActive: {
-    backgroundColor: COLORS.primary,
-  },
-  periodButtonCustom: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING.xs,
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-  },
-  periodButtonCustomActive: {
-    backgroundColor: COLORS.primarySoft,
-    borderWidth: 2,
-  },
-  periodButtonText: {
-    fontSize: 14,
     fontWeight: "500",
-    color: COLORS.muted,
   },
-  periodButtonTextActive: {
-    color: COLORS.background,
-    fontWeight: "bold",
-  },
-  periodButtonCustomText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: COLORS.primary,
-  },
-
-  // Calendar
-  calendarContainer: {
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: SPACING.md,
+  amountBox: {
+    height: 50,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
-  calendarHeader: {
+  amountBoxError: {
+    borderColor: COLORS.danger,
+    backgroundColor: COLORS.dangerSoft,
+  },
+  amountInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 17,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  amountSuffix: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.muted,
+    flexShrink: 0,
+  },
+  gaugeBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+  },
+  gaugeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.md,
+    gap: 8,
   },
-  calendarTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  weekDaysContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: SPACING.sm,
-  },
-  weekDayText: {
-    fontSize: 10,
-    fontWeight: "bold",
+  gaugeText: {
+    fontSize: 12,
     color: COLORS.muted,
-    width: 32,
-    textAlign: "center",
+    fontWeight: "500",
   },
-  datesContainer: {
+  gaugeStrongGreen: {
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  gaugeStrongRed: {
+    fontWeight: "800",
+    color: COLORS.danger,
+  },
+  gaugeTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: "#FBD5D5",
+    overflow: "hidden",
+    flexDirection: "row",
+  },
+  gaugeFill: {
+    height: "100%",
+    backgroundColor: COLORS.primaryDark,
+    borderTopLeftRadius: 999,
+    borderBottomLeftRadius: 999,
+  },
+  gaugeScale: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  gaugeScaleText: {
+    fontSize: 10,
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+  channelGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "flex-start",
+    gap: 8,
   },
-  calendarDay: {
-    width: 32,
-    height: 32,
+  channelButton: {
+    flex: 1,
+    minWidth: "46%",
+    minHeight: 50,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: COLORS.borderLight,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    margin: 2,
-    borderRadius: 16,
-    position: "relative",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    gap: 6,
   },
-  calendarDayToday: {
-    borderWidth: 1,
+  channelButtonActive: {
     borderColor: COLORS.primary,
+    backgroundColor: "#EAF6EF",
   },
-  calendarDaySelected: {
-    backgroundColor: COLORS.primary,
-  },
-  calendarDayHasDeliveries: {
-    backgroundColor: COLORS.primarySoft,
-  },
-  calendarDayInactive: {
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    margin: 2,
-  },
-  calendarDayText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: COLORS.white,
-  },
-  calendarDayTextToday: {
-    color: COLORS.primary,
-    fontWeight: "bold",
-  },
-  calendarDayTextSelected: {
-    color: COLORS.background,
-    fontWeight: "bold",
-  },
-  calendarDayTextInactive: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
-  deliveryIndicator: {
-    position: "absolute",
-    bottom: 2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.primary,
-  },
-  selectedDateInfo: {
-    marginTop: SPACING.md,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderVeryLight,
-  },
-  selectedDateText: {
-    fontSize: 12,
-    color: COLORS.primary,
-    textAlign: "center",
-    fontWeight: "500",
-  },
-
-  // Modal actions
-  modalActions: {
+  channelLeft: {
     flexDirection: "row",
-    gap: SPACING.sm,
-    padding: 20,
-    paddingTop: 0,
-    marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-  },
-  resetButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: COLORS.card,
     alignItems: "center",
-    justifyContent: "center",
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
   },
-  resetButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
+  channelDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    flexShrink: 0,
+  },
+  channelLabel: {
+    fontSize: 13,
+    fontWeight: "700",
     color: COLORS.white,
+    flexShrink: 1,
   },
-  applyButton: {
-    flex: 2,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  applyButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.background,
-  },
-
-  modeSwitchContainer: {
+  refBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     flexDirection: "row",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-    backgroundColor: COLORS.background,
+    alignItems: "center",
+    gap: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    minHeight: 48,
   },
-  modeButton: {
+  refInput: {
     flex: 1,
+    minWidth: 0,
+    fontSize: 13,
+    color: COLORS.white,
+    paddingVertical: 10,
+  },
+  confirmButton: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: COLORS.primaryDark,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    paddingVertical: 10,
+    shadowColor: "#0F6841",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  confirmButtonDisabled: {
+    opacity: 0.55,
+  },
+  confirmText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#FFFFFF",
+  },
+  settleAllButton: {
+    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  settleAllText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  errorText: {
+    fontSize: 12,
+    color: COLORS.danger,
+    fontStyle: "italic",
+  },
+
+  // ---------- Autres commerçants ----------
+  sectionHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  sectionCount: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.muted,
+  },
+  otherCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 14,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  otherLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    flex: 1,
+    minWidth: 0,
+  },
+  otherAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  otherRight: {
+    alignItems: "flex-end",
+    gap: 6,
+    flexShrink: 0,
+  },
+  otherAmount: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+  reverseButton: {
+    height: 34,
+    paddingHorizontal: 13,
+    borderRadius: 10,
+    backgroundColor: "#E2E7FF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  reverseButtonText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  reverseButtonActive: {
+    backgroundColor: COLORS.primaryDark,
+  },
+  reverseButtonTextActive: {
+    color: "#FFFFFF",
+  },
+
+  // ---------- Partager ----------
+  shareButton: {
+    height: 50,
+    marginHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.borderLight,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  shareButtonText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  // ---------- Historique ----------
+  historyRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F6F8FB",
+    borderRadius: 14,
+    padding: 12,
+  },
+  historyChannel: {
+    width: 38,
+    height: 38,
     borderRadius: 12,
-    backgroundColor: COLORS.card,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  // ---------- Cartes dépliables ----------
+  expandChevron: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: COLORS.background,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  expandedBox: {
+    backgroundColor: "#F6F8FB",
+    borderRadius: 14,
+    padding: 10,
+    gap: 8,
+  },
+  expandedTitle: {
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    color: COLORS.muted,
+  },
+  miniDeliveryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 10,
     borderWidth: 1,
     borderColor: COLORS.borderLight,
   },
-  modeButtonActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
+  miniDeliveryName: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
   },
-  modeButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
+  miniDeliverySub: {
+    fontSize: 11,
     color: COLORS.muted,
+    fontWeight: "500",
+    marginTop: 2,
   },
-  modeButtonTextActive: {
-    color: COLORS.background,
+  miniDeliveryAmount: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.primaryDark,
+    flexShrink: 0,
   },
-  monthCard: {
-    marginBottom: 16,
+  financeLine: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  financeLabel: {
+    fontSize: 12,
+    color: COLORS.muted,
+    fontWeight: "500",
+  },
+  financeValue: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: COLORS.white,
+  },
+
+  // ---------- État vide ----------
+  emptyCard: {
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    backgroundColor: COLORS.card,
+    padding: 26,
+    marginHorizontal: 16,
+    alignItems: "center",
     borderWidth: 1,
     borderColor: COLORS.borderLight,
-    overflow: "hidden",
   },
-  monthHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-    backgroundColor: COLORS.card,
-  },
-  monthHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  monthName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  monthStats: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  monthTotalEncaisse: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.primary,
-  },
-  monthDetails: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    padding: 12,
-  },
-  monthSummary: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingBottom: 12,
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
-  },
-  monthSummaryItem: {
-    alignItems: "center",
-  },
-  monthSummaryLabel: {
-    fontSize: 12,
+  emptyText: {
     color: COLORS.muted,
-    marginBottom: 4,
+    textAlign: "center",
+    fontSize: 13,
+    marginTop: 10,
+    lineHeight: 18,
   },
-  monthSummaryValue: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.white,
-  },
-  merchantStats: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  merchantStatText: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
-  merchantStatAmount: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: COLORS.primary,
-  },
-  merchantDetails: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
-    padding: 12,
+
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
 });

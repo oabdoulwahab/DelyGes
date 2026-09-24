@@ -19,6 +19,7 @@ import {
 import { addFirebaseColumns } from "../src/database/migrations/add_firebase_columns";
 import { addSyncQueueTable } from "../src/database/migrations/add_sync_queue";
 import { addMonthClosuresTable } from "../src/database/migrations/add_month_closures";
+import { addSettlementChannels } from "../src/database/migrations/add_settlement_channels";
 import { fixUserPhoneUnique } from "../src/database/migrations/fix_user_phone_unique";
 
 // 🔥 Écran de chargement avec timeout
@@ -137,6 +138,7 @@ export default function Layout() {
         await addFirebaseColumns();
         await addSyncQueueTable();
         await addMonthClosuresTable();
+        await addSettlementChannels();
         await fixUserPhoneUnique();
         
         setDbReady(true);

@@ -100,39 +100,31 @@ export const TUTORIALS: Tutorial[] = [
   {
     id: "merchant-accounting",
     screen: "merchant-accounting",
-    title: "Comptabilité des commerçants",
+    title: "Reversements commerçants",
     steps: [
       {
-        title: "Vue par mois",
+        title: "Versements en cours",
         description:
-          "Consultez le récapitulatif mensuel : total encaissé, montants à reverser, profit et nombre de livraisons par mois.",
-        icon: "calendar-month",
+          "Sélectionnez un commerçant, saisissez le montant versé, choisissez le canal (Wave, Orange, MTN, Espèces) et confirmez avec une référence.",
+        icon: "payments",
         position: "top",
-        targetId: "tab-monthly",
+        targetId: "tab-pending",
       },
       {
         title: "Vue par commerçant",
         description:
-          "Basculez sur la vue par commerçant pour voir le détail des livraisons et des montants pour chaque commerçant.",
+          "Basculez sur la vue par commerçant pour voir le solde de chacun et solder les comptes un par un.",
         icon: "store",
         position: "center",
         targetId: "tab-merchant",
       },
       {
-        title: "Reversements en attente",
+        title: "Historique des versements",
         description:
-          "La vue 'En attente' affiche les commerçants dont les reversements n'ont pas encore été effectués. Marquez-les comme reversés une fois le paiement fait.",
-        icon: "pending-actions",
+          "L'historique conserve chaque versement avec son canal et sa référence. Partagez les reçus via WhatsApp.",
+        icon: "history",
         position: "center",
-        targetId: "tab-pending",
-      },
-      {
-        title: "Filtres et recherche",
-        description:
-          "Utilisez la recherche et les filtres de date pour retrouver rapidement des livraisons spécifiques sur une période donnée.",
-        icon: "filter-list",
-        position: "bottom",
-        targetId: "input-search",
+        targetId: "tab-monthly",
       },
     ],
   },
