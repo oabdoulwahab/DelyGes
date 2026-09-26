@@ -25,6 +25,7 @@ import {
   ReportGranularity,
 } from "../src/services/period-report.service";
 import { Formatters } from "../src/utils/formatters";
+import ProfileAvatar from "../components/ProfileAvatar";
 
 const TABS: { key: ReportGranularity; label: string }[] = [
   { key: "week", label: "Semaine" },
@@ -272,11 +273,10 @@ export default function Stats() {
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              style={statsStyles.avatar}
               onPress={() => router.push("/settings")}
               accessibilityLabel="Profil"
             >
-              <Text style={statsStyles.avatarText}>{userInitial}</Text>
+              <ProfileAvatar size={32} initial={userInitial} />
             </TouchableOpacity>
           </View>
         </View>

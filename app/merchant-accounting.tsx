@@ -30,6 +30,7 @@ import { useTutorial } from "../src/hooks/useTutorial";
 import TutorialOverlay from "../components/TutorialOverlay";
 import { TutorialProvider } from "../src/context/TutorialContext";
 import TutorialTarget from "../components/TutorialTarget";
+import ProfileAvatar from "../components/ProfileAvatar";
 import TutorialScrollRegistrar from "../components/TutorialScrollRegistrar";
 
 type ViewMode = "pending" | "merchants" | "history";
@@ -641,11 +642,10 @@ export default function MerchantAccounting() {
                 )}
               </TouchableOpacity>
               <TouchableOpacity
-                style={merchantAccountingStyles.avatar}
                 onPress={() => router.push("/settings")}
                 accessibilityLabel="Profil"
               >
-                <Text style={merchantAccountingStyles.avatarText}>{userInitial}</Text>
+                <ProfileAvatar size={32} initial={userInitial} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={tutorialShow}

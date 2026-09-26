@@ -20,6 +20,8 @@ import { addFirebaseColumns } from "../src/database/migrations/add_firebase_colu
 import { addSyncQueueTable } from "../src/database/migrations/add_sync_queue";
 import { addMonthClosuresTable } from "../src/database/migrations/add_month_closures";
 import { addSettlementChannels } from "../src/database/migrations/add_settlement_channels";
+import { addProfilePayout } from "../src/database/migrations/add_profile_payout";
+import { addUserPhoto } from "../src/database/migrations/add_user_photo";
 import { fixUserPhoneUnique } from "../src/database/migrations/fix_user_phone_unique";
 
 // 🔥 Écran de chargement avec timeout
@@ -139,6 +141,8 @@ export default function Layout() {
         await addSyncQueueTable();
         await addMonthClosuresTable();
         await addSettlementChannels();
+        await addProfilePayout();
+        await addUserPhoto();
         await fixUserPhoneUnique();
         
         setDbReady(true);

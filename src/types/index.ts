@@ -18,6 +18,11 @@ export type User = {
   delivery_created_notifications?: number;
   daily_summary_notifications?: number;
   daily_goal_notifications?: number;
+  payout_wave?: string | null;
+  payout_orange?: string | null;
+  payout_mtn?: string | null;
+  payout_primary?: string | null;
+  photo_uri?: string | null;
   terms_accepted_at?: string | null;
   privacy_accepted_at?: string | null;
   terms_version?: string | null;

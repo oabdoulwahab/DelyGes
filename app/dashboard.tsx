@@ -40,6 +40,7 @@ import { useTutorial } from "../src/hooks/useTutorial";
 import TutorialOverlay from "../components/TutorialOverlay";
 import { TutorialProvider, useTutorialContext } from "../src/context/TutorialContext";
 import TutorialTarget from "../components/TutorialTarget";
+import ProfileAvatar from "../components/ProfileAvatar";
 
 interface DashboardState {
   todayEarnings: number;
@@ -831,14 +832,10 @@ function DashboardContent() {
               )}
             </TouchableOpacity>
             <TouchableOpacity
-              style={[
-                dashboardStyles.profileImage,
-                { backgroundColor: getAvatarColor(data.userInitial) },
-              ]}
               onPress={() => router.push("/settings")}
               accessibilityLabel="Profil"
             >
-              <Text style={dashboardStyles.profileInitial}>{data.userInitial}</Text>
+              <ProfileAvatar size={34} initial={data.userInitial} />
             </TouchableOpacity>
           </View>
         </View>

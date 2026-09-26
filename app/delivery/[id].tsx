@@ -6,13 +6,15 @@ import {
   ScrollView,
   StatusBar,
   Linking,
-  Platform,
+  Modal,
+  TextInput,
+  Share,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
-import { BlurView } from "expo-blur";
-import { commonStyles } from "../../styles/common";
+import NetInfo from "@react-native-community/netinfo";
+import * as Clipboard from "expo-clipboard";
 import { deliveryDetailStyles } from "../../styles/deliveryDetailStyles";
 import { COLORS } from "../../styles/colors";
 import { useNavigation } from "../../hooks/useNavigation";
@@ -25,79 +27,145 @@ import { DeliveryRepository } from "../../src/repositories/delivery.repository";
 import { MerchantRepository } from "../../src/repositories/merchant.repository";
 import { DeliveryService } from "../../src/services/delivery.service";
 import { Formatters } from "../../src/utils/formatters";
+import ProfileAvatar from "../../components/ProfileAvatar";
+import { detectCommune } from "../../src/utils/communes";
 import { Delivery, Merchant } from "../../src/types";
+
+const ISSUE_MOTIFS = [
+  "Client injoignable (après 3 appels)",
+  "Client absent au portail",
+  "Refus client ou contestation du prix",
+  "Adresse introuvable / Erreur quartier",
+];
+
+function merchantInitials(name: string): string {
+  const parts = (name || "").split(/\s+/).filter(Boolean).slice(0, 2);
+  if (parts.length === 0) return "DL";
+  return parts.map((w) => w.charAt(0)).join("").toUpperCase() || "DL";
+}
+
+function formatHour(iso?: string): string {
+  if (!iso) return "--:--";
+  try {
+    return new Date(iso).toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "--:--";
+  }
+}
+
+function isToday(iso?: string): boolean {
+  if (!iso) return false;
+  try {
+    return new Date(iso).toDateString() === new Date().toDateString();
+  } catch {
+    return false;
+  }
+}
+
+// Encaissement attendu selon le mode (mêmes formules que la création)
+function expectedCollect(d: Delivery): number {
+  switch (d.payment_type) {
+    case "CLIENT_PAYE_TOUT":
+      return (d.parcel_value ?? 0) + d.delivery_fee;
+    case "CLIENT_PAYE_LIVRAISON":
+      return d.delivery_fee;
+    case "LIVRAISON_DEJA_PAYEE":
+      return d.parcel_value ?? 0;
+    case "COLIS_DEJA_PAYE":
+      return 0;
+    default:
+      return d.amount_collected ?? d.delivery_fee;
+  }
+}
 
 export default function DeliveryDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [merchant, setMerchant] = useState<Merchant | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false); // 🔥 Nouvel état pour la suppression
-  const { showConfirm, showSuccess, showError, showAlert } = useModal();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDelivering, setIsDelivering] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  // Bottom sheets
+  const [showCashSheet, setShowCashSheet] = useState(false);
+  const [showGpsSheet, setShowGpsSheet] = useState(false);
+  const [showIssueSheet, setShowIssueSheet] = useState(false);
+  const [issueNote, setIssueNote] = useState("");
+
+  const { showConfirm, showSuccess, showError } = useModal();
   const { goBack, goToDeliveries } = useNavigation();
   const { user } = useAuth();
   const { markAndSync } = useSync();
 
   useEffect(() => {
-    const loadDelivery = async () => {
-      try {
-        const deliveryResult = await DeliveryRepository.findById(Number(id));
-        setDelivery(deliveryResult ?? null);
+    const unsub = NetInfo.addEventListener((state) => {
+      setIsConnected(state.isConnected ?? true);
+    });
+    NetInfo.fetch().then((s) => setIsConnected(s.isConnected ?? true));
+    return () => unsub();
+  }, []);
 
-        if (deliveryResult?.merchant_id) {
-          const merchantResult = await MerchantRepository.findById(
-            deliveryResult.merchant_id,
-          );
-          setMerchant(merchantResult ?? null);
-        }
-      } catch (error) {
-        console.error("Erreur chargement livraison:", error);
-      } finally {
-        setLoading(false);
+  const reload = async () => {
+    try {
+      const deliveryResult = await DeliveryRepository.findById(Number(id));
+      setDelivery(deliveryResult ?? null);
+      if (deliveryResult?.merchant_id) {
+        const merchantResult = await MerchantRepository.findById(
+          deliveryResult.merchant_id,
+        );
+        setMerchant(merchantResult ?? null);
+      } else {
+        setMerchant(null);
       }
-    };
-
-    loadDelivery();
-  }, [id]);
-
-  const handleMarkAsDelivered = () => {
-    showConfirm(
-      "Marquer comme livrée",
-      "Confirmez-vous que cette livraison a été effectuée ?",
-      async () => {
-        setIsUpdating(true);
-        try {
-          await DeliveryService.markAsDelivered(user!.id, Number(id));
-          await markAndSync("deliveries", Number(id));
-
-          if (user?.id && delivery) {
-            await sendDeliveryCompletedNotification(
-              user.id,
-              delivery.delivery_fee,
-            ).catch(e => console.log("⚠️ Notification error:", e));
-          }
-
-          const updatedDelivery = await DeliveryRepository.findById(Number(id));
-          setDelivery(updatedDelivery);
-
-          showSuccess("Succès", "Livraison marquée comme livrée");
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour:", error);
-          showError(
-            "Erreur",
-            "Impossible de marquer la livraison comme livrée",
-          );
-        } finally {
-          setIsUpdating(false);
-        }
-      },
-      "Oui",
-      "Non",
-    );
+    } catch (error) {
+      console.error("Erreur chargement livraison:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 🔥 MODIFIÉ : Suppression avec synchronisation Firebase
+  useEffect(() => {
+    reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const courierName = useMemo(
+    () => (user?.name || "Livreur").split(" ")[0],
+    [user?.name],
+  );
+  const userInitial = useMemo(() => {
+    const n = user?.name || "?";
+    return n.trim().charAt(0).toUpperCase() || "?";
+  }, [user?.name]);
+
+  // ---------- Actions métier (conservées) ----------
+  const handleMarkAsDelivered = async () => {
+    setIsDelivering(true);
+    try {
+      await DeliveryService.markAsDelivered(user!.id, Number(id));
+      await markAndSync("deliveries", Number(id));
+      if (user?.id && delivery) {
+        await sendDeliveryCompletedNotification(user.id, delivery.delivery_fee).catch(
+          (e) => console.log("⚠️ Notification error:", e),
+        );
+      }
+      await reload();
+      setShowCashSheet(false);
+      showSuccess("Succès", "Course validée & encaissée ✅");
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour:", error);
+      showError("Erreur", "Impossible de marquer la livraison comme livrée");
+    } finally {
+      setIsDelivering(false);
+    }
+  };
+
   const handleDelete = () => {
     showConfirm(
       "Supprimer la livraison",
@@ -106,24 +174,17 @@ export default function DeliveryDetail() {
         setIsDeleting(true);
         try {
           const deliveryToDelete = await DeliveryRepository.findById(Number(id));
-
-          console.log("🗑️ Suppression livraison:", {
-            localId: id,
-            firebaseId: deliveryToDelete?.firebase_id,
-          });
-
           if (deliveryToDelete?.firebase_id) {
             try {
-              await syncService.deleteFromFirebase("deliveries", deliveryToDelete.firebase_id);
-              console.log("✅ Livraison supprimée de Firebase");
+              await syncService.deleteFromFirebase(
+                "deliveries",
+                deliveryToDelete.firebase_id,
+              );
             } catch (firebaseError) {
               console.error("⚠️ Erreur suppression Firebase:", firebaseError);
             }
           }
-
           await DeliveryRepository.delete(Number(id));
-          console.log("✅ Livraison supprimée localement");
-
           showSuccess("Succès", "Livraison supprimée");
           goToDeliveries();
         } catch (error) {
@@ -138,125 +199,71 @@ export default function DeliveryDetail() {
     );
   };
 
-  const formatPhoneForCall = (phone: string): string => {
-    return phone;
+  const handleReportIssue = async (motif: string) => {
+    if (!user) return;
+    const note = issueNote.trim() ? `${motif} — ${issueNote.trim()}` : motif;
+    setIsCancelling(true);
+    try {
+      await DeliveryRepository.update(Number(id), {
+        notes: note,
+        needs_sync: 1,
+      });
+      await DeliveryService.cancelDelivery(user.id, Number(id));
+      await markAndSync("deliveries", Number(id));
+      setShowIssueSheet(false);
+      setIssueNote("");
+      await reload();
+      showSuccess("Signalement enregistré", `Motif : ${motif}`);
+    } catch (error) {
+      console.error("❌ Erreur signalement:", error);
+      showError("Erreur", "Impossible d'enregistrer le signalement");
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
-  const handleCall = () => {
-    if (!delivery?.phone) {
-      showError("Erreur", "Aucun numéro de téléphone disponible");
+  const directCall = (phone?: string | null, label?: string) => {
+    if (!phone) {
+      showError("Erreur", `Aucun numéro disponible${label ? ` pour ${label}` : ""}`);
       return;
     }
-
-    const phoneNumber = formatPhoneForCall(delivery.phone);
-
-    showConfirm(
-      "Appeler le client",
-      `Voulez-vous appeler ${delivery.recipient_name} au ${delivery.phone} ?`,
-      async () => {
-        try {
-          const url = `tel:${phoneNumber}`;
-
-          if (Platform.OS === "android") {
-            await Linking.openURL(url);
-          } else {
-            const supported = await Linking.canOpenURL(url);
-            if (supported) {
-              await Linking.openURL(url);
-            } else {
-              showError("Erreur", "Appel non supporté sur cet appareil");
-            }
-          }
-        } catch (error) {
-          console.error("Erreur appel :", error);
-          showError("Erreur", "Impossible de lancer l'appel téléphonique");
-        }
-      },
+    Linking.openURL(`tel:${phone.replace(/\s/g, "")}`).catch(() =>
+      showError("Erreur", "Impossible de lancer l'appel téléphonique"),
     );
   };
 
-  const handleCallMerchant = () => {
-    if (!merchant?.phone) {
-      showError(
-        "Erreur",
-        "Aucun numéro de téléphone disponible pour ce commerçant",
-      );
-      return;
-    }
-
-    const phoneNumber = formatPhoneForCall(merchant.phone);
-
-    showConfirm(
-      "Appeler le commerçant",
-      `Voulez-vous appeler ${merchant.name} au ${merchant.phone} ?`,
-      async () => {
-        try {
-          const url = `tel:${phoneNumber}`;
-
-          if (Platform.OS === "android") {
-            await Linking.openURL(url);
-          } else {
-            const supported = await Linking.canOpenURL(url);
-            if (supported) {
-              await Linking.openURL(url);
-            } else {
-              showError("Erreur", "Appel non supporté sur cet appareil");
-            }
-          }
-        } catch (error) {
-          console.error("Erreur appel :", error);
-          showError("Erreur", "Impossible de lancer l'appel téléphonique");
-        }
-      },
+  const openGps = (provider: "google" | "waze") => {
+    const q = encodeURIComponent(delivery?.address || "Abidjan");
+    const url =
+      provider === "google"
+        ? `https://www.google.com/maps/dir/?api=1&destination=${q}`
+        : `https://waze.com/ul?q=${q}`;
+    setShowGpsSheet(false);
+    Linking.openURL(url).catch(() =>
+      showError("Erreur", "Impossible d'ouvrir le GPS"),
     );
   };
 
-  const formatDate = (dateString: string) => {
-    return Formatters.formatDate(dateString, "d MMMM yyyy");
+  const copyAddress = async () => {
+    if (!delivery) return;
+    try {
+      await Clipboard.setStringAsync(delivery.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showError("Erreur", "Copie impossible sur cet appareil");
+    }
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("fr-FR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case "LIVREE":
-        return {
-          text: "Terminée",
-          backgroundColor: COLORS.successSoft,
-          borderColor: COLORS.success,
-          textColor: COLORS.success,
-          isClickable: false,
-        };
-      case "A_LIVRER":
-        return {
-          text: "À livrer",
-          backgroundColor: COLORS.warningSoft,
-          borderColor: COLORS.warning,
-          textColor: COLORS.warning,
-          isClickable: true,
-        };
-      case "ANNULEE":
-        return {
-          text: "Annulée",
-          backgroundColor: COLORS.dangerSoft,
-          borderColor: COLORS.danger,
-          textColor: COLORS.danger,
-          isClickable: false,
-        };
-      default:
-        return {
-          text: "Inconnu",
-          backgroundColor: "#6b728020",
-          borderColor: "#6b728030",
-          textColor: "#6b7280",
-          isClickable: false,
-        };
+  const shareAddress = async () => {
+    if (!delivery) return;
+    try {
+      await Share.share({
+        message: `📍 Livraison ${delivery.recipient_name} : ${delivery.address}`,
+        title: "Position de livraison",
+      });
+    } catch {
+      /* partage annulé */
     }
   };
 
@@ -273,9 +280,7 @@ export default function DeliveryDetail() {
     return (
       <View style={deliveryDetailStyles.errorContainer}>
         <MaterialIcons name="error-outline" size={48} color={COLORS.danger} />
-        <Text style={deliveryDetailStyles.errorText}>
-          Livraison introuvable
-        </Text>
+        <Text style={deliveryDetailStyles.errorText}>Livraison introuvable</Text>
         <TouchableOpacity
           style={deliveryDetailStyles.backButton}
           onPress={goBack}
@@ -286,496 +291,762 @@ export default function DeliveryDetail() {
     );
   }
 
-  const statusConfig = getStatusConfig(delivery.status);
+  const merchantName = merchant?.name || "Particulier";
+  const orderRef = `#${merchantInitials(merchantName)}-${delivery.id}`;
+  const commune = detectCommune(delivery.address);
+  const street = (delivery.address || "").split(",")[0]?.trim() || delivery.address;
   const isDelivered = delivery.status === "LIVREE";
   const isCancelled = delivery.status === "ANNULEE";
   const isEditable = !isDelivered && !isCancelled;
 
-  const displayDate =
-    isDelivered && delivery.delivered_at
-      ? delivery.delivered_at
-      : delivery.created_at;
-  const isClientPaysTout = delivery.payment_type === "CLIENT_PAYE_TOUT";
-  const isClientPaysLivraison =
-    delivery.payment_type === "CLIENT_PAYE_LIVRAISON";
-  const isColisDejaPaye = delivery.payment_type === "COLIS_DEJA_PAYE";
+  const collect = expectedCollect(delivery);
+  const gain = typeof delivery.profit === "number" ? delivery.profit : delivery.delivery_fee;
+  const toReverse = delivery.amount_to_return ?? 0;
 
-  const montantEncaisse =
-    delivery.delivery_fee + (isClientPaysTout ? (delivery.parcel_value ?? 0) : 0);
+  const statusStyle =
+    delivery.status === "A_LIVRER"
+      ? { bg: "#FEF3C7", fg: "#92400E", dot: "#B45309", label: "À livrer" }
+      : isDelivered
+        ? { bg: "#D1FAE5", fg: "#065F46", dot: "#059669", label: "Livrée" }
+        : { bg: "#FDE2E2", fg: "#B91C1C", dot: "#B91C1C", label: "Annulée" };
 
-  const montantAReverser = isClientPaysTout ? (delivery.parcel_value ?? 0) : 0;
+  const payBadge =
+    delivery.payment_type === "CLIENT_PAYE_TOUT"
+      ? "Espèces au client"
+      : delivery.payment_type === "CLIENT_PAYE_LIVRAISON"
+        ? "Frais seuls"
+        : delivery.payment_type === "LIVRAISON_DEJA_PAYEE"
+          ? "Colis seul"
+          : "100% prépayé";
 
-  const profit = delivery.delivery_fee;
+  const createdHour = formatHour(delivery.created_at);
+  const createdLabel = isToday(delivery.created_at) ? "Aujourd'hui" : (() => {
+    try {
+      return new Date(delivery.created_at).toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "short",
+      });
+    } catch {
+      return "";
+    }
+  })();
 
   return (
-    <View style={commonStyles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={COLORS.background} />
+    <View style={{ flex: 1, backgroundColor: "#F8F9FC" }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* En-tête */}
-      <BlurView intensity={95} style={deliveryDetailStyles.header}>
+      <View style={deliveryDetailStyles.header}>
         <View style={deliveryDetailStyles.headerContent}>
           <TouchableOpacity
             style={deliveryDetailStyles.backButtonHeader}
             onPress={() => router.back()}
+            accessibilityLabel="Retour"
           >
             <MaterialIcons name="arrow-back" size={24} color={COLORS.white} />
           </TouchableOpacity>
-
-          <Text style={deliveryDetailStyles.headerTitle}>
-            Livraison #{delivery.id.toString().padStart(4, "0")}
+          <Text style={deliveryDetailStyles.headerTitle} numberOfLines={1}>
+            Détail Livraison
           </Text>
-
-          {/* Badge de statut */}
-          {statusConfig.isClickable ? (
-            <TouchableOpacity
-              style={[
-                deliveryDetailStyles.statusBadgeHeader,
-                { backgroundColor: statusConfig.backgroundColor },
-              ]}
-              onPress={handleMarkAsDelivered}
-              disabled={isUpdating}
-            >
-              {isUpdating ? (
-                <ActivityIndicator
-                  size="small"
-                  color={statusConfig.textColor}
-                />
-              ) : (
-                <>
-                  <MaterialIcons
-                    name="check-circle"
-                    size={16}
-                    color={statusConfig.textColor}
-                    style={{ marginRight: 1 }}
-                  />
-                  <Text
-                    style={[
-                      deliveryDetailStyles.statusTextHeader,
-                      { color: statusConfig.textColor },
-                    ]}
-                  >
-                    {statusConfig.text}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <View
-              style={[
-                deliveryDetailStyles.statusBadgeHeader,
-                { backgroundColor: statusConfig.backgroundColor },
-              ]}
-            >
-              <Text
+          <View style={deliveryDetailStyles.headerRight}>
+            <View style={deliveryDetailStyles.syncPill}>
+              <View
                 style={[
-                  deliveryDetailStyles.statusTextHeader,
-                  { color: statusConfig.textColor },
+                  deliveryDetailStyles.syncDot,
+                  { backgroundColor: isConnected ? COLORS.primary : "#D97706" },
                 ]}
-              >
-                {statusConfig.text}
+              />
+              <Text style={deliveryDetailStyles.syncText}>
+                {isConnected ? "Sync" : "Off"}
               </Text>
             </View>
-          )}
+            <ProfileAvatar size={32} initial={userInitial} />
+          </View>
         </View>
-      </BlurView>
+      </View>
 
       <ScrollView
         style={deliveryDetailStyles.scrollView}
-        showsVerticalScrollIndicator={false}
         contentContainerStyle={deliveryDetailStyles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Date */}
-        <View style={deliveryDetailStyles.dateSection}>
-          <Text style={deliveryDetailStyles.dateLabel}>
-            Date de réalisation
-          </Text>
-          <Text style={deliveryDetailStyles.dateValue}>
-            {formatDate(displayDate)}
-          </Text>
-          {isDelivered && (
-            <Text style={deliveryDetailStyles.timeValue}>
-              {formatTime(displayDate)}
+        {/* Destinataire */}
+        <View style={deliveryDetailStyles.card}>
+          <View style={deliveryDetailStyles.heroTop}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <View style={deliveryDetailStyles.refRow}>
+                <Text style={deliveryDetailStyles.refLabel}>COURSE</Text>
+                <View style={deliveryDetailStyles.refPill}>
+                  <Text style={deliveryDetailStyles.refText}>{orderRef}</Text>
+                </View>
+              </View>
+              <Text
+                style={deliveryDetailStyles.clientName}
+                numberOfLines={1}
+              >
+                {delivery.recipient_name}
+              </Text>
+            </View>
+            <View
+              style={[deliveryDetailStyles.statusPill, { backgroundColor: statusStyle.bg }]}
+            >
+              <View
+                style={[deliveryDetailStyles.statusDot, { backgroundColor: statusStyle.dot }]}
+              />
+              <Text style={[deliveryDetailStyles.statusText, { color: statusStyle.fg }]}>
+                {statusStyle.label}
+              </Text>
+            </View>
+          </View>
+          <View style={deliveryDetailStyles.scheduleBox}>
+            <MaterialIcons name="schedule" size={18} color="#B45309" />
+            <Text style={deliveryDetailStyles.scheduleText}>
+              {createdLabel} •{" "}
+              <Text style={deliveryDetailStyles.scheduleStrong}>{createdHour}</Text>{" "}
+              • {Formatters.formatRelativeTime(delivery.created_at)}
             </Text>
-          )}
+          </View>
         </View>
 
-        {/* Informations Client */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Informations Client</Text>
+        {/* Actions urgentes */}
+        <View style={deliveryDetailStyles.urgentRow}>
+          <TouchableOpacity
+            style={[deliveryDetailStyles.urgentButton, deliveryDetailStyles.urgentButtonCall]}
+            onPress={() => directCall(delivery.phone, delivery.recipient_name)}
+            activeOpacity={0.9}
+          >
+            <View style={deliveryDetailStyles.urgentIcon}>
+              <MaterialIcons name="call" size={20} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={deliveryDetailStyles.urgentLabel}>Appeler</Text>
+              <Text style={deliveryDetailStyles.urgentValue} numberOfLines={1}>
+                {delivery.phone || "N° indisponible"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[deliveryDetailStyles.urgentButton, deliveryDetailStyles.urgentButtonGps]}
+            onPress={() => setShowGpsSheet(true)}
+            activeOpacity={0.9}
+          >
+            <View style={deliveryDetailStyles.urgentIcon}>
+              <MaterialIcons name="near-me" size={20} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={deliveryDetailStyles.urgentLabel}>Navigation</Text>
+              <Text style={deliveryDetailStyles.urgentValue} numberOfLines={1}>
+                Itinéraire GPS
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
 
-          <View style={commonStyles.card}>
-            <View style={deliveryDetailStyles.clientInfo}>
-              <View style={deliveryDetailStyles.clientAvatar}>
-                <Text style={deliveryDetailStyles.clientInitial}>
-                  {delivery.recipient_name.charAt(0).toUpperCase()}
+        {/* Point de chute */}
+        <View style={deliveryDetailStyles.card}>
+          <View style={deliveryDetailStyles.sectionHead}>
+            <View style={deliveryDetailStyles.sectionTitleRow}>
+              <MaterialIcons name="location-on" size={20} color={COLORS.primary} />
+              <Text style={deliveryDetailStyles.sectionTitle}>Point de chute</Text>
+            </View>
+            <View style={deliveryDetailStyles.communePill}>
+              <Text style={deliveryDetailStyles.communeText}>{commune}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={deliveryDetailStyles.mapPreview}
+            onPress={() => setShowGpsSheet(true)}
+            activeOpacity={0.9}
+            accessibilityLabel="Ouvrir le guidage GPS"
+          >
+            {[0.18, 0.42, 0.66].map((t) => (
+              <View
+                key={`h${t}`}
+                style={[deliveryDetailStyles.mapGridLineH, { top: `${t * 100}%` }]}
+              />
+            ))}
+            {[0.2, 0.45, 0.7].map((l) => (
+              <View
+                key={`v${l}`}
+                style={[deliveryDetailStyles.mapGridLineV, { left: `${l * 100}%` }]}
+              />
+            ))}
+            <View
+              style={[
+                deliveryDetailStyles.mapRoad,
+                { left: "8%", right: "8%", top: "46%", height: 9 },
+              ]}
+            />
+            <View
+              style={[
+                deliveryDetailStyles.mapRoad,
+                { left: "58%", top: "6%", bottom: "6%", width: 9 },
+              ]}
+            />
+            <View style={[deliveryDetailStyles.mapPin, { left: "52%", top: "30%" }]}>
+              <MaterialIcons name="location-on" size={22} color="#FFFFFF" />
+            </View>
+            <View style={deliveryDetailStyles.mapFooter}>
+              <View style={deliveryDetailStyles.mapFooterLeft}>
+                <MaterialIcons name="assistant-navigation" size={17} color="#FFFFFF" />
+                <Text style={deliveryDetailStyles.mapFooterText} numberOfLines={1}>
+                  {street}
                 </Text>
               </View>
-              <View style={deliveryDetailStyles.clientDetails}>
-                <Text style={deliveryDetailStyles.clientName}>
-                  {delivery.recipient_name}
-                </Text>
-                {delivery.phone && (
-                  <TouchableOpacity
-                    style={deliveryDetailStyles.clientPhoneContainer}
-                    onPress={handleCall}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialIcons
-                      name="phone"
-                      size={14}
-                      color={COLORS.primary}
-                    />
-                    <Text
-                      style={[
-                        deliveryDetailStyles.clientPhone,
-                        { color: COLORS.primary },
-                      ]}
-                    >
-                      {" "}
-                      {delivery.phone}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+              <View style={deliveryDetailStyles.mapFooterPill}>
+                <Text style={deliveryDetailStyles.mapFooterPillText}>Guidage GPS</Text>
               </View>
             </View>
+          </TouchableOpacity>
 
-            <View style={deliveryDetailStyles.addressContainer}>
-              <View style={deliveryDetailStyles.addressItem}>
-                <View style={deliveryDetailStyles.addressIconContainer}>
-                  <MaterialIcons
-                    name="location-on"
-                    size={20}
-                    color={COLORS.primary}
-                  />
-                </View>
-                <View style={deliveryDetailStyles.addressTextContainer}>
-                  <Text style={deliveryDetailStyles.addressLabel}>
-                    Destination
-                  </Text>
-                  <Text style={deliveryDetailStyles.addressText}>
-                    {delivery.address}
-                  </Text>
-                </View>
-              </View>
+          <View style={deliveryDetailStyles.landmarkBox}>
+            <MaterialIcons name="pin-drop" size={20} color="#B45309" />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={deliveryDetailStyles.landmarkMain}>{delivery.address}</Text>
+              <Text style={deliveryDetailStyles.landmarkSub}>
+                {commune} • Abidjan
+              </Text>
+            </View>
+          </View>
+
+          <View style={deliveryDetailStyles.addressActions}>
+            <TouchableOpacity
+              style={deliveryDetailStyles.addressAction}
+              onPress={copyAddress}
+              activeOpacity={0.85}
+            >
+              <MaterialIcons
+                name={copied ? "check" : "content-copy"}
+                size={17}
+                color={copied ? COLORS.primary : COLORS.muted}
+              />
+              <Text style={deliveryDetailStyles.addressActionText}>
+                {copied ? "Copié ✓" : "Copier"}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={deliveryDetailStyles.addressAction}
+              onPress={shareAddress}
+              activeOpacity={0.85}
+            >
+              <MaterialIcons name="share-location" size={17} color={COLORS.muted} />
+              <Text style={deliveryDetailStyles.addressActionText}>Partager</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Trésorerie */}
+        <View style={deliveryDetailStyles.card}>
+          <View style={deliveryDetailStyles.sectionHead}>
+            <View style={deliveryDetailStyles.sectionTitleRow}>
+              <MaterialIcons name="payments" size={20} color={COLORS.primary} />
+              <Text style={deliveryDetailStyles.sectionTitle}>Trésorerie course</Text>
+            </View>
+            <View style={deliveryDetailStyles.communePill}>
+              <Text style={deliveryDetailStyles.communeText}>{payBadge}</Text>
+            </View>
+          </View>
+
+          <View style={deliveryDetailStyles.cashBanner}>
+            <Text style={deliveryDetailStyles.cashLabel}>
+              Montant total à encaisser
+            </Text>
+            <View style={deliveryDetailStyles.cashRow}>
+              <Text style={deliveryDetailStyles.cashAmount}>
+                {Formatters.formatNumber(collect)}{" "}
+                <Text style={deliveryDetailStyles.cashUnit}>FCFA</Text>
+              </Text>
+              <Text style={deliveryDetailStyles.cashTag}>
+                {delivery.payment_type === "CLIENT_PAYE_TOUT" ? "Cash comptant" : payBadge}
+              </Text>
+            </View>
+          </View>
+
+          <View style={deliveryDetailStyles.moneyLines}>
+            <View style={deliveryDetailStyles.moneyRow}>
+              <Text style={deliveryDetailStyles.moneyLabel}>Valeur marchandise colis</Text>
+              <Text style={deliveryDetailStyles.moneyValue}>
+                {Formatters.formatNumber(delivery.parcel_value ?? 0)} FCFA
+              </Text>
+            </View>
+            <View style={deliveryDetailStyles.moneyRow}>
+              <Text style={deliveryDetailStyles.moneyLabel}>Frais de livraison facturés</Text>
+              <Text style={deliveryDetailStyles.moneyValue}>
+                {Formatters.formatNumber(delivery.delivery_fee)} FCFA
+              </Text>
+            </View>
+            <View style={deliveryDetailStyles.moneyDivider} />
+            <View style={deliveryDetailStyles.moneyRow}>
+              <Text style={deliveryDetailStyles.moneyLabel}>
+                <MaterialIcons name="storefront" size={15} color="#B45309" />{" "}
+                À reverser à {merchantName}
+              </Text>
+              <Text style={deliveryDetailStyles.moneyValue}>
+                {Formatters.formatNumber(toReverse)} FCFA
+              </Text>
+            </View>
+            <View style={deliveryDetailStyles.gainBox}>
+              <Text style={deliveryDetailStyles.gainLabel} numberOfLines={1}>
+                <MaterialIcons name="check-circle" size={17} color={COLORS.primary} />{" "}
+                Ton gain net garanti ({courierName})
+              </Text>
+              <Text style={deliveryDetailStyles.gainValue}>
+                +{Formatters.formatNumber(gain)} FCFA
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Informations Commerçant */}
-        {merchant && (
-          <View style={commonStyles.section}>
-            <Text style={commonStyles.sectionTitle}>Commerçant</Text>
-
-            <View style={commonStyles.card}>
-              <View style={deliveryDetailStyles.clientInfo}>
-                <View
-                  style={[
-                    deliveryDetailStyles.clientAvatar,
-                    { backgroundColor: COLORS.primarySoft },
-                  ]}
-                >
-                  <Text style={deliveryDetailStyles.clientInitial}>
-                    {merchant.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={deliveryDetailStyles.clientDetails}>
-                  <Text style={deliveryDetailStyles.clientName}>
-                    {merchant.name}
-                  </Text>
-                  {merchant.phone && (
-                    <TouchableOpacity
-                      style={deliveryDetailStyles.clientPhoneContainer}
-                      onPress={handleCallMerchant}
-                      activeOpacity={0.7}
-                    >
-                      <MaterialIcons
-                        name="phone"
-                        size={14}
-                        color={COLORS.primary}
-                      />
-                      <Text style={deliveryDetailStyles.clientPhone}>
-                        {" "}
-                        {merchant.phone}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  {merchant.address && (
-                    <View style={deliveryDetailStyles.clientPhoneContainer}>
-                      <MaterialIcons
-                        name="location-on"
-                        size={14}
-                        color={COLORS.muted}
-                      />
-                      <Text
-                        style={[
-                          deliveryDetailStyles.clientPhone,
-                          { color: COLORS.muted },
-                        ]}
-                      >
-                        {" "}
-                        {merchant.address}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
+        {/* Note terrain */}
+        {!!delivery.notes && (
+          <View style={deliveryDetailStyles.card}>
+            <View style={deliveryDetailStyles.sectionTitleRow}>
+              <MaterialIcons name="campaign" size={20} color="#B45309" />
+              <Text style={deliveryDetailStyles.sectionTitle}>
+                Note terrain importante
+              </Text>
+            </View>
+            <View style={deliveryDetailStyles.noteBox}>
+              <MaterialIcons name="info" size={19} color="#B45309" />
+              <Text style={deliveryDetailStyles.noteText}>{delivery.notes}</Text>
             </View>
           </View>
         )}
 
-        {/* Détails Financiers */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Détails Financiers</Text>
-
-          <View style={deliveryDetailStyles.financialCard}>
-            <View style={deliveryDetailStyles.financialItem}>
-              <Text style={deliveryDetailStyles.financialLabel}>
-                Valeur du colis
-              </Text>
-              <Text style={deliveryDetailStyles.financialValue}>
-                {(delivery.parcel_value ?? 0) > 0
-                  ? `${Formatters.formatNumber(delivery.parcel_value ?? 0)} FCFA`
-                  : "-"}
-              </Text>
+        {/* Boutique */}
+        <View style={deliveryDetailStyles.card}>
+          <View style={deliveryDetailStyles.sectionHead}>
+            <View style={deliveryDetailStyles.sectionTitleRow}>
+              <MaterialIcons name="inventory-2" size={20} color="#006398" />
+              <Text style={deliveryDetailStyles.sectionTitle}>Boutique partenaire</Text>
             </View>
-
-            <View style={deliveryDetailStyles.financialItem}>
-              <Text style={deliveryDetailStyles.financialLabel}>
-                Frais de livraison
-              </Text>
-              <Text style={deliveryDetailStyles.financialValue}>
-                {delivery.delivery_fee > 0
-                  ? `${Formatters.formatNumber(delivery.delivery_fee)} FCFA`
-                  : "-"}
-              </Text>
-            </View>
-
-            <View style={deliveryDetailStyles.separator} />
-
-            <View style={deliveryDetailStyles.totalItem}>
-              <Text style={deliveryDetailStyles.totalLabel}>TOTAL</Text>
-              <Text style={deliveryDetailStyles.totalValue}>
-                {Formatters.formatNumber((delivery.parcel_value ?? 0) + delivery.delivery_fee)}{" "}
-                FCFA
-              </Text>
-            </View>
-
-            {/* Type de paiement */}
-            <View style={deliveryDetailStyles.paymentTypeContainer}>
-              <Text style={deliveryDetailStyles.paymentTypeLabel}>
-                Type de paiement
-              </Text>
-              <View style={deliveryDetailStyles.paymentTypeBadge}>
-                <Text style={deliveryDetailStyles.paymentTypeText}>
-                  {isClientPaysTout && "Client paie colis + livraison"}
-                  {isClientPaysLivraison && "Client paie livraison seulement"}
-                  {isColisDejaPaye && "Colis déjà payé"}
+            <Text style={deliveryDetailStyles.verifiedPill}>Colis vérifié</Text>
+          </View>
+          <View style={deliveryDetailStyles.merchantRow}>
+            <View style={deliveryDetailStyles.merchantLeft}>
+              <View style={deliveryDetailStyles.merchantAvatar}>
+                <Text style={deliveryDetailStyles.merchantAvatarText}>
+                  {merchantInitials(merchantName)}
+                </Text>
+              </View>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={deliveryDetailStyles.merchantName} numberOfLines={1}>
+                  {merchantName}
+                </Text>
+                <Text style={deliveryDetailStyles.merchantSub} numberOfLines={1}>
+                  {merchant?.address || `${commune}`} • Réf: {orderRef}
                 </Text>
               </View>
             </View>
-
-            {/* Résumé financier */}
-            <View style={deliveryDetailStyles.financialSummary}>
-              <View style={deliveryDetailStyles.financialSummaryItem}>
-                <Text style={deliveryDetailStyles.financialSummaryLabel}>
-                  Montant encaissé
-                </Text>
-                <Text
-                  style={[
-                    deliveryDetailStyles.financialSummaryValue,
-                    { color: COLORS.primary },
-                  ]}
-                >
-                  {Formatters.formatNumber(montantEncaisse)} FCFA
-                </Text>
-              </View>
-
-              {montantAReverser > 0 && (
-                <View style={deliveryDetailStyles.financialSummaryItem}>
-                  <Text
-                    style={[
-                      deliveryDetailStyles.financialSummaryLabel,
-                      { color: COLORS.warning },
-                    ]}
-                  >
-                    À reverser au commerçant
-                  </Text>
-                  <Text
-                    style={[
-                      deliveryDetailStyles.financialSummaryValue,
-                      { color: COLORS.warning },
-                    ]}
-                  >
-                    {Formatters.formatNumber(montantAReverser)} FCFA
-                  </Text>
-                </View>
-              )}
-
-              <View style={deliveryDetailStyles.financialSummaryItem}>
-                <Text
-                  style={[
-                    deliveryDetailStyles.financialSummaryLabel,
-                    { color: COLORS.success },
-                  ]}
-                >
-                  Votre profit
-                </Text>
-                <Text
-                  style={[
-                    deliveryDetailStyles.financialSummaryValue,
-                    { color: COLORS.success },
-                  ]}
-                >
-                  {Formatters.formatNumber(profit)} FCFA
-                </Text>
-              </View>
-            </View>
+            <TouchableOpacity
+              style={deliveryDetailStyles.merchantCall}
+              onPress={() => directCall(merchant?.phone, merchantName)}
+              accessibilityLabel={`Appeler ${merchantName}`}
+            >
+              <MaterialIcons name="phone" size={20} color="#006398" />
+            </TouchableOpacity>
+          </View>
+          <View style={deliveryDetailStyles.geranteLine}>
+            <Text style={deliveryDetailStyles.geranteLabel}>
+              Contact{merchant?.contact_name ? ` ${merchant.contact_name}` : " gérante"} :
+            </Text>
+            <Text style={deliveryDetailStyles.geranteValue} numberOfLines={1}>
+              {merchant?.phone || "Non renseigné"}
+            </Text>
           </View>
         </View>
 
-        {/* Informations de suivi */}
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.sectionTitle}>Informations de suivi</Text>
-
-          <View style={commonStyles.card}>
-            <View style={deliveryDetailStyles.trackingRow}>
-              <View style={deliveryDetailStyles.trackingItem}>
-                <MaterialIcons name="event" size={20} color={COLORS.muted} />
-                <View style={deliveryDetailStyles.trackingTextContainer}>
-                  <Text style={deliveryDetailStyles.trackingLabel}>
-                    Créée le
+        {/* Timeline */}
+        <View style={deliveryDetailStyles.card}>
+          <View style={deliveryDetailStyles.sectionTitleRow}>
+            <MaterialIcons name="history" size={20} color={COLORS.primary} />
+            <Text style={deliveryDetailStyles.sectionTitle}>Suivi de la livraison</Text>
+          </View>
+          <View>
+            <View style={deliveryDetailStyles.timelineRow}>
+              <View style={deliveryDetailStyles.timelineRail}>
+                <View
+                  style={[deliveryDetailStyles.timelineDot, { backgroundColor: COLORS.primary }]}
+                >
+                  <MaterialIcons name="check" size={13} color="#FFFFFF" />
+                </View>
+                <View style={deliveryDetailStyles.timelineLine} />
+              </View>
+              <View style={deliveryDetailStyles.timelineBody}>
+                <View style={deliveryDetailStyles.timelineHead}>
+                  <Text style={deliveryDetailStyles.timelineTitle}>Course enregistrée</Text>
+                  <Text style={deliveryDetailStyles.timelineTime}>
+                    {formatHour(delivery.created_at)}
                   </Text>
-                  <Text style={deliveryDetailStyles.trackingValue}>
-                    {formatDate(delivery.created_at)} à{" "}
-                    {formatTime(delivery.created_at)}
+                </View>
+                <Text style={deliveryDetailStyles.timelineSub}>
+                  Attribuée à {courierName} (Enregistrée en local)
+                </Text>
+              </View>
+            </View>
+
+            {isDelivered ? (
+              <View style={deliveryDetailStyles.timelineRow}>
+                <View style={deliveryDetailStyles.timelineRail}>
+                  <View
+                    style={[deliveryDetailStyles.timelineDot, { backgroundColor: COLORS.primary }]}
+                  >
+                    <MaterialIcons name="check" size={13} color="#FFFFFF" />
+                  </View>
+                </View>
+                <View style={[deliveryDetailStyles.timelineBody, { paddingBottom: 0 }]}>
+                  <View style={deliveryDetailStyles.timelineHead}>
+                    <Text style={deliveryDetailStyles.timelineTitle}>
+                      Livrée & encaissée
+                    </Text>
+                    <Text style={deliveryDetailStyles.timelineTime}>
+                      {formatHour(delivery.delivered_at || delivery.created_at)}
+                    </Text>
+                  </View>
+                  <Text style={deliveryDetailStyles.timelineSub}>
+                    {Formatters.formatNumber(delivery.amount_collected ?? collect)} FCFA
+                    encaissés • {merchantName}
                   </Text>
                 </View>
               </View>
-
-              {isDelivered && delivery.delivered_at && (
-                <View style={deliveryDetailStyles.trackingItem}>
-                  <MaterialIcons
-                    name="check-circle"
-                    size={20}
-                    color={COLORS.success}
-                  />
-                  <View style={deliveryDetailStyles.trackingTextContainer}>
-                    <Text style={deliveryDetailStyles.trackingLabel}>
-                      Livrée le
-                    </Text>
-                    <Text style={deliveryDetailStyles.trackingValue}>
-                      {formatDate(delivery.delivered_at)} à{" "}
-                      {formatTime(delivery.delivered_at)}
-                    </Text>
+            ) : isCancelled ? (
+              <View style={deliveryDetailStyles.timelineRow}>
+                <View style={deliveryDetailStyles.timelineRail}>
+                  <View
+                    style={[deliveryDetailStyles.timelineDot, { backgroundColor: COLORS.danger }]}
+                  >
+                    <MaterialIcons name="close" size={13} color="#FFFFFF" />
                   </View>
                 </View>
-              )}
-            </View>
+                <View style={[deliveryDetailStyles.timelineBody, { paddingBottom: 0 }]}>
+                  <View style={deliveryDetailStyles.timelineHead}>
+                    <Text style={[deliveryDetailStyles.timelineTitle, { color: COLORS.danger }]}>
+                      Course annulée
+                    </Text>
+                  </View>
+                  <Text style={deliveryDetailStyles.timelineSub}>
+                    {delivery.notes || "Sans motif renseigné"}
+                  </Text>
+                </View>
+              </View>
+            ) : (
+              <View style={deliveryDetailStyles.timelineRow}>
+                <View style={deliveryDetailStyles.timelineRail}>
+                  <View
+                    style={[deliveryDetailStyles.timelineDot, { backgroundColor: "#FFDDB8" }]}
+                  >
+                    <MaterialIcons name="two-wheeler" size={13} color="#92400E" />
+                  </View>
+                </View>
+                <View style={[deliveryDetailStyles.timelineBody, { paddingBottom: 0 }]}>
+                  <View style={deliveryDetailStyles.timelineHead}>
+                    <Text
+                      style={[deliveryDetailStyles.timelineTitle, deliveryDetailStyles.timelineTitleActive]}
+                    >
+                      En route vers le client
+                    </Text>
+                    <Text
+                      style={[deliveryDetailStyles.timelineTime, deliveryDetailStyles.timelineTimeActive]}
+                    >
+                      En cours
+                    </Text>
+                  </View>
+                  <Text
+                    style={deliveryDetailStyles.timelineSub}
+                    numberOfLines={1}
+                  >
+                    {street}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
 
-            <View style={deliveryDetailStyles.statusDisplay}>
-              <View
-                style={[
-                  deliveryDetailStyles.statusDot,
-                  { backgroundColor: statusConfig.textColor },
-                ]}
+        {/* Gérer (Modifier / Supprimer conservés) */}
+        <View style={deliveryDetailStyles.card}>
+          <View style={deliveryDetailStyles.manageRow}>
+            <TouchableOpacity
+              style={deliveryDetailStyles.manageButton}
+              onPress={() => router.push(`/add-delivery?id=${delivery.id}`)}
+              disabled={!isEditable}
+            >
+              <MaterialIcons
+                name="edit"
+                size={17}
+                color={isEditable ? COLORS.muted : "#C6CBD4"}
               />
-              <Text
-                style={[
-                  deliveryDetailStyles.statusDisplayText,
-                  { color: statusConfig.textColor },
-                ]}
-              >
-                Statut: {statusConfig.text}
-              </Text>
-            </View>
+              <Text style={deliveryDetailStyles.manageButtonText}>Modifier</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={deliveryDetailStyles.manageButton}
+              onPress={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <ActivityIndicator size="small" color={COLORS.danger} />
+              ) : (
+                <>
+                  <MaterialIcons name="delete" size={17} color={COLORS.danger} />
+                  <Text
+                    style={[
+                      deliveryDetailStyles.manageButtonText,
+                      deliveryDetailStyles.manageButtonDangerText,
+                    ]}
+                  >
+                    Supprimer
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
 
-      {/* Actions - Affichage conditionnel selon le statut */}
-      {isEditable ? (
-        <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
-          <TouchableOpacity
-            style={deliveryDetailStyles.primaryButton}
-            onPress={handleCall}
-          >
-            <MaterialIcons name="phone" size={20} color="#FFFFFF" />
-            <Text style={deliveryDetailStyles.primaryButtonText}>Appeler</Text>
-          </TouchableOpacity>
-
-          <View style={deliveryDetailStyles.actionButtonsRow}>
+      {/* Barre d'action fixe */}
+      <View style={deliveryDetailStyles.actionBar}>
+        {isEditable ? (
+          <>
             <TouchableOpacity
-              style={deliveryDetailStyles.editButton}
-              onPress={() => router.push(`/add-delivery?id=${delivery.id}`)}
+              style={deliveryDetailStyles.primaryButton}
+              onPress={() => setShowCashSheet(true)}
+              activeOpacity={0.95}
             >
-              <MaterialIcons name="edit" size={20} color={COLORS.white} />
-              <Text style={deliveryDetailStyles.editButtonText}>Modifier</Text>
+              <View style={deliveryDetailStyles.primaryButtonLeft}>
+                <MaterialIcons name="task-alt" size={22} color="#FFFFFF" />
+                <Text style={deliveryDetailStyles.primaryButtonText}>
+                  Encaisser & Livrer
+                </Text>
+              </View>
+              <View style={deliveryDetailStyles.primaryButtonAmount}>
+                <Text style={deliveryDetailStyles.primaryButtonAmountText}>
+                  {Formatters.formatNumber(collect)} F
+                </Text>
+              </View>
             </TouchableOpacity>
-
-            {/* 🔥 Bouton supprimer avec indicateur de chargement */}
             <TouchableOpacity
-              style={[deliveryDetailStyles.dangerButton, isDeleting && { opacity: 0.7 }]}
-              onPress={handleDelete}
-              disabled={isDeleting}
+              style={deliveryDetailStyles.secondaryButton}
+              onPress={() => setShowIssueSheet(true)}
+              activeOpacity={0.9}
             >
-              {isDeleting ? (
-                <ActivityIndicator size="small" color={COLORS.danger} />
+              <MaterialIcons name="report-problem" size={18} color={COLORS.danger} />
+              <Text style={deliveryDetailStyles.secondaryButtonText}>
+                Signaler un problème / Refus
+              </Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <View style={deliveryDetailStyles.readOnlyBox}>
+            <Text style={deliveryDetailStyles.readOnlyText}>
+              {isDelivered
+                ? `Course livrée le ${formatHour(delivery.delivered_at || delivery.created_at)} — ${Formatters.formatNumber(delivery.amount_collected ?? collect)} FCFA encaissés.`
+                : "Course annulée — voir le motif dans le suivi ci-dessus."}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Sheet encaissement */}
+      <Modal
+        visible={showCashSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !isDelivering && setShowCashSheet(false)}
+      >
+        <View style={deliveryDetailStyles.modalOverlay}>
+          <View style={deliveryDetailStyles.sheet}>
+            <View style={deliveryDetailStyles.dragHandle} />
+            <View style={deliveryDetailStyles.sheetHead}>
+              <Text style={deliveryDetailStyles.sheetTitle}>
+                Confirmer l&apos;encaissement
+              </Text>
+              <TouchableOpacity
+                style={deliveryDetailStyles.sheetClose}
+                onPress={() => !isDelivering && setShowCashSheet(false)}
+                accessibilityLabel="Fermer"
+              >
+                <MaterialIcons name="close" size={18} color={COLORS.muted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={deliveryDetailStyles.sheetText}>
+              Vérifie le montant effectivement perçu auprès de{" "}
+              {delivery.recipient_name} avant clôture.
+            </Text>
+            <View style={deliveryDetailStyles.sheetSummary}>
+              <View style={deliveryDetailStyles.sheetRow}>
+                <Text style={deliveryDetailStyles.sheetLabel}>Montant attendu :</Text>
+                <Text style={deliveryDetailStyles.sheetValue}>
+                  {Formatters.formatNumber(collect)} FCFA
+                </Text>
+              </View>
+              <View style={deliveryDetailStyles.sheetRow}>
+                <Text style={deliveryDetailStyles.sheetLabel}>Reversé boutique :</Text>
+                <Text style={[deliveryDetailStyles.sheetValue, deliveryDetailStyles.sheetValueGreen]}>
+                  {Formatters.formatNumber(toReverse)} FCFA
+                </Text>
+              </View>
+              <View style={deliveryDetailStyles.sheetRow}>
+                <Text style={deliveryDetailStyles.sheetLabel}>Ton gain :</Text>
+                <Text style={[deliveryDetailStyles.sheetValue, deliveryDetailStyles.sheetValueGreen]}>
+                  +{Formatters.formatNumber(gain)} FCFA
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={deliveryDetailStyles.sheetButton}
+              onPress={handleMarkAsDelivered}
+              disabled={isDelivering}
+              activeOpacity={0.95}
+            >
+              {isDelivering ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <MaterialIcons name="delete" size={20} color={COLORS.danger} />
-                  <Text style={deliveryDetailStyles.dangerButtonText}>
-                    Supprimer
+                  <MaterialIcons name="check-circle" size={20} color="#FFFFFF" />
+                  <Text style={deliveryDetailStyles.sheetButtonText}>
+                    Valider et synchroniser la course
                   </Text>
                 </>
               )}
             </TouchableOpacity>
           </View>
-        </BlurView>
-      ) : (
-        <BlurView intensity={95} style={deliveryDetailStyles.actionBar}>
-          <View style={deliveryDetailStyles.actionButtonsRow}>
+        </View>
+      </Modal>
+
+      {/* Sheet GPS */}
+      <Modal
+        visible={showGpsSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowGpsSheet(false)}
+      >
+        <View style={deliveryDetailStyles.modalOverlay}>
+          <View style={deliveryDetailStyles.sheet}>
+            <View style={deliveryDetailStyles.dragHandle} />
+            <View style={deliveryDetailStyles.sheetHead}>
+              <Text style={deliveryDetailStyles.sheetTitle}>
+                Lancer l&apos;itinéraire GPS
+              </Text>
+              <TouchableOpacity
+                style={deliveryDetailStyles.sheetClose}
+                onPress={() => setShowGpsSheet(false)}
+                accessibilityLabel="Fermer"
+              >
+                <MaterialIcons name="close" size={18} color={COLORS.muted} />
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
-              style={[deliveryDetailStyles.dangerButton, isDeleting && { opacity: 0.7 }]}
-              onPress={handleDelete}
-              disabled={isDeleting}
+              style={deliveryDetailStyles.gpsOption}
+              onPress={() => openGps("google")}
+              activeOpacity={0.9}
             >
-              {isDeleting ? (
-                <ActivityIndicator size="small" color={COLORS.danger} />
-              ) : (
-                <>
-                  <MaterialIcons name="delete" size={20} color={COLORS.danger} />
-                  <Text style={deliveryDetailStyles.dangerButtonText}>
-                    Supprimer
-                  </Text>
-                </>
-              )}
+              <View style={deliveryDetailStyles.gpsOptionLeft}>
+                <MaterialIcons name="map" size={24} color="#006398" />
+                <Text style={deliveryDetailStyles.gpsOptionName}>Google Maps</Text>
+              </View>
+              <MaterialIcons name="open-in-new" size={19} color={COLORS.muted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={deliveryDetailStyles.gpsOption}
+              onPress={() => openGps("waze")}
+              activeOpacity={0.9}
+            >
+              <View style={deliveryDetailStyles.gpsOptionLeft}>
+                <MaterialIcons name="navigation" size={24} color="#B45309" />
+                <Text style={deliveryDetailStyles.gpsOptionName}>
+                  Waze (Trafic en direct)
+                </Text>
+              </View>
+              <MaterialIcons name="open-in-new" size={19} color={COLORS.muted} />
             </TouchableOpacity>
           </View>
-        </BlurView>
-      )}
+        </View>
+      </Modal>
 
-      {/* 🔥 Overlay de chargement pendant la suppression */}
+      {/* Sheet incident */}
+      <Modal
+        visible={showIssueSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !isCancelling && setShowIssueSheet(false)}
+      >
+        <View style={deliveryDetailStyles.modalOverlay}>
+          <View style={deliveryDetailStyles.sheet}>
+            <View style={deliveryDetailStyles.dragHandle} />
+            <View style={deliveryDetailStyles.sheetHead}>
+              <Text style={[deliveryDetailStyles.sheetTitle, { color: COLORS.danger }]}>
+                Incident de livraison
+              </Text>
+              <TouchableOpacity
+                style={deliveryDetailStyles.sheetClose}
+                onPress={() => !isCancelling && setShowIssueSheet(false)}
+                accessibilityLabel="Fermer"
+              >
+                <MaterialIcons name="close" size={18} color={COLORS.muted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={deliveryDetailStyles.sheetText}>
+              Sélectionne le motif terrain pour notifier {merchantName} et le
+              support. La course passera en « Annulée ».
+            </Text>
+            {ISSUE_MOTIFS.map((motif) => (
+              <TouchableOpacity
+                key={motif}
+                style={deliveryDetailStyles.issueOption}
+                onPress={() => handleReportIssue(motif)}
+                disabled={isCancelling}
+                activeOpacity={0.9}
+              >
+                <Text style={deliveryDetailStyles.issueOptionText} numberOfLines={2}>
+                  {motif}
+                </Text>
+                {isCancelling ? (
+                  <ActivityIndicator size="small" color={COLORS.muted} />
+                ) : (
+                  <MaterialIcons name="chevron-right" size={19} color={COLORS.muted} />
+                )}
+              </TouchableOpacity>
+            ))}
+            <TextInput
+              style={deliveryDetailStyles.modalInput}
+              value={issueNote}
+              onChangeText={setIssueNote}
+              placeholder="Précision libre (ex : recontacter demain 9h…)"
+              placeholderTextColor={COLORS.placeholder}
+              multiline
+              editable={!isCancelling}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Overlay suppression */}
       {isDeleting && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.3)',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-        }}>
-          <View style={{
-            backgroundColor: COLORS.white,
-            padding: 24,
-            borderRadius: 16,
-            alignItems: 'center',
-            gap: 12,
-          }}>
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.3)",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1000,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              padding: 24,
+              borderRadius: 16,
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={{ color: COLORS.white, fontWeight: '500' }}>
+            <Text style={{ color: COLORS.white, fontWeight: "500" }}>
               Suppression en cours...
             </Text>
           </View>

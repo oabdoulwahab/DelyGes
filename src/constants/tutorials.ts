@@ -136,7 +136,7 @@ export const TUTORIALS: Tutorial[] = [
       {
         title: "Onglets de statut",
         description:
-          "Naviguez entre les onglets : À livrer, Aujourd'hui, Livrées et Annulées pour filtrer vos livraisons par statut.",
+          "Filtre par statut : Tous, À livrer, Livrées, Annulées. Les compteurs sont calculés en temps réel sur la période.",
         icon: "tab",
         position: "top",
         targetId: "tab-status",
@@ -144,15 +144,15 @@ export const TUTORIALS: Tutorial[] = [
       {
         title: "Recherche",
         description:
-          "Utilisez la barre de recherche pour trouver rapidement une livraison par nom de destinataire, téléphone ou adresse.",
+          "Utilisez la barre de recherche pour trouver rapidement une livraison par nom, téléphone, adresse, marchand ou référence.",
         icon: "search",
         position: "top",
         targetId: "input-search",
       },
       {
-        title: "Filtres de date",
+        title: "Périodes",
         description:
-          "Filtrez vos livraisons par période : aujourd'hui, cette semaine, ce mois ou une période personnalisée.",
+          "Basculez entre Aujourd'hui, Cette semaine, Ce mois, ou touchez le calendrier pour un jour précis.",
         icon: "date-range",
         position: "center",
         targetId: "filter-date",
@@ -160,7 +160,7 @@ export const TUTORIALS: Tutorial[] = [
       {
         title: "Actions sur les livraisons",
         description:
-          "Touchez une livraison pour voir les détails, la marquer comme livrée ou l'annuler. Utilisez la sélection multiple pour des actions groupées.",
+          "Validez avec le bouton vert (adapté au mode d'encaissement), partagez le reçu WhatsApp, ou faites un appui long pour annuler avec motif.",
         icon: "touch-app",
         position: "bottom",
         targetId: "list-deliveries",
