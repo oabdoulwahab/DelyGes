@@ -204,7 +204,8 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   button: {
-    flex: 1,
+    width: "100%",
+    minHeight: 50,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -217,6 +218,7 @@ const styles = StyleSheet.create({
   },
   buttonTwoColumn: {
     flex: 1,
+    width: undefined,
   },
   destructiveButton: {
     backgroundColor: "rgba(239, 68, 68, 0.1)",

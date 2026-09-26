@@ -6,11 +6,12 @@ import { db } from "../src/database/db";
 import { useAuth } from "../src/context/AuthContext";
 import { useModal } from "../providers/ModalProvider";
 import { auth, db as firestore } from "../src/config/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { COLORS } from "../styles/colors";
 import {
   uploadAvatarToR2,
   stripTimestamp,
+  maskHost,
 } from "../src/services/avatar.service";
 
 interface ProfileAvatarProps {
@@ -28,10 +29,16 @@ async function persistPhotoUri(userId: number, uri: string | null) {
   const fbUser = auth.currentUser;
   if (fbUser) {
     try {
-      await updateDoc(doc(firestore, "users", fbUser.uid), {
-        photo_uri: uri,
-        updated_at: new Date().toISOString(),
-      });
+      // setDoc + merge: crée le document s'il n'existe pas encore
+      // (updateDoc échouerait avec "No document to update").
+      await setDoc(
+        doc(firestore, "users", fbUser.uid),
+        {
+          photo_uri: uri,
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true },
+      );
     } catch (e) {
       console.log("⚠️ Sync photo Firebase différée:", e);
     }
@@ -82,7 +89,7 @@ export default function ProfileAvatar({
 
       const { publicUrl } = await uploadAvatarToR2(pickedUri, remoteUserId);
       const cleanUrl = stripTimestamp(publicUrl);
-      console.log("[ProfileAvatar] Upload OK, persistance:", cleanUrl);
+      console.log("[ProfileAvatar] Upload OK, persistance:", maskHost(cleanUrl));
 
       await persistPhotoUri(user.id, cleanUrl);
       await refreshUser().catch((e) =>

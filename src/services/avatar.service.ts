@@ -46,6 +46,16 @@ export function stripTimestamp(publicUrl: string): string {
   return publicUrl.split("?")[0];
 }
 
+// Masque l'hote d'une URL pour les logs (secret infra).
+export function maskHost(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//***${parsed.pathname}${parsed.search}`;
+  } catch {
+    return url.replace(/:\/\/[^\/]+/, "://***");
+  }
+}
+
 async function fetchPresignedUrls(
   userId: string,
   ext: SupportedExt
@@ -55,7 +65,7 @@ async function fetchPresignedUrls(
     `${baseUrl}/get-upload-url` +
     `?userId=${encodeURIComponent(userId)}&ext=${encodeURIComponent(ext)}`;
 
-  console.log(`[Avatar] 1/3 GET presigned URL -> ${url}`);
+  console.log(`[Avatar] 1/3 GET presigned URL -> ${maskHost(url)}`);
 
   let res: Response;
   try {
@@ -87,7 +97,7 @@ async function fetchPresignedUrls(
     throw new Error("URLs signées incomplètes reçues du Worker.");
   }
 
-  console.log("[Avatar] 2/3 presigned OK, publicUrl =", data.publicUrl);
+  console.log("[Avatar] 2/3 presigned OK, publicUrl =", maskHost(data.publicUrl));
   return data;
 }
 
@@ -161,7 +171,7 @@ export async function uploadAvatarToR2(
     }
 
     const cleanUrl = stripTimestamp(publicUrl);
-    console.log("[Avatar] ✅ Upload réussi:", cleanUrl);
+    console.log("[Avatar] ✅ Upload réussi:", maskHost(cleanUrl));
     return { publicUrl: cleanUrl };
   } finally {
     // Toujours libérer la mémoire native du Blob (important sur Android)
