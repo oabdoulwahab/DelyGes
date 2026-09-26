@@ -5,6 +5,7 @@ import { MerchantRepository } from "../repositories/merchant.repository";
 import { DeliveryRepository } from "../repositories/delivery.repository";
 import { Formatters } from "../utils/formatters";
 import { detectCommune } from "../utils/communes";
+import { useDeliveriesStore } from "../store/deliveries.store";
 
 export type SettlementChannel = "WAVE" | "ORANGE" | "MTN" | "CASH";
 
@@ -377,6 +378,8 @@ export class SettlementService {
       );
       fullySettled = true;
     }
+    // Les flags reversed ont changé : Livraisons + Dashboard se rechargent.
+    useDeliveriesStore.getState().notifyChanged(userId);
     return { remaining: Math.max(remaining, 0), fullySettled, settlementId };
   }
 

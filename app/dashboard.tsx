@@ -36,6 +36,7 @@ import { db } from "../src/database/db";
 import { doc, updateDoc } from "firebase/firestore";
 import { db as firestore } from "../src/config/firebase";
 import { cacheInvalidate } from "../src/cache/cache";
+import { useDeliveriesStore } from "../src/store/deliveries.store";
 import { useTutorial } from "../src/hooks/useTutorial";
 import TutorialOverlay from "../components/TutorialOverlay";
 import { TutorialProvider, useTutorialContext } from "../src/context/TutorialContext";
@@ -129,6 +130,9 @@ function DashboardContent() {
   const [userName, setUserName] = useState("Livreur");
   const { showAlert, showSuccess, showError } = useModal();
   const { markAndSync } = useSync();
+  // Store partagé : toute mutation (Livraisons, Saisie, Détail, Compta)
+  // recharge le dashboard avec des données fraîches (cache invalidé).
+  const deliveriesVersion = useDeliveriesStore((s) => s.version);
   const goalAchievedRef = useRef(false);
   const lastGoalCheckRef = useRef("");
   const scrollRef = useRef<any>(null);
@@ -342,6 +346,11 @@ function DashboardContent() {
     const interval = setInterval(loadStats, 60000);
     return () => clearInterval(interval);
   }, [reloadAll, loadStats]);
+
+  // Rafraîchit dès qu'une mutation a lieu sur un autre écran
+  useEffect(() => {
+    loadStats();
+  }, [deliveriesVersion, loadStats]);
 
   useEffect(() => {
     if (user) loadPendingDetail();

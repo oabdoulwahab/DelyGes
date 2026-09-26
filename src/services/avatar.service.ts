@@ -102,6 +102,34 @@ async function fetchPresignedUrls(
 }
 
 /**
+ * Supprime l'avatar d'un utilisateur sur R2 via le Cloudflare Worker.
+ * @param userId identifiant stable inter-appareils (firebase_uid de préférence)
+ * @returns true si la suppression est confirmée par le Worker
+ */
+export async function deleteAvatarFromR2(userId: string): Promise<boolean> {
+  if (!userId) throw new Error("[Avatar] userId vide.");
+  const baseUrl = resolveWorkerBaseUrl();
+  const url = `${baseUrl}/delete-avatar?userId=${encodeURIComponent(userId)}`;
+  console.log(`[Avatar] 🗑️ DELETE avatar -> ${maskHost(url)}`);
+  try {
+    const res = await fetch(url, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "<illisible>");
+      console.error(
+        `[Avatar] 🗑️ ❌ Worker a répondu ${res.status}:`,
+        body.slice(0, 500)
+      );
+      throw new Error(`Suppression refusée par le service (${res.status}).`);
+    }
+    console.log("[Avatar] ✅ Avatar supprimé sur R2");
+    return true;
+  } catch (e) {
+    console.error("[Avatar] 🗑️ ❌ Échec suppression R2:", e);
+    throw e instanceof Error ? e : new Error("Échec de la suppression R2.");
+  }
+}
+
+/**
  * Upload un avatar local vers R2 via le Cloudflare Worker.
  * @param localUri URI temporaire expo-image-picker (file://, cache://, content://)
  * @param userId identifiant stable inter-appareils (firebase_uid de préférence)

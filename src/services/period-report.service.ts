@@ -5,6 +5,7 @@ import { MerchantRepository } from "../repositories/merchant.repository";
 import { DeliveryRepository } from "../repositories/delivery.repository";
 import { Formatters } from "../utils/formatters";
 import { detectCommune } from "../utils/communes";
+import { useDeliveriesStore } from "../store/deliveries.store";
 
 export type ReportGranularity = "week" | "month" | "year";
 
@@ -471,6 +472,8 @@ export class PeriodReportService {
       `SELECT id FROM month_closures WHERE user_id = ? AND year = ? AND month = ?`,
       [userId, year, month],
     );
+    // Les flags reversed ont changé : écrans livraisons/dashboard à jour.
+    useDeliveriesStore.getState().notifyChanged(userId);
     return {
       closureId: row?.id ?? res.lastInsertRowId ?? 0,
       marked,

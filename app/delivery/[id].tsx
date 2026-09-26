@@ -26,6 +26,7 @@ import { syncService } from "../../src/services/sync.service";
 import { DeliveryRepository } from "../../src/repositories/delivery.repository";
 import { MerchantRepository } from "../../src/repositories/merchant.repository";
 import { DeliveryService } from "../../src/services/delivery.service";
+import { useDeliveriesStore } from "../../src/store/deliveries.store";
 import { Formatters } from "../../src/utils/formatters";
 import ProfileAvatar from "../../components/ProfileAvatar";
 import { detectCommune } from "../../src/utils/communes";
@@ -157,6 +158,7 @@ export default function DeliveryDetail() {
       }
       await reload();
       setShowCashSheet(false);
+      useDeliveriesStore.getState().notifyChanged(user?.id);
       showSuccess("Succès", "Course validée & encaissée ✅");
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
@@ -185,6 +187,7 @@ export default function DeliveryDetail() {
             }
           }
           await DeliveryRepository.delete(Number(id));
+          useDeliveriesStore.getState().notifyChanged(user?.id);
           showSuccess("Succès", "Livraison supprimée");
           goToDeliveries();
         } catch (error) {
@@ -213,6 +216,7 @@ export default function DeliveryDetail() {
       setShowIssueSheet(false);
       setIssueNote("");
       await reload();
+      useDeliveriesStore.getState().notifyChanged(user?.id);
       showSuccess("Signalement enregistré", `Motif : ${motif}`);
     } catch (error) {
       console.error("❌ Erreur signalement:", error);

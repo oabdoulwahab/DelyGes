@@ -22,6 +22,7 @@ import { useSync } from "../src/hooks/useSync";
 import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { MerchantRepository } from "../src/repositories/merchant.repository";
 import { MerchantService } from "../src/services/merchant.service";
+import { useDeliveriesStore } from "../src/store/deliveries.store";
 import { Formatters } from "../src/utils/formatters";
 import { Delivery, Merchant, PaymentType } from "../src/types";
 import { useTutorial } from "../src/hooks/useTutorial";
@@ -463,7 +464,9 @@ export default function AddDelivery() {
         );
       }
 
-      // Retour immédiat, ne pas attendre
+      // Retour immédiat, ne pas attendre.
+      // Notifie le store partagé : Livraisons + Dashboard se rechargent.
+      useDeliveriesStore.getState().notifyChanged(user.id);
       setSavingProgress("");
       router.back();
     } catch (error: unknown) {

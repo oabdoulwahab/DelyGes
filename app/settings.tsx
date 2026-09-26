@@ -48,7 +48,7 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 type UserSettings = {
   name: string;
@@ -217,10 +217,16 @@ export default function Settings() {
         if (field === "name") {
           await updateProfile(firebaseUser, { displayName: value as string });
         }
-        await updateDoc(userRef, {
-          [field]: value,
-          updated_at: new Date().toISOString(),
-        });
+        // setDoc + merge : crée le document s'il n'existe pas encore
+        // (updateDoc échouerait avec "No document to update").
+        await setDoc(
+          userRef,
+          {
+            [field]: value,
+            updated_at: new Date().toISOString(),
+          },
+          { merge: true },
+        );
       } catch (error) {
         console.error(`❌ Erreur synchronisation ${field}:`, error);
       }

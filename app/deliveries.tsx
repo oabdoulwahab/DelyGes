@@ -26,6 +26,7 @@ import { useSync } from "../src/hooks/useSync";
 import { DeliveryRepository } from "../src/repositories/delivery.repository";
 import { MerchantRepository } from "../src/repositories/merchant.repository";
 import { DeliveryService } from "../src/services/delivery.service";
+import { useDeliveriesStore } from "../src/store/deliveries.store";
 import { Formatters } from "../src/utils/formatters";
 import { openItinerary } from "../src/utils/navigation";
 import { Delivery, DeliveryStatus } from "../src/types";
@@ -88,7 +89,10 @@ export default function Deliveries() {
   const { showSuccess, showError, showAlert } = useModal();
   const { markAndSync } = useSync();
 
-  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const deliveries = useDeliveriesStore((s) => s.items);
+  const ensureLoaded = useDeliveriesStore((s) => s.ensureLoaded);
+  const storeMarkDelivered = useDeliveriesStore((s) => s.markDelivered);
+  const storeCancelDelivery = useDeliveriesStore((s) => s.cancelDelivery);
   const [merchantNames, setMerchantNames] = useState<Record<number, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [period, setPeriod] = useState<PeriodKey>("today");
@@ -148,11 +152,9 @@ export default function Deliveries() {
       return;
     }
     try {
-      const [list, merchants] = await Promise.all([
-        DeliveryRepository.findAll({ userId: user.id }),
-        MerchantRepository.findAll().catch(() => []),
-      ]);
-      setDeliveries(list);
+      // Liste partagée (store) + auxiliaires locaux (marchands, notifs)
+      await ensureLoaded(user.id);
+      const merchants = await MerchantRepository.findAll().catch(() => []);
       const map: Record<number, string> = {};
       merchants.forEach((m) => {
         map[m.id] = m.name;
@@ -164,7 +166,7 @@ export default function Deliveries() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, ensureLoaded]);
 
   useEffect(() => {
     loadAll();
@@ -335,12 +337,8 @@ export default function Deliveries() {
     if (!deliverTarget || !user) return;
     setIsDelivering(true);
     try {
-      await DeliveryService.markAsDelivered(user.id, deliverTarget.id);
-      await markAndSync("deliveries", deliverTarget.id);
-      await sendDeliveryCompletedNotification(
-        user.id,
-        gainNet(deliverTarget),
-      ).catch(() => {});
+      // Store : persiste + sync + notif + recharge + invalide le dashboard
+      await storeMarkDelivered(user.id, deliverTarget.id);
       setDeliverTarget(null);
       showSuccess("Succès", "Livraison validée ✅");
       await loadAll();
@@ -350,21 +348,14 @@ export default function Deliveries() {
     } finally {
       setIsDelivering(false);
     }
-  }, [deliverTarget, user, markAndSync, loadAll, showSuccess, showError]);
+  }, [deliverTarget, user, storeMarkDelivered, loadAll, showSuccess, showError]);
 
   const confirmCancel = useCallback(async () => {
     if (!cancelTarget || !user) return;
     setIsCancelling(true);
     try {
-      const motif = cancelMotif.trim();
-      if (motif) {
-        await DeliveryRepository.update(cancelTarget.id, {
-          notes: motif,
-          needs_sync: 1,
-        });
-      }
-      await DeliveryService.cancelDelivery(user.id, cancelTarget.id);
-      await markAndSync("deliveries", cancelTarget.id);
+      // Store : motif persisté + annulation + sync + recharge + dashboard invalidé
+      await storeCancelDelivery(user.id, cancelTarget.id, cancelMotif);
       setCancelTarget(null);
       setCancelMotif("");
       showSuccess("Succès", "Course annulée.");
@@ -375,7 +366,7 @@ export default function Deliveries() {
     } finally {
       setIsCancelling(false);
     }
-  }, [cancelTarget, cancelMotif, user, markAndSync, loadAll, showSuccess, showError]);
+  }, [cancelTarget, cancelMotif, user, storeCancelDelivery, loadAll, showSuccess, showError]);
 
   const shareReceipt = useCallback(async (d: Delivery) => {
     const expected = expectedCollect(d);

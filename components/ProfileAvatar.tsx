@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -10,6 +10,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { COLORS } from "../styles/colors";
 import {
   uploadAvatarToR2,
+  deleteAvatarFromR2,
   stripTimestamp,
   maskHost,
 } from "../src/services/avatar.service";
@@ -58,6 +59,15 @@ export default function ProfileAvatar({
   const radius = size / 2;
   const fontSize = Math.max(Math.round(size * 0.42), 12);
   const uri = user?.photo_uri || null;
+
+  // Cache buster : force Expo à re-télécharger l'image quand l'URI change
+  // (ou au montage). Appliqué UNIQUEMENT au rendu — l'URL propre en DB
+  // reste intacte. Mémoïsé par URI pour ne pas re-télécharger à chaque render.
+  const displayUri = useMemo(() => {
+    if (!uri) return null;
+    const sep = uri.includes("?") ? "&" : "?";
+    return `${uri}${sep}t=${Date.now()}`;
+  }, [uri]);
 
   /**
    * Persiste une photo :
@@ -167,6 +177,31 @@ export default function ProfileAvatar({
     }
   };
 
+  /**
+   * Suppression complète : efface l'objet sur R2 puis remet l'URI à null
+   * (SQLite + Firestore) et rafraîchit pour réafficher les initiales.
+   */
+  const handleDeleteAvatar = async () => {
+    if (!user || busy) return;
+    setBusy(true);
+    try {
+      const remoteUserId = auth.currentUser?.uid ?? String(user.id);
+      await deleteAvatarFromR2(remoteUserId);
+      await persistPhotoUri(user.id, null);
+      await refreshUser().catch((e) =>
+        console.warn("[ProfileAvatar] refreshUser après suppression a échoué:", e)
+      );
+    } catch (e) {
+      console.error("❌ [ProfileAvatar] Erreur suppression avatar:", e);
+      showError(
+        "Suppression impossible",
+        e instanceof Error ? e.message : "Impossible de supprimer la photo"
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const openOptions = () => {
     if (!editable || busy) return;
     showModal({
@@ -177,7 +212,7 @@ export default function ProfileAvatar({
         { text: "Galerie", onPress: () => void pickFromLibrary() },
         { text: "Caméra", onPress: () => void takePhoto() },
         ...(uri
-          ? [{ text: "Supprimer", style: "destructive" as const, onPress: () => void savePick(null) }]
+          ? [{ text: "Supprimer", style: "destructive" as const, onPress: () => void handleDeleteAvatar() }]
           : []),
         { text: "Annuler", style: "cancel" },
       ],
@@ -200,8 +235,8 @@ export default function ProfileAvatar({
     >
       {busy ? (
         <ActivityIndicator size="small" color="#FFFFFF" />
-      ) : uri ? (
-        <Image source={{ uri }} style={{ width: size, height: size }} />
+      ) : displayUri ? (
+        <Image source={{ uri: displayUri }} style={{ width: size, height: size }} />
       ) : (
         <Text style={{ fontSize, fontWeight: "800", color: "#FFFFFF" }}>
           {initial}
