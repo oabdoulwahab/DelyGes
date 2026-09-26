@@ -8,6 +8,10 @@ import { useModal } from "../providers/ModalProvider";
 import { auth, db as firestore } from "../src/config/firebase";
 import { doc, updateDoc } from "firebase/firestore";
 import { COLORS } from "../styles/colors";
+import {
+  uploadAvatarToR2,
+  stripTimestamp,
+} from "../src/services/avatar.service";
 
 interface ProfileAvatarProps {
   size?: number;
@@ -48,50 +52,111 @@ export default function ProfileAvatar({
   const fontSize = Math.max(Math.round(size * 0.42), 12);
   const uri = user?.photo_uri || null;
 
+  /**
+   * Persiste une photo :
+   * - pickedUri === null -> suppression (stocke NULL en DB).
+   * - sinon -> upload R2 via Worker, puis persiste l'URL publique nettoyée.
+   */
   const savePick = async (pickedUri: string | null) => {
-    if (!user) return;
+    if (!user) {
+      console.warn("[ProfileAvatar] savePick ignoré : user null");
+      return;
+    }
     setBusy(true);
     try {
-      await persistPhotoUri(user.id, pickedUri);
-      await refreshUser().catch(() => {});
+      if (pickedUri === null) {
+        console.log("[ProfileAvatar] Suppression de la photo de profil...");
+        await persistPhotoUri(user.id, null);
+        await refreshUser().catch((e) =>
+          console.warn("[ProfileAvatar] refreshUser après suppression a échoué:", e)
+        );
+        return;
+      }
+
+      // Clé stable multi-appareils : firebase_uid de préférence,
+      // sinon l'id SQLite local (mono-appareil uniquement).
+      const remoteUserId = auth.currentUser?.uid ?? String(user.id);
+      console.log(
+        `[ProfileAvatar] Upload avatar local=${pickedUri} remoteUserId=${remoteUserId}`
+      );
+
+      const { publicUrl } = await uploadAvatarToR2(pickedUri, remoteUserId);
+      const cleanUrl = stripTimestamp(publicUrl);
+      console.log("[ProfileAvatar] Upload OK, persistance:", cleanUrl);
+
+      await persistPhotoUri(user.id, cleanUrl);
+      await refreshUser().catch((e) =>
+        console.warn("[ProfileAvatar] refreshUser après upload a échoué:", e)
+      );
     } catch (e) {
-      console.error("❌ Erreur photo profil:", e);
-      showError("Erreur", "Impossible d'enregistrer la photo");
+      console.error("❌ [ProfileAvatar] Erreur photo profil:", e);
+      showError(
+        "Upload impossible",
+        e instanceof Error ? e.message : "Impossible d'envoyer la photo"
+      );
     } finally {
       setBusy(false);
     }
   };
 
   const pickFromLibrary = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== "granted") {
-      showError("Accès refusé", "Autorise l'accès à la galerie pour choisir une photo.");
-      return;
-    }
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!res.canceled && res.assets?.[0]?.uri) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== "granted") {
+        showError("Accès refusé", "Autorise l'accès à la galerie pour choisir une photo.");
+        return;
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (res.canceled || !res.assets?.[0]?.uri) {
+        console.log("[ProfileAvatar] Sélection galerie annulée");
+        return;
+      }
+      console.log("[ProfileAvatar] Image galerie:", res.assets[0].uri);
+      // savePick gère son propre setBusy : on relâche d'abord pour éviter
+      // un état figé si savePick échoue avant son finally.
+      setBusy(false);
       await savePick(res.assets[0].uri);
+    } catch (e) {
+      console.error("❌ [ProfileAvatar] pickFromLibrary:", e);
+      showError("Erreur", "Impossible d'ouvrir la galerie");
+    } finally {
+      setBusy(false);
     }
   };
 
   const takePhoto = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (perm.status !== "granted") {
-      showError("Accès refusé", "Autorise l'appareil photo pour prendre une photo.");
-      return;
-    }
-    const res = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!res.canceled && res.assets?.[0]?.uri) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (perm.status !== "granted") {
+        showError("Accès refusé", "Autorise l'appareil photo pour prendre une photo.");
+        return;
+      }
+      const res = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      });
+      if (res.canceled || !res.assets?.[0]?.uri) {
+        console.log("[ProfileAvatar] Capture caméra annulée");
+        return;
+      }
+      console.log("[ProfileAvatar] Photo caméra:", res.assets[0].uri);
+      setBusy(false);
       await savePick(res.assets[0].uri);
+    } catch (e) {
+      console.error("❌ [ProfileAvatar] takePhoto:", e);
+      showError("Erreur", "Impossible d'ouvrir la caméra");
+    } finally {
+      setBusy(false);
     }
   };
 

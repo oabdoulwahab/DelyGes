@@ -6,10 +6,8 @@ import {
   Modal,
   TouchableOpacity,
   TouchableWithoutFeedback,
-  Platform,
   Dimensions,
 } from "react-native";
-import { BlurView } from "expo-blur";
 import { MaterialIcons } from "@expo/vector-icons";
 import { COLORS } from "../styles/colors";
 import { commonStyles } from "../styles/common";
@@ -98,11 +96,7 @@ export default function CustomModal({
       <TouchableWithoutFeedback onPress={onClose}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback>
-            <BlurView
-              intensity={Platform.OS === "ios" ? 100 : 90}
-              
-              style={styles.modalContainer}
-            >
+            <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
                 {/* Icon */}
                 <View style={styles.iconContainer}>{getIcon()}</View>
@@ -158,7 +152,7 @@ export default function CustomModal({
                   ))}
                 </View>
               </View>
-            </BlurView>
+            </View>
           </TouchableWithoutFeedback>
         </View>
       </TouchableWithoutFeedback>
@@ -178,14 +172,7 @@ const styles = StyleSheet.create({
     width: Math.min(SCREEN_WIDTH - 40, 400),
     borderRadius: 20,
     overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        backgroundColor: "rgba(30, 30, 30, 0.9)",
-      },
-      android: {
-        backgroundColor: COLORS.card,
-      },
-    }),
+    backgroundColor: COLORS.card,
   },
   modalContent: {
     padding: 24,
@@ -244,7 +231,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
   },
   destructiveButtonText: {
     color: COLORS.danger,
