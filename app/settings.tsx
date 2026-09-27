@@ -464,7 +464,19 @@ export default function Settings() {
     try {
       await syncService.syncAll();
       await loadReputation();
-      showToast("Cache synchronisé");
+      // Vérifie ce qui reste réellement à envoyer (versements inclus)
+      const rest = (
+        await db
+          .getFirstAsync<{ n: number }>(
+            "SELECT COUNT(*) as n FROM settlements WHERE needs_sync = 1",
+          )
+          .catch(() => null)
+      ) ?? { n: 0 };
+      showToast(
+        rest.n > 0
+          ? `${rest.n} versement(s) en attente d'envoi`
+          : "Cache synchronisé — versements envoyés",
+      );
     } catch {
       showError("Erreur", "Synchronisation impossible");
     } finally {

@@ -6,6 +6,7 @@ import { DeliveryRepository } from "../repositories/delivery.repository";
 import { Formatters } from "../utils/formatters";
 import { detectCommune } from "../utils/communes";
 import { useDeliveriesStore } from "../store/deliveries.store";
+import { syncService } from "./sync.service";
 
 export type SettlementChannel = "WAVE" | "ORANGE" | "MTN" | "CASH";
 
@@ -358,10 +359,13 @@ export class SettlementService {
     if (rounded > due) throw new Error("AMOUNT_EXCEEDS_DUE");
 
     const res = await DatabaseService.execute(
-      `INSERT INTO settlements (merchant_id, amount, notes, channel, reference, user_id, needs_sync)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      `INSERT INTO settlements (merchant_id, merchant_firebase_id, amount, notes, channel, reference, user_id, needs_sync)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         merchantId,
+        await MerchantRepository.findById(merchantId)
+          .then((m) => m?.firebase_id ?? null)
+          .catch(() => null),
         rounded,
         reference.trim() || null,
         channel,
@@ -380,6 +384,9 @@ export class SettlementService {
     }
     // Les flags reversed ont changé : Livraisons + Dashboard se rechargent.
     useDeliveriesStore.getState().notifyChanged(userId);
+    // Envoi immédiat vers Firestore (le background fetch n'existe pas
+    // sous Expo Go : sans ceci, l'upload n'aurait jamais lieu).
+    syncService.syncAll().catch((e) => console.log("⚠️ Sync versements différée:", e));
     return { remaining: Math.max(remaining, 0), fullySettled, settlementId };
   }
 

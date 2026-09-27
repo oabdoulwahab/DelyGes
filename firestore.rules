@@ -67,6 +67,21 @@ service cloud.firestore {
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['user_id']));
     }
 
+    // === COLLECTION settlements (versements marchands) ===
+    match /settlements/{settlementId} {
+      allow read: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.user_id == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.user_id == request.auth.uid;
+
+      allow create: if
+        request.resource.data.amount is number &&
+        request.resource.data.user_id is string;
+
+      allow update: if
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['user_id']));
+    }
+
     // Refuser tout le reste
     match /{document=**} {
       allow read, write: if false;

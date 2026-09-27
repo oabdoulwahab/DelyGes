@@ -235,6 +235,7 @@ class SyncService {
     try {
       const localMerchantIds = new Set<string>();
       const localDeliveryIds = new Set<string>();
+      const localSettlementIds = new Set<string>();
 
       const localMerchants = await db.getAllAsync<{ firebase_id: string }>(
         "SELECT firebase_id FROM merchants WHERE firebase_id IS NOT NULL",
@@ -245,6 +246,15 @@ class SyncService {
         "SELECT firebase_id FROM deliveries WHERE firebase_id IS NOT NULL",
       );
       localDeliveries.forEach((d) => localDeliveryIds.add(d.firebase_id));
+
+      const localSettlements = await db
+        .getAllAsync<{ firebase_id: string }>(
+          "SELECT firebase_id FROM settlements WHERE firebase_id IS NOT NULL",
+        )
+        .catch(() => []);
+      localSettlements.forEach((s) => {
+        if (s.firebase_id) localSettlementIds.add(s.firebase_id);
+      });
 
       // Importer les commerçants
       console.log("📦 Import des commerçants...");
@@ -317,12 +327,124 @@ class SyncService {
       }
 
       console.log(`✅ ${deliveryCount} livraisons importées, ${localDeliveryIds.size} existantes`);
+
+      // Importer les versements marchands (restaure l'écran après vidage)
+      console.log("📦 Import des versements...");
+      const settlementsQuery = query(
+        collection(firestore, "settlements"),
+        where("user_id", "==", auth.currentUser.uid),
+      );
+      const settlementsSnapshot = await getDocs(settlementsQuery);
+      const localUserId = await this.getLocalUserId();
+
+      let settlementCount = 0;
+      let settlementSkipped = 0;
+      for (const docSnapshot of settlementsSnapshot.docs) {
+        if (localSettlementIds.has(docSnapshot.id)) continue;
+        const ok = await this.importSingleSettlement(
+          docSnapshot.id,
+          docSnapshot.data(),
+          localUserId,
+        );
+        if (ok) {
+          settlementCount++;
+          localSettlementIds.add(docSnapshot.id);
+        } else {
+          settlementSkipped++;
+        }
+      }
+
+      console.log(
+        `✅ ${settlementCount} versement(s) importé(s), ${settlementSkipped} ignoré(s)`,
+      );
       console.log("📥 Import terminé avec succès");
     } catch (error) {
       console.error("❌ Erreur import:", error);
     } finally {
       this.syncInProgress = false;
       this.lastSyncTime = Date.now();
+    }
+  }
+
+  private async importSingleSettlement(
+    firebaseId: string,
+    data: DocumentData,
+    localUserId: number | null,
+  ): Promise<boolean> {
+    try {
+      if (localUserId === null) return false;
+      // Ne jamais écraser une saisie locale pas encore synchronisée
+      const dirty = await db.getFirstAsync<{ id: number }>(
+        "SELECT id FROM settlements WHERE firebase_id = ? AND needs_sync = 1",
+        [firebaseId],
+      );
+      if (dirty) return false;
+
+      // Résout le marchand local : firebase_id d'abord, nom exact sinon
+      let merchantId: number | null = null;
+      const remoteMerchantId =
+        typeof data.merchant_id === "number" ? data.merchant_id : null;
+      if (typeof data.merchant_firebase_id === "string" && data.merchant_firebase_id) {
+        const byFid = await db.getFirstAsync<{ id: number }>(
+          "SELECT id FROM merchants WHERE firebase_id = ?",
+          [data.merchant_firebase_id],
+        );
+        merchantId = byFid?.id ?? null;
+      }
+      if (merchantId === null) {
+        const merchants = await db.getAllAsync<{ id: number; name: string }>(
+          "SELECT id, name FROM merchants",
+        );
+        const remoteName =
+          typeof data.merchant_name === "string" ? data.merchant_name : null;
+        if (remoteName) {
+          const match = merchants.find(
+            (m) => m.name.trim().toLowerCase() === remoteName.trim().toLowerCase(),
+          );
+          merchantId = match?.id ?? null;
+        }
+        // Dernier recours : l'ID local d'origine (mono-appareil)
+        if (merchantId === null && remoteMerchantId !== null) {
+          const byLocal = await db.getFirstAsync<{ id: number }>(
+            "SELECT id FROM merchants WHERE id = ?",
+            [remoteMerchantId],
+          );
+          merchantId = byLocal?.id ?? null;
+        }
+      }
+      if (merchantId === null) {
+        console.log(
+          `⏭️ Versement ${firebaseId} ignoré : marchand introuvable en local`,
+        );
+        return false;
+      }
+
+      await db.runAsync(
+        `INSERT INTO settlements
+          (merchant_id, merchant_firebase_id, amount, channel, reference, notes,
+           user_id, settled_at, firebase_id, needs_sync, sync_updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        [
+          merchantId,
+          typeof data.merchant_firebase_id === "string"
+            ? data.merchant_firebase_id
+            : null,
+          Number(data.amount) || 0,
+          typeof data.channel === "string" ? data.channel : "CASH",
+          typeof data.reference === "string" ? data.reference : null,
+          typeof data.notes === "string" ? data.notes : null,
+          localUserId,
+          typeof data.settled_at === "string"
+            ? data.settled_at
+            : new Date().toISOString(),
+          firebaseId,
+          new Date().toISOString(),
+        ],
+      );
+      return true;
+    } catch (error) {
+      console.error(`❌ Import versement ${firebaseId}:`, error);
+      return false;
     }
   }
 
@@ -491,6 +613,7 @@ class SyncService {
     try {
       await this.syncMerchants();
       await this.syncDeliveries();
+      await this.syncSettlements();
     } catch (error) {
       console.error("❌ Erreur synchronisation:", error);
     } finally {
@@ -725,6 +848,98 @@ class SyncService {
       console.error(`[DIAG] ${fnId} CATCH — stack: ${stack}`);
       await this.markSyncFailed("deliveries", item.id, msg);
       console.log(`[DIAG] ${fnId} SORTIE — ÉCHEC (${msg})`);
+    }
+  }
+
+  // === SYNC SETTLEMENTS (versements marchands) ===
+
+  private async syncSettlements() {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+
+    const items = await db.getAllAsync<{
+      id: number;
+      merchant_id: number;
+      merchant_firebase_id: string | null;
+      amount: number;
+      channel: string | null;
+      reference: string | null;
+      notes: string | null;
+      settled_at: string;
+      firebase_id: string | null;
+    }>(`SELECT * FROM settlements WHERE needs_sync = 1`);
+
+    if (items.length === 0) return;
+    console.log(`🔄 Synchronisation de ${items.length} versement(s)...`);
+
+    for (const item of items) {
+      await this.syncSingleSettlement(item, uid);
+    }
+  }
+
+  private async syncSingleSettlement(
+    item: {
+      id: number;
+      merchant_id: number;
+      merchant_firebase_id: string | null;
+      amount: number;
+      channel: string | null;
+      reference: string | null;
+      notes: string | null;
+      settled_at: string;
+      firebase_id: string | null;
+    },
+    uid: string,
+  ) {
+    try {
+      const now = new Date().toISOString();
+      const payload: Record<string, unknown> = {
+        merchant_id: item.merchant_id,
+        merchant_firebase_id: item.merchant_firebase_id ?? null,
+        amount: item.amount,
+        channel: item.channel || "CASH",
+        reference: item.reference || null,
+        notes: item.notes || null,
+        user_id: uid,
+        settled_at: item.settled_at,
+        updated_at: now,
+        sync_updated_at: now,
+      };
+
+      if (item.firebase_id) {
+        const remoteDoc = await getDoc(
+          doc(firestore, "settlements", item.firebase_id),
+        );
+        if (remoteDoc.exists()) {
+          await updateDoc(
+            doc(firestore, "settlements", item.firebase_id),
+            payload,
+          );
+        } else {
+          await setDoc(
+            doc(firestore, "settlements", item.firebase_id),
+            payload,
+          );
+        }
+        await db.runAsync(
+          "UPDATE settlements SET needs_sync = 0, sync_updated_at = ? WHERE id = ?",
+          [now, item.id],
+        );
+      } else {
+        const docRef = doc(collection(firestore, "settlements"));
+        await setDoc(docRef, payload);
+        await db.runAsync(
+          "UPDATE settlements SET firebase_id = ?, needs_sync = 0, sync_updated_at = ? WHERE id = ?",
+          [docRef.id, now, item.id],
+        );
+      }
+      console.log(`✅ Versement #${item.id} synchronisé`);
+    } catch (error) {
+      // needs_sync reste à 1 : réessayé au prochain syncAll
+      console.error(
+        `❌ Échec sync versement #${item.id}:`,
+        error instanceof Error ? error.message : error,
+      );
     }
   }
 

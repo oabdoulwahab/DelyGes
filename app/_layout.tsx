@@ -22,6 +22,7 @@ import { addMonthClosuresTable } from "../src/database/migrations/add_month_clos
 import { addSettlementChannels } from "../src/database/migrations/add_settlement_channels";
 import { addProfilePayout } from "../src/database/migrations/add_profile_payout";
 import { addUserPhoto } from "../src/database/migrations/add_user_photo";
+import { addSettlementSync } from "../src/database/migrations/add_settlement_sync";
 import { fixUserPhoneUnique } from "../src/database/migrations/fix_user_phone_unique";
 
 // 🔥 Écran de chargement avec timeout
@@ -143,6 +144,7 @@ export default function Layout() {
         await addSettlementChannels();
         await addProfilePayout();
         await addUserPhoto();
+        await addSettlementSync();
         await fixUserPhoneUnique();
         
         setDbReady(true);

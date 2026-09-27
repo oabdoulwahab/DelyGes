@@ -137,9 +137,18 @@ const loadLocalUser = async (firebaseUid: string) => {
 
       if (!localDeliveryCount || localDeliveryCount.count === 0) {
         setLoadingMessage("Synchronisation des données...");
-        syncService.importFromFirebase().catch(e => console.error("❌ Erreur import depuis Firebase:", e));
+        syncService
+          .importFromFirebase()
+          .catch((e) => console.error("❌ Erreur import depuis Firebase:", e))
+          .finally(() =>
+            // Puis envoie les lignes locales en attente (versements, etc.).
+            // Indispensable sous Expo Go où le background fetch n'existe pas.
+            syncService.syncAll().catch((e) => console.log("⚠️ Sync login différée:", e)),
+          );
       } else {
         console.log(`📦 ${localDeliveryCount.count} livraisons locales existantes, import ignoré`);
+        // Envoie quand même les pendings locaux (ne bloque pas le login).
+        syncService.syncAll().catch((e) => console.log("⚠️ Sync login différée:", e));
       }
     }
   } catch (error) {
